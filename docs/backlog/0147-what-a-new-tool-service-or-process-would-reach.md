@@ -146,6 +146,12 @@ claimed.
    Ruby, and Java entries are the same data change with their own maps; and reading a SARIF file
    from the owner's own CI, rather than running CodeQL here, needs the report's commit compared
    with the code's before a clean result could be credited.
+   **The owner's decision, 9 October 2026, asked by session securevibe-e9:** Ruby, and Java once it is confirmed to
+   stay offline; not Go, whose build fetches the app's modules over the network. **Claimed the same day by session
+   securevibe-e9**, in branch `claude/stackvet-e9-codeql-ruby-java`: `codeql-ruby` first, then `codeql-java` with
+   CodeQL's build mode "none", only after a run here shows it opens no connection. **`Status: proposed`: ADR-078.**
+   Reading a report from the owner's own CI stays unbuilt, as the owner agreed. Read on `main` and the open pull
+   requests just before this claim: no other session had claimed this part.
 8. **The live site, with a TLS scanner (~5, mostly Level 3).** Beside `sv probe`: testssl.sh or
    sslyze for OCSP stapling and Encrypted Client Hello (V12.1.4, V12.1.5), the HSTS preload list
    (V3.7.4), a spoofed `X-Forwarded-For` to see whether rate limiting trusts it (V15.3.4), and,

@@ -618,6 +618,10 @@ listed apart, below this item.
    `sv brief` and `stackvet_before` give briefs for `owned-records`, `api-keys`, `background-jobs`, and
    `organizations`. A brief now names only a condition that brings a requirement, so `api-keys` names none:
    `public-api` is asked and no applicability rule keys on it. Whether it should is left open.
+   **The owner's decision, 9 October 2026, asked by session securevibe-e9:** the `api-keys` brief names V14.2.1
+   (level 1: an API key never in the address or its query string), which already applies to every app, so
+   `public-api` still brings no requirement of its own. **Claimed the same day by session securevibe-e9**, in branch
+   `claude/stackvet-e9-api-keys-brief`.
    **(a) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
    you merge"), in branch `claude/securevibe-e2-passphrase`: when `sv review` makes the signing key, a passphrase is
    what pressing Enter chooses, and having none takes typing `none`; still offered, never required (ADR-043's third

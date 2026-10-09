@@ -413,6 +413,20 @@ steps have not been tried by hand, though StackVet is built on Linux every time 
 **Windows:** StackVet has never been built or tried on Windows, so nothing here is known to work
 there; use the Docker steps above, and leave `--run` out for now.
 
+**The quickest way, on a Mac or on Linux: Homebrew.** If you have [Homebrew](https://brew.sh), one command builds
+StackVet on your computer, fetching what the build needs by itself, and puts `sv` on your path with its data beside
+it. The first install takes a few minutes:
+
+```bash
+brew install --HEAD abbyshade111/stackvet/sv
+sv --version
+```
+
+`--HEAD` means the latest StackVet, since it has no numbered release yet; `brew upgrade --fetch-HEAD sv` updates it.
+This is tried automatically on a Mac and on Linux every week and on every change to the formula
+([github.com/abbyshade111/homebrew-stackvet](https://github.com/abbyshade111/homebrew-stackvet)), but not yet by hand
+on a person's own computer. If it fails, the steps below do the same thing by hand.
+
 **1. The basic tools.** On a Mac, in a terminal:
 
 ```bash

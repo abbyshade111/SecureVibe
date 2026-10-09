@@ -61,3 +61,10 @@ there, is item 8 of "From the architecture assessment of 8 October 2026" and is 
    the SARIF uploaded to code scanning. Adoption more than capability; the image and the SARIF writer exist.
 
 **The owner's decision, 9 October 2026**, asked by session securevibe-e2 with a recommendation for each open choice: **yes to part 3** (fuzzing the readers of untrusted input, weekly in CI), **yes to part 4** (signed releases: the image signed and the binary's provenance published, with GitHub's own keyless signing, which costs nothing), and **yes to part 6, as recommended, after part 4** (a GitHub Action wrapping the signed image). None claimed yet.
+**The owner's word to session securevibe-e9, the same day:** "part 3 - go ahead with the fuzzing please, part 6 I'd
+like to work towards that, but bring me a build plan before executing". **Part 3 claimed 9 October 2026 by session
+securevibe-e9**, in branch `claude/stackvet-e9-fuzz`: `cargo fuzz` targets for the readers named above, a weekly run in
+a workflow of its own, and a crash found turned into an ordinary test before it is fixed. **`Status: proposed`:
+ADR-077.** **Part 6's plan claimed the same day by session securevibe-e9**: a written build plan for the owner, in
+this item, before anything is built; nothing is published or built from it without the owner's word. Read on `main`
+and the open pull requests just before this claim: no other session had claimed part 3 or part 6.
