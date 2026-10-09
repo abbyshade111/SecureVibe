@@ -3,7 +3,6 @@
 //! clean report, and says on its stderr whatever the test puts in `SV_FENCE_LOG`.
 
 use super::*;
-use std::os::unix::fs::PermissionsExt;
 
 const FENCE: &str = r#"#!/bin/sh
 if [ "$1" = --version ]; then echo 1.0; exit 0; fi
@@ -28,8 +27,7 @@ fn secret_rules() -> SecretRules {
 /// something to credit, `env` on its environment, and `extra` fields on its entry.
 fn fence(dir: &Path, env: &[(&str, &str)], extra: serde_json::Value) -> Adapter {
     let script = dir.join("fence");
-    std::fs::write(&script, FENCE).unwrap();
-    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+    crate::test_support::executable(&script, FENCE);
     let script = script.display().to_string();
     let mut entry = serde_json::json!({
         "id": "fence",

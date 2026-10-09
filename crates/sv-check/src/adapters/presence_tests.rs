@@ -124,19 +124,15 @@ fn a_silent_127_is_missing_and_one_that_says_why_is_broken() {
 #[test]
 fn a_program_that_starts_and_exits_127_in_silence_reads_as_missing() {
     // What emulation does to a program that does not exist, played by a real one.
-    use std::os::unix::fs::PermissionsExt;
     let dir = std::env::temp_dir().join(format!("sv-presence-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let silent = dir.join("gone");
-    std::fs::write(&silent, "#!/bin/sh\nexit 127\n").unwrap();
-    std::fs::set_permissions(&silent, std::fs::Permissions::from_mode(0o755)).unwrap();
+    crate::test_support::executable(&silent, "#!/bin/sh\nexit 127\n");
     let loud = dir.join("broken");
-    std::fs::write(
+    crate::test_support::executable(
         &loud,
         "#!/bin/sh\necho 'its interpreter is gone' >&2\nexit 127\n",
-    )
-    .unwrap();
-    std::fs::set_permissions(&loud, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
     let adapter = |command: &std::path::Path| {
         let file: serde_json::Value = serde_json::from_str(
             &std::fs::read_to_string(

@@ -235,16 +235,10 @@ mod tests {
         git_ok(&["update-ref", "refs/heads/signed", &signed]);
         // The program, as a script, since `gpg.program` is run without a shell.
         let script = dir.join("leave-a-mark.sh");
-        std::fs::write(
+        crate::test_support::executable(
             &script,
-            format!("#!/bin/sh\ntouch '{}'\nexit 1\n", mark.display()),
-        )
-        .unwrap();
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
-        }
+            &format!("#!/bin/sh\ntouch '{}'\nexit 1\n", mark.display()),
+        );
         let program = script.display().to_string();
         git_ok(&["config", "log.showSignature", "true"]);
         git_ok(&["config", "gpg.program", &program]);

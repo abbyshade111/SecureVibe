@@ -15,8 +15,7 @@ fn scratch(name: &str) -> PathBuf {
 fn program(dir: &Path, relative: &str) -> PathBuf {
     let path = dir.join(relative);
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-    std::fs::write(&path, "#!/bin/sh\nexit 0\n").unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    crate::test_support::executable(&path, "#!/bin/sh\nexit 0\n");
     path
 }
 
