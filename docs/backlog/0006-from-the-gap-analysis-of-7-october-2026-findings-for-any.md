@@ -81,6 +81,9 @@ listed apart, below this item.
    reports text built from pieces there, and only text: a function handed to an array's `filter` is not read. Both
    Supabase clients then come off its unread list, which leaves the list empty. Read on `main` and the open pull
    requests just before this claim: no other session had claimed it.
+   **That part done the same day** (DESIGN, "The SQL rule reads Supabase's filter text"): `.or`/`.filter` on npm and
+   `.or_`/`.filter` in Python (`crates/sv-check/src/ast/orm_supabase_tests.rs`), and the unread list empty; the
+   hold-back's end-to-end tests run on a stand-in list. With it, both halves of finding 1 are done.
 2. **Dependencies in .NET, Dart, Swift, Elixir, and Deno are invisible, and V15.2.1 is credited anyway.**
    (`docs/GAP-ANALYSIS.md`, 1.5.) Detect `*.csproj`, `packages.lock.json`, `pubspec.yaml`/`.lock`,
    `Package.swift`/`.resolved`, `mix.exs`, and `deno.json`/`.lock` as ecosystems `sv` does not read, so they hold

@@ -2201,3 +2201,6 @@ mod orm_django_laravel_tests;
 
 #[cfg(test)]
 mod orm_mongo_tests;
+
+#[cfg(test)]
+mod orm_supabase_tests;
