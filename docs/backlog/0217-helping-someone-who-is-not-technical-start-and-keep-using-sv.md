@@ -1,6 +1,6 @@
 # Helping someone who is not technical start and keep using sv
 
-**Status:** partly done: the recommendation is written and the owner chose it (9 October 2026); parts 1, 7, 5, and 3 are to build, in that order
+**Status:** claimed by securevibe-e2, 9 October 2026
 
 Asked for by the owner on 8 October 2026: "consider the best way to help someone non-technical start and use sv.
 One thought is to turn the getting started guide into a prompt so the AI tool can walk the person through the
