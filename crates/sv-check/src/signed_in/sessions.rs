@@ -1090,16 +1090,42 @@ pub(super) fn session_id_check(
     users: &UsersSection,
     accounts: &Accounts,
     a: &SignedIn,
+    confirm: Option<&str>,
     signed_in_works: bool,
     out: &mut Outcome,
 ) {
-    if !signed_in_works || a.set_at_login.is_empty() {
+    let say = |why: &str, out: &mut Outcome| {
+        out.not_assessed.push(("V7.2.2".to_owned(), why.to_owned()));
+    };
+    if !signed_in_works {
+        say(
+            "Whether the session is one fixed key: nothing showed the first test user's sign-in \
+             working, so its session says nothing.",
+            out,
+        );
+        return;
+    }
+    if session_values(a).is_empty() {
+        say(
+            "Whether the session is one fixed key: signing in gave no cookie and no token to \
+             compare.",
+            out,
+        );
         return;
     }
     let mut quiet = Vec::new();
     let Some(again) = sign_in(http, users, "a-again", &accounts.a, &mut quiet) else {
+        say(
+            "Whether the session is one fixed key: signing in again gave no session to compare.",
+            out,
+        );
         return;
     };
+    static_session_check(http, a, &again, confirm, out);
+    // V7.2.3 is about the session cookie: an app that signs in with a token has none to judge.
+    if a.set_at_login.is_empty() {
+        return;
+    }
     let mut problems = Vec::new();
     for first in &a.set_at_login {
         let bits = most_bits(&first.value);
@@ -1137,6 +1163,108 @@ pub(super) fn session_id_check(
             problems.join("; "),
         ));
     }
+}
+
+/// The values a sign-in left the session resting on: each cookie the sign-in answer set, by name,
+/// and the token, when the app answered with one.
+fn session_values(s: &SignedIn) -> Vec<(String, String)> {
+    let mut values: Vec<(String, String)> = s
+        .set_at_login
+        .iter()
+        .map(|c| (format!("the cookie `{}`", c.name), c.value.clone()))
+        .collect();
+    if let Some(token) = &s.session.bearer {
+        values.push(("the sign-in token".to_owned(), token.clone()));
+    }
+    values
+}
+
+/// V7.2.2 (ADR-067): whether the session is one fixed key, from the first test user's sign-in and
+/// the next one `session_id_check` makes. A fixed key for everybody, or for each person, is the same
+/// at both. The same value twice is the finding; every one different is credited, once a private
+/// page has opened with the new session, so a sign-in that quietly failed is not taken for a new
+/// session.
+fn static_session_check(
+    http: &mut dyn Http,
+    a: &SignedIn,
+    again: &SignedIn,
+    confirm: Option<&str>,
+    out: &mut Outcome,
+) {
+    let say = |why: String, out: &mut Outcome| out.not_assessed.push(("V7.2.2".to_owned(), why));
+    if again.limited {
+        say(
+            "Whether the session is one fixed key: the app's limit on sign-in attempts answered the \
+             second sign-in, so there was nothing to compare."
+                .to_owned(),
+            out,
+        );
+        return;
+    }
+    let (first, next) = (session_values(a), session_values(again));
+    let mut repeated = Vec::new();
+    let mut unmatched = false;
+    for (name, value) in &first {
+        match next.iter().find(|(n, _)| n == name) {
+            Some((_, other)) if other == value => repeated.push(name.clone()),
+            Some(_) => {}
+            None => unmatched = true,
+        }
+    }
+    out.steps.push(format!(
+        "compared the session values of two sign-ins of the first test user: {}",
+        if repeated.is_empty() {
+            "each different"
+        } else {
+            "one repeated"
+        }
+    ));
+    if !repeated.is_empty() {
+        out.findings.push(finding(
+            &STATIC_SESSION,
+            "The session is one fixed key",
+            Severity::High,
+            format!(
+                "{} had the same value at two separate sign-ins of the first test user.",
+                repeated.join(" and ")
+            ),
+        ));
+        return;
+    }
+    let opened =
+        confirm.is_some_and(|path| ok(&http.send(&get("static-again", path, &again.session))));
+    if unmatched || !opened {
+        let why = if unmatched {
+            "Whether the session is one fixed key: no value repeated, but not every value the first \
+             sign-in set was set again at the second, so they could not all be compared."
+                .to_owned()
+        } else {
+            format!(
+                "Whether the session is one fixed key: no value repeated, but {}, so a sign-in that \
+                 failed quietly cannot be told from a new session.",
+                match confirm {
+                    Some(path) => format!("{path} did not open with the new session"),
+                    None => "stackvet.toml names no private page to open with it".to_owned(),
+                }
+            )
+        };
+        say(why, out);
+        return;
+    }
+    out.verified.push(crate::Verified::new(
+        STATIC_SESSION.rule_id,
+        STATIC_SESSION.requirement_ids,
+        format!(
+            "two sign-ins of the first test user: {} different at each, and the new session opened \
+             {}; how the values are made is V7.2.3's question",
+            first
+                .iter()
+                .map(|(n, _)| n.as_str())
+                .collect::<Vec<_>>()
+                .join(" and "),
+            confirm.unwrap_or_default()
+        ),
+    ));
 }
 
 pub(super) fn session_checks(

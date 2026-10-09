@@ -1,6 +1,6 @@
 # More questions for the running app, and an `upload` entry
 
-**Status:** open
+**Status:** done, 6 October 2026
 
 Asked with what `[stack.run.users]`
 already says. Three are done on 25 September 2026 by session securevibe-e9: `Cache-Control:

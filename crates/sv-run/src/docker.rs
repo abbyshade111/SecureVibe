@@ -935,6 +935,14 @@ impl sv_check::signed_in::Http for DockerHttp<'_> {
             .probe_together(self.via, self.app, self.port, requests)
     }
 
+    fn send_in_turn(
+        &mut self,
+        requests: &[sv_check::probes::ProbeRequest],
+    ) -> Option<Vec<Option<sv_check::probes::ProbeResponse>>> {
+        self.backend
+            .probe_in_turn(self.via, self.app, self.port, requests)
+    }
+
     fn provider(
         &mut self,
         request: &sv_check::probes::ProbeRequest,
@@ -2320,12 +2328,10 @@ fn together_input(
     Some((distinct.concat(), sizes, which))
 }
 
-/// `exchange_script`, for requests sent together. The input, the requests of `sizes` one after
-/// another, is cut into a file each; then every connection is started in the background before any
-/// is waited for, so they reach the app together rather than one after another, copy `i` sending
-/// request `which[i]`. Each answer is kept in its own file and printed in order after all have
-/// finished. The cutting reads a file, not the pipe, so no request takes bytes of the next.
-fn at_once_script(host: &str, port: u16, sizes: &[usize], which: &[usize], mark: &str) -> String {
+/// The two parts `at_once_script` and `in_turn_script` share: the commands that cut the input in
+/// `$d/all` into a file for each request (`$d/r1`, `$d/r2`, …), each ending in `&&`, and the
+/// "copy:request" pairs that say which file each copy sends.
+fn cut_and_pairs(sizes: &[usize], which: &[usize]) -> (String, String) {
     let mut offset = 0;
     let mut cut = String::new();
     for (k, size) in sizes.iter().enumerate() {
@@ -2342,12 +2348,36 @@ fn at_once_script(host: &str, port: u16, sizes: &[usize], which: &[usize], mark:
         .map(|(i, k)| format!("{}:{k}", i + 1))
         .collect();
     let pairs = pairs.join(" ");
+    (cut, pairs)
+}
+
+/// `exchange_script`, for requests sent together. The input, the requests of `sizes` one after
+/// another, is cut into a file each; then every connection is started in the background before any
+/// is waited for, so they reach the app together rather than one after another, copy `i` sending
+/// request `which[i]`. Each answer is kept in its own file and printed in order after all have
+/// finished. The cutting reads a file, not the pipe, so no request takes bytes of the next.
+fn at_once_script(host: &str, port: u16, sizes: &[usize], which: &[usize], mark: &str) -> String {
+    let (cut, pairs) = cut_and_pairs(sizes, which);
     let numbers: Vec<String> = (1..=which.len()).map(|i| i.to_string()).collect();
     let numbers = numbers.join(" ");
     format!(
         "d=$(mktemp -d) && cat > \"$d/all\" && {cut}\
          for p in {pairs}; do i=${{p%:*}}; k=${{p#*:}}; timeout 15 nc -w 5 {host} {port} -e sh -c \"cat $d/r$k; cat 1>&2\" > \"$d/$i\" 2>&1 & done; \
          wait; for i in {numbers}; do printf '\\n{mark}%s@@\\n' \"$i\"; cat \"$d/$i\"; done; rm -rf \"$d\""
+    )
+}
+
+/// `exchange_script`, for requests sent one after another in one call: the input cut as
+/// `at_once_script` cuts it, and then each request sent and its answer read before the next starts,
+/// the marker printed before each answer as `at_once_script` prints it, so `parse_at_once` reads the
+/// output. Each answer goes straight out rather than to a file, so a large one cannot fill the
+/// container's small memory folder and cut the next short.
+fn in_turn_script(host: &str, port: u16, sizes: &[usize], which: &[usize], mark: &str) -> String {
+    let (cut, pairs) = cut_and_pairs(sizes, which);
+    format!(
+        "d=$(mktemp -d) && cat > \"$d/all\" && {cut}\
+         for p in {pairs}; do i=${{p%:*}}; k=${{p#*:}}; printf '\\n{mark}%s@@\\n' \"$i\"; \
+         timeout 15 nc -w 5 {host} {port} -e sh -c \"cat $d/r$k; cat 1>&2\" 2>&1; done; rm -rf \"$d\""
     )
 }
 
@@ -2661,6 +2691,29 @@ impl DockerBackend {
             return None;
         }
         parse_response(&request.id, &out)
+    }
+
+    /// `probe`, for requests sent one after another in one call (`in_turn_script`). `None` when
+    /// one of them cannot be sent at all or the container that sends them did not run.
+    fn probe_in_turn(
+        &self,
+        via: &Via,
+        app: &str,
+        port: u16,
+        requests: &[sv_check::probes::ProbeRequest],
+    ) -> Option<Vec<Option<sv_check::probes::ProbeResponse>>> {
+        let (input, sizes, which) = together_input(requests, app)?;
+        let mark = at_once_mark();
+        let script = in_turn_script(app, port, &sizes, &which, &mark);
+        let (code, out) = self
+            .inside_fence_with_input(via, &["sh", "-c", &script], &input)
+            .ok()?;
+        let first = requests.first().map_or("", |r| r.id.as_str());
+        if self.note_if_sidecar_lost(first, code, &out) || !out.contains(&mark) {
+            return None;
+        }
+        let ids: Vec<&str> = requests.iter().map(|r| r.id.as_str()).collect();
+        Some(parse_at_once(&ids, &out, &mark))
     }
 
     /// `probe`, for requests sent together. `None` when one of them cannot be sent at all or the
@@ -3359,6 +3412,141 @@ mod probe_tests {
             answer.expect("no answer: the reply was dropped while the server worked on it");
         assert_eq!(answer.status, 200);
         assert!(answer.body.contains("late but here"), "{}", answer.body);
+    }
+
+    /// A way to the app that counts how it was asked: each request alone, or several in one go.
+    struct Counting<'a> {
+        inner: DockerHttp<'a>,
+        alone: usize,
+        in_one_go: usize,
+    }
+
+    impl sv_check::signed_in::Http for Counting<'_> {
+        fn send(
+            &mut self,
+            request: &sv_check::probes::ProbeRequest,
+        ) -> Option<sv_check::probes::ProbeResponse> {
+            self.alone += 1;
+            self.inner.send(request)
+        }
+
+        fn send_in_turn(
+            &mut self,
+            requests: &[sv_check::probes::ProbeRequest],
+        ) -> Option<Vec<Option<sv_check::probes::ProbeResponse>>> {
+            self.in_one_go += 1;
+            self.inner.send_in_turn(requests)
+        }
+    }
+
+    #[test]
+    fn requests_in_turn_reach_a_real_server_one_at_a_time_and_come_back_in_order() {
+        // The anonymous questions in one call (`probe_in_turn`). The server takes a moment over
+        // each answer and says how many it was answering at once; asked in turn, never more than
+        // one. Where there is no container backend it says so and stops; where there is one, a
+        // setup that fails is a failure.
+        let backend = DockerBackend::new();
+        if backend.available().is_err() {
+            println!("no container backend here; this needs one");
+            return;
+        }
+        let network = format!("sv-inturn-{}", std::process::id());
+        let server = format!("{network}-app");
+        let _ = backend.docker(&["network", "create", "--internal", &network]);
+        let started = backend.docker(&[
+            "run",
+            "-d",
+            "--rm",
+            "--name",
+            &server,
+            "--network",
+            &network,
+            PROVIDER_IMAGE,
+            "node",
+            "-e",
+            "let n = 0, now = 0, most = 0; require('http').createServer(async (q, s) => { n += 1; const mine = n; now += 1; most = Math.max(most, now); await new Promise(r => setTimeout(r, 300)); now -= 1; s.end(`${q.url} ${mine} ${most}`) }).listen(8080)",
+        ]);
+        let requests: Vec<sv_check::probes::ProbeRequest> = (1..=5)
+            .map(|i| sv_check::probes::ProbeRequest {
+                id: format!("q{i}"),
+                method: "GET".to_owned(),
+                path: format!("/q{i}"),
+                headers: Vec::new(),
+                body: None,
+            })
+            .collect();
+        let answers = matches!(started, Ok((0, _))).then(|| {
+            // Until the server answers, at most 20 seconds: a fixed two seconds was once too short
+            // for it to start listening, and the first question then had no answer.
+            let up = (0..20).any(|_| {
+                let answered = backend
+                    .probe(&Via::FreshContainer(&network), &server, 8080, &requests[0])
+                    .is_some();
+                if !answered {
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                }
+                answered
+            });
+            assert!(up, "the test server never answered");
+            // Asked as a run asks them: through the way into the fence a run uses, counted.
+            let via = Via::FreshContainer(&network);
+            let mut http = Counting {
+                inner: DockerHttp {
+                    backend: &backend,
+                    via: &via,
+                    app: &server,
+                    port: 8080,
+                    mail: None,
+                    provider: None,
+                    browser: None,
+                    model: None,
+                },
+                alone: 0,
+                in_one_go: 0,
+            };
+            let (answers, left_out) = sv_check::signed_in::ask_anonymously(&mut http, &requests);
+            (answers, left_out, http.alone, http.in_one_go)
+        });
+        let _ = backend.docker(&["rm", "-f", &server]);
+        let _ = backend.docker(&["network", "rm", &network]);
+        let (answers, left_out, alone, in_one_go) =
+            answers.unwrap_or_else(|| panic!("the test server did not start: {started:?}"));
+        assert_eq!((in_one_go, alone), (1, 0), "asked in one call, none alone");
+        assert!(left_out.is_empty(), "{left_out:?}");
+        assert_eq!(answers.len(), 5, "{answers:?}");
+        for (i, answer) in answers.iter().enumerate() {
+            assert_eq!(answer.id, format!("q{}", i + 1));
+            assert_eq!(answer.status, 200, "{answer:?}");
+            // Its own path, in the order sent, and never two at once.
+            // The server counts from the question that found it up, so the first here is its second.
+            assert_eq!(
+                answer.body,
+                format!("/q{} {} 1", i + 1, i + 2),
+                "{answers:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn requests_in_turn_wait_for_each_answer_and_keep_none_in_a_file() {
+        let mark = at_once_mark();
+        let script = in_turn_script("app", 8080, &[40, 50], &[1, 2], &mark);
+        // One after another: nothing started in the background, and nothing to wait for after.
+        assert!(!script.contains(" & "), "{script}");
+        assert!(!script.contains("wait"), "{script}");
+        assert!(script.contains("for p in 1:1 2:2; do"), "{script}");
+        // The marker before each answer, and the answer straight to the output, not to a file in
+        // the container's small memory folder.
+        let each = &script[script.find("do ").unwrap()..script.find("done").unwrap()];
+        assert!(
+            each.find(&mark).unwrap() < each.find("nc -w 5 app 8080").unwrap(),
+            "{each}"
+        );
+        assert!(each.trim_end().ends_with("2>&1;"), "{each}");
+        assert!(!each.contains("> \"$d/$i\""), "{each}");
+        // The input is cut as `at_once_script` cuts it.
+        let (cut, _) = cut_and_pairs(&[40, 50], &[1, 2]);
+        assert!(script.contains(&cut), "{script}");
     }
 
     #[test]

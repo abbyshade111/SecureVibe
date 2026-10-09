@@ -1,6 +1,6 @@
 # Evaluate Opengrep against semgrep as the outside tool `sv --tools` runs. Done on 29 September 2026: measured; the recommendation below is the owner's to decide
 
-**Status:** open
+**Status:** done, 3 October 2026
 
 Asked for by the owner on 28
 September 2026. **Claimed on 29 September 2026 by session securevibe-e10**, at the owner's asking, on a machine
