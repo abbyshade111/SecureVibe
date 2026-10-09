@@ -51,6 +51,15 @@ listed apart, below this item.
    all three read and off the list (`crates/sv-check/src/ast/orm_npm_tests.rs`); Drizzle's `sql` template, which keeps
    values apart, is no longer a false alarm at `db.execute`. Mongoose and the MongoDB drivers, Supabase's clients,
    Django, PyMongo, and Laravel remain.
+   **The first half's third part, Django and Laravel, claimed 9 October 2026 by session securevibe-e2**, in branch
+   `claude/securevibe-e2-orm-django-laravel`: Django's `.extra(...)` when the text is built in the call (`%`, `+`,
+   `.format(`, an f-string), and `RawSQL(...)`, a bare call the Python query does not reach today (so a bare
+   `read_sql(...)` imported from pandas is read too); Laravel's `DB::select`, `DB::statement`, `DB::unprepared`, and
+   `DB::raw`, static calls the PHP query does not reach today, and the `...Raw` methods (`whereRaw`, `orderByRaw`,
+   `selectRaw`, and the rest), with the common names (`select`, `insert`, `update`, `delete`) reported only for text
+   built with `.`, `"$var"`, or `sprintf`, so `$model->update([...])` is not. Each comes off `unreadPackages` only
+   with a test of each call. Confirmed on `main` just before this claim: `django`, `laravel/framework`, and
+   `illuminate/database` are on the list, and no other session holds this part.
 2. **Dependencies in .NET, Dart, Swift, Elixir, and Deno are invisible, and V15.2.1 is credited anyway.**
    (`docs/GAP-ANALYSIS.md`, 1.5.) Detect `*.csproj`, `packages.lock.json`, `pubspec.yaml`/`.lock`,
    `Package.swift`/`.resolved`, `mix.exs`, and `deno.json`/`.lock` as ecosystems `sv` does not read, so they hold
