@@ -98,6 +98,21 @@ impl Bits {
 /// zero bytes. About a thousand bytes out for every one in, the most deflate allows.
 pub fn deflate_zeros(n: u64) -> Vec<u8> {
     let mut b = Bits::new();
+    zeros_header(&mut b);
+    if n > 0 {
+        b.code("10"); // the first zero byte
+        let copies = (n - 1) / 258;
+        b.zeros(copies * 2); // each copy: length 258 `0`, distance 1 `0`
+        for _ in 0..(n - 1) % 258 {
+            b.code("10");
+        }
+    }
+    b.code("11"); // the end of the block
+    b.finish()
+}
+
+/// The start of every stream [`deflate_zeros`] writes: the block's header and its three codes.
+fn zeros_header(b: &mut Bits) {
     b.value(1, 1); // the last block
     b.value(2, 2); // with codes of its own
     b.value(286 - 257, 5); // literal/length lengths given: 286
@@ -122,16 +137,6 @@ pub fn deflate_zeros(n: u64) -> Vec<u8> {
     b.value(28 - 11, 7);
     b.code("10");
     b.code("10");
-    if n > 0 {
-        b.code("10"); // the first zero byte
-        let copies = (n - 1) / 258;
-        b.zeros(copies * 2); // each copy: length 258 `0`, distance 1 `0`
-        for _ in 0..(n - 1) % 258 {
-            b.code("10");
-        }
-    }
-    b.code("11"); // the end of the block
-    b.finish()
 }
 
 /// A raw deflate stream that holds `data` as it is, in stored blocks.
@@ -302,6 +307,25 @@ pub fn unpacks_to(format: &str, n: u64) -> Vec<u8> {
     }
 }
 
+/// A zip whose headers say its one file unpacks to `stated` bytes, while its data unpacks to `n`
+/// zero bytes, with the CRC of what really comes out. An app that checks only what a zip states
+/// lets it through; one that counts what it unpacks does not; and a reader that stops at the
+/// stated size and then checks the CRC, as Python's `zipfile` does, unpacks nothing from it and
+/// fails it.
+pub fn stating_less(n: u64, stated: u32) -> Vec<u8> {
+    zip(&[Entry {
+        name: "sv-probe-zeros.txt".to_owned(),
+        method: 8,
+        data: deflate_zeros(n),
+        crc: crc32_of_zeros(n),
+        size: stated,
+    }])
+}
+
+/// What a zip whose stated sizes are false says its file unpacks to: an ordinary small file, and
+/// never more than half the stated most, so the stated size alone is never what is refused.
+const STATED_BYTES: u64 = 1024;
+
 /// A zip holding `n` empty files.
 pub fn holding_files(n: u64) -> Vec<u8> {
     let entries: Vec<Entry> = (0..n)
@@ -350,6 +374,19 @@ fn over_limits(format: ArchiveFormat, upload: &UploadSection) -> (Vec<OverLimit>
                 id: format!("upload-archive-{f}-unpacked"),
                 bytes: unpacks_to(f, n),
             });
+            // The same zip, saying in its headers that it is small: an app that checks only what a
+            // zip states lets this one through (backlog 0029, part 15; ADR-046, later).
+            let stated = STATED_BYTES.min(most / 2);
+            if format == ArchiveFormat::Zip && stated > 0 {
+                sent.push(OverLimit {
+                    what: format!(
+                        "A zip that says it unpacks to {stated} bytes and really unpacks to {n} \
+                         (the stated most is {most})"
+                    ),
+                    id: "upload-archive-zip-stating-less".to_owned(),
+                    bytes: stating_less(n, stated as u32),
+                });
+            }
         }
     }
     if let (Some(most), ArchiveFormat::Zip) = (upload.max_files, format) {
@@ -561,6 +598,34 @@ fn lower_first(s: &str) -> String {
         .unwrap_or_default()
 }
 
+/// How many zero bytes a stream written by [`deflate_zeros`] unpacks to, read back the way it was
+/// written, or `None` for any other stream. The fake app's way of counting what such an archive
+/// really holds, as an app that counts while it unpacks does, without a deflate library.
+#[cfg(test)]
+pub(super) fn zeros_in(deflated: &[u8]) -> Option<u64> {
+    let mut header = Bits::new();
+    zeros_header(&mut header);
+    let header_bits = header.out.len() * 8 + header.count as usize;
+    let header = header.finish();
+    let bit = |i: usize| Some((deflated.get(i / 8)? >> (i % 8)) & 1);
+    for i in 0..header_bits {
+        if bit(i)? != (header[i / 8] >> (i % 8)) & 1 {
+            return None;
+        }
+    }
+    let (mut at, mut total) = (header_bits, 0u64);
+    loop {
+        match (bit(at)?, bit(at + 1)?) {
+            // A copy of 258 bytes, one back: there must be a byte before it to copy.
+            (0, 0) if total > 0 => total += 258,
+            (1, 0) => total += 1,
+            (1, 1) => return Some(total),
+            _ => return None,
+        }
+        at += 2;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::fake_app::*;
@@ -625,10 +690,17 @@ mod tests {
     fn an_app_that_checks_both_limits_is_credited_for_each_archive() {
         let o = run_against(Flaws::default(), &stated());
         let c = credits(&o);
-        assert_eq!(c.len(), 3, "{c:?} / {:?}", unassessed(&o));
+        assert_eq!(c.len(), 4, "{c:?} / {:?}", unassessed(&o));
         assert!(
             c.iter()
                 .any(|s| s.starts_with("a zip that unpacks to 2097152 bytes")),
+            "{c:?}"
+        );
+        assert!(
+            c.iter().any(|s| s.starts_with(
+                "a zip that says it unpacks to 1024 bytes and really unpacks to 2097152 (the \
+                 stated most is 1048576), refused"
+            )),
             "{c:?}"
         );
         assert!(
@@ -664,9 +736,10 @@ mod tests {
             &stated(),
         );
         let f = found(&o);
-        assert_eq!(f.len(), 2, "{f:?}");
+        assert_eq!(f.len(), 3, "{f:?}");
         assert!(f.iter().all(|e| {
             e.contains("unpacks to 2097152 bytes (the stated most is 1048576) was accepted")
+                || e.contains("really unpacks to 2097152 (the stated most is 1048576) was accepted")
         }));
         assert!(
             f.iter()
@@ -677,6 +750,87 @@ mod tests {
             vec![
                 "a zip holding 11 files (the stated most is 10), refused where an ordinary zip and an ordinary file after it were accepted"
             ]
+        );
+    }
+
+    #[test]
+    fn an_app_that_trusts_what_a_zip_says_it_unpacks_to_is_found_by_the_zip_that_says_less() {
+        let o = run_against(
+            Flaws {
+                archive_trusts_stated_sizes: true,
+                ..Default::default()
+            },
+            &stated(),
+        );
+        let f = found(&o);
+        assert_eq!(f.len(), 1, "{f:?}");
+        assert!(
+            f[0].contains(
+                "A zip that says it unpacks to 1024 bytes and really unpacks to 2097152 (the \
+                 stated most is 1048576) was accepted at /upload (201)"
+            ),
+            "{f:?}"
+        );
+        // Every archive that says truly what it holds is still refused, and credited.
+        assert_eq!(credits(&o).len(), 3, "{:?}", credits(&o));
+        assert!(
+            o.steps.iter().any(|s| s.starts_with(
+                "sent a zip that says it unpacks to 1024 bytes and really unpacks to 2097152"
+            ) && s.ends_with("accepted")),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn a_stated_most_too_small_to_say_less_sends_no_zip_that_says_less() {
+        // Half of a stated most of 1 byte is nothing, so a zip saying less than the most cannot be
+        // written; the zip just over the most is still sent.
+        let tiny = with_archives(Some(vec![Zip]), Some(1), None, Some(UPLOAD_LIMIT as u64));
+        let o = run_against(Flaws::default(), &tiny);
+        assert!(
+            !o.steps.iter().any(|s| s.contains("says it unpacks to")),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.starts_with("sent a zip that unpacks to 1048577 bytes")),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn the_fake_apps_reader_counts_what_sv_compresses_and_nothing_else() {
+        for n in [0u64, 1, 2, 257, 258, 259, 516, 2_097_152] {
+            assert_eq!(zeros_in(&deflate_zeros(n)), Some(n), "{n} zeros");
+        }
+        assert_eq!(zeros_in(&deflate_stored(b"not zeros")), None);
+        assert_eq!(zeros_in(&[]), None);
+        // A stream cut short is not read as a smaller one.
+        let whole = deflate_zeros(100_000);
+        assert_eq!(zeros_in(&whole[..whole.len() / 2]), None);
+        // A copy with no byte before it to copy is not a stream deflate allows.
+        let mut b = Bits::new();
+        zeros_header(&mut b);
+        b.code("0");
+        b.code("0");
+        b.code("11");
+        assert_eq!(zeros_in(&b.finish()), None);
+    }
+
+    #[test]
+    fn a_zip_that_says_less_unpacks_to_more_and_pythons_zipfile_refuses_it() {
+        let n = 2_097_152;
+        let zip = stating_less(n, 1024);
+        // What its headers say, and what its data really unpacks to, read past the stated size.
+        assert_eq!(python(READ_PAST_STATED, &zip), format!("1024 {n}"));
+        // `zipfile` stops at the stated size and then checks the CRC, so it fails it.
+        assert!(
+            python_fails(READ_ZIP, &zip),
+            "Python's zipfile read a zip whose stated size is false"
         );
     }
 
@@ -695,7 +849,7 @@ mod tests {
             f[0].contains("A zip holding 11 files (the stated most is 10) was accepted at /upload"),
             "{f:?}"
         );
-        assert_eq!(credits(&o).len(), 2);
+        assert_eq!(credits(&o).len(), 3);
     }
 
     #[test]
@@ -879,16 +1033,16 @@ mod tests {
             app.upload_quota = quota;
             app
         };
-        // The setup: how many files a correct app holds at the end, five of them from here (two
-        // ordinary archives, and an ordinary file after each of the three refusals; the ordinary
+        // The setup: how many files a correct app holds at the end, six of them from here (two
+        // ordinary archives, and an ordinary file after each of the four refusals; the ordinary
         // zip is the first).
         let mut app = fresh(None);
         let o = run(&mut app, &users, &acc, true, &Default::default());
-        assert_eq!(credits(&o).len(), 3);
+        assert_eq!(credits(&o).len(), 4);
         let held = app.uploads.len();
         // Full straight after the ordinary zip: every archive past the limits is refused, and so
         // is the ordinary file after it, so nothing is credited.
-        let mut app = fresh(Some(held - 4));
+        let mut app = fresh(Some(held - 5));
         let o = run(&mut app, &users, &acc, true, &Default::default());
         assert!(
             o.steps
@@ -901,7 +1055,7 @@ mod tests {
             u.iter()
                 .filter(|w| w.contains("but so was an ordinary GIF"))
                 .count()
-                == 2,
+                == 3,
             "{u:?}"
         );
     }
@@ -925,7 +1079,8 @@ mod tests {
             },
             &none,
         );
-        assert_eq!(found(&o).len(), 1);
+        // The zip just over the limit, and the same zip saying it is small.
+        assert_eq!(found(&o).len(), 2);
     }
 
     /// Python's own readers, as an outside judge of what is written here: each archive is unpacked
@@ -948,6 +1103,31 @@ mod tests {
         );
         String::from_utf8(out.stdout).unwrap().trim().to_owned()
     }
+
+    /// Whether Python fails `script` on `data`. A test that cannot find Python says so and fails.
+    fn python_fails(script: &str, data: &[u8]) -> bool {
+        use std::io::Write;
+        let mut child = std::process::Command::new("python3")
+            .args(["-c", script])
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("python3 is needed to check the archives");
+        child.stdin.take().unwrap().write_all(data).unwrap();
+        !child.wait_with_output().unwrap().status.success()
+    }
+
+    /// The first file of a zip: the size its headers state, and how many bytes its data really
+    /// unpacks to, inflated with `zlib` straight from the local header, past the stated size.
+    const READ_PAST_STATED: &str = "import sys,io,zipfile,zlib,struct\n\
+        d=sys.stdin.buffer.read();i=zipfile.ZipFile(io.BytesIO(d)).infolist()[0]\n\
+        o=i.header_offset;n,e=struct.unpack('<HH',d[o+26:o+30]);s=o+30+n+e\n\
+        x=zlib.decompressobj(-15);t=0;r=d[s:s+i.compress_size]\n\
+        while r:\n\
+        \x20b=x.decompress(r,1<<20);t+=len(b);r=x.unconsumed_tail\n\
+        t+=len(x.flush())\n\
+        print(i.file_size,t)";
 
     /// Unpacks a zip with `zipfile`, which checks every file's CRC, and says how many files it
     /// held, how many bytes they came to, and whether every byte was zero (or the text).
