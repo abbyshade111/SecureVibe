@@ -352,6 +352,8 @@ listed apart, below this item.
    took requirements out of the report. **`Status: proposed`: ADR-015, Later, 9 October 2026** (what a missing
    file can agree with). Confirmed on `main` just before this claim: patterns match at the top of the folder only,
    none of the seven names is listed, and no other session holds this half.
+   **The corroborators half done the same day** (`docs/design/0326-infrastructure-and-ci-files-at-any-depth-9-october-2026.md`;
+   ADR-015, Later, 9 October 2026, accepted), with `cloudbuild.yml` beside `cloudbuild.yaml`. Finding 16 is done.
 17. **The answers that set the app's level are the AI tool's, never sealed, and the report does not say so.**
    (`docs/GAP-ANALYSIS.md`, 4.1.) Under the level line, say why and on whose word; let `sv review` seal the scope
    (`audience`, `[data]`); until sealed, show the level 2 count beside it; compare `audience = "just-me"` with a
