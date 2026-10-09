@@ -257,6 +257,13 @@ Fourth Windows finding, the same day: the full list from the next run (2,501 pas
 coming from one cause, randomness read from `/dev/urandom`, which Windows lacks; it is now read through `getrandom`
 on every system (ADR-043, Later). The rest are grouped for the next pull request: the container tests, which need
 Linux containers the Windows runner does not have; file names Windows refuses (`os error 123`); and a few others.
+Fifth Windows finding, the same day, from the workflow's report of what each failure said (65 failed, 2,631 passed):
+five causes. About fifteen tests read the repository's own text (the guide, the README, the decision records, the
+adapter list, the workflows) and found Windows line endings, because a Windows checkout turns LF into CRLF; a
+`.gitattributes` now keeps LF in every checkout, with the paper's CSVs, written with CRLF, left exactly as they are.
+About twenty-five need Linux containers and found Docker running Windows ones; `sv run --path` passed Docker a
+folder as `\\?\D:\...`, which Docker refuses; several tests assume Unix paths, links, or file names; and a few test
+stopping a program the Unix way (Ctrl-C, a lock, a command that runs too long). Each is its own pull request.
 
 Sixth Windows finding, the same day: about twenty-five of the failures were the container tests, and the cause was
 not `sv`'s but the runner's: GitHub's Windows machines run Docker set to Windows containers, and every container

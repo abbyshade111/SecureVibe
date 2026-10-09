@@ -82,12 +82,13 @@ fn the_container_settings_carry_this_folders_real_path_and_say_where_they_go() {
     assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
 }
 
+// Unix only: it makes a symbolic link, which Windows allows only with special rights (backlog 0120).
+#[cfg(unix)]
 #[test]
 fn a_folder_reached_through_a_link_is_named_by_its_real_place() {
     let dir = folder("real");
     let link = std::env::temp_dir().join(format!("sv-connect-link-{}", std::process::id()));
     std::fs::remove_file(&link).ok();
-    #[cfg(unix)]
     std::os::unix::fs::symlink(&dir, &link).unwrap();
     // Named as the link, not entered: the system already gives a folder entered through a link by
     // its real place.
