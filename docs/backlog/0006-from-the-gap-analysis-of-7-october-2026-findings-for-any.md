@@ -453,6 +453,9 @@ listed apart, below this item.
    verdict file, and held to it by a test. Which prompts are shown, and so which `sv` gives (ADR-044), is unchanged, so
    no record is proposed. Read on `main` and the open pull requests just before this claim: no other session had
    claimed it.
+   **That half done the same day**
+   (`docs/design/0328-and-whether-it-worked-when-sv-gave-it-9-october-2026.md`): `delivered` in each prompt's trial
+   record, said in every copy of its status, held to `start-verdicts.json` and `delivery-verdicts.json`. (g) is done.
    **(b) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
    you merge"), in branch `claude/securevibe-e2-resource-fence`: a report the AI tool reads back through the MCP
    server (`resources/read`) comes back as a tool's result does, with the whole of it between `<app-text-…>` tags
