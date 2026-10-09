@@ -51,6 +51,15 @@ listed apart, below this item.
    all three read and off the list (`crates/sv-check/src/ast/orm_npm_tests.rs`); Drizzle's `sql` template, which keeps
    values apart, is no longer a false alarm at `db.execute`. Mongoose and the MongoDB drivers, Supabase's clients,
    Django, PyMongo, and Laravel remain.
+   **The first half's third part, Django and Laravel, claimed 9 October 2026 by session securevibe-e2**, in branch
+   `claude/securevibe-e2-orm-django-laravel`: Django's `.extra(...)` when the text is built in the call (`%`, `+`,
+   `.format(`, an f-string), and `RawSQL(...)`, a bare call the Python query does not reach today (so a bare
+   `read_sql(...)` imported from pandas is read too); Laravel's `DB::select`, `DB::statement`, `DB::unprepared`, and
+   `DB::raw`, static calls the PHP query does not reach today, and the `...Raw` methods (`whereRaw`, `orderByRaw`,
+   `selectRaw`, and the rest), with the common names (`select`, `insert`, `update`, `delete`) reported only for text
+   built with `.`, `"$var"`, or `sprintf`, so `$model->update([...])` is not. Each comes off `unreadPackages` only
+   with a test of each call. Confirmed on `main` just before this claim: `django`, `laravel/framework`, and
+   `illuminate/database` are on the list, and no other session holds this part.
 2. **Dependencies in .NET, Dart, Swift, Elixir, and Deno are invisible, and V15.2.1 is credited anyway.**
    (`docs/GAP-ANALYSIS.md`, 1.5.) Detect `*.csproj`, `packages.lock.json`, `pubspec.yaml`/`.lock`,
    `Package.swift`/`.resolved`, `mix.exs`, and `deno.json`/`.lock` as ecosystems `sv` does not read, so they hold
@@ -218,6 +227,10 @@ listed apart, below this item.
    `.update(**request.get_json())`), in Python, JavaScript, and TypeScript; one field picked out of the body, or the
    body checked by a schema first, is not reported. Confirmed on `main` and in the open pull requests just before this
    claim: no rule reads it, and no other session holds this part.
+   **That part done the same day** (`docs/design/0325-the-whole-request-body-saved-as-it-came-9-october-2026.md`):
+   `ast.request-body-passed-whole` in Python, JavaScript, and TypeScript, only ever a finding, with the fields picked
+   out or the body checked by a schema left alone; four guards broken in turn, each caught. Every part of this finding
+   is now done.
 12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
    Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
    and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
@@ -267,6 +280,14 @@ listed apart, below this item.
    had claimed it.
    **(c) through sign-up done the same day**
    (`docs/design/0301-a-sign-up-that-tells-which-accounts-exist-8-october-2026.md`): `probe.signup-reveals-account`.
+   **(a), on `owned.create`, claimed 9 October 2026 by session securevibe-e9** ("please continue to work through and
+   pick up new items as you merge"), in branch `claude/stackvet-e9-owner-field`: when the record A reads back names
+   its owner (`user_id`, `owner_id`, `userId`, `ownerId`, `owner`, `author_id`, `created_by`), B creates one record
+   with that field set to A's value and one without it. B's record that A then reads as theirs, on A's list or
+   private pages or by its own record naming A as owner, while B's plain one is not, is a finding citing V15.3.3 and
+   V8.2.2; nothing credits. A record that names no owner leaves it not assessed, saying so. `creates` and
+   `change-email` stay unclaimed. Read on `main` and the open pull requests just before this claim: no other session
+   had claimed (a).
 14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
    `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
    `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
