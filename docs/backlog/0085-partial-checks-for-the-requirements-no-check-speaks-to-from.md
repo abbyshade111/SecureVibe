@@ -423,3 +423,14 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     AngularJS, Vue 2, Bootstrap 3 and 4, and jQuery 1 and 2 in the lockfile, the `package.json`, or a CDN address,
     each with the end of its support; it never credits. Not done: a library copied into the app's own files with no
     version in its address.
+18. **V16.3.4: the app's own record of an outside service failing, from the running app. Not verified.** From
+    `docs/PARTIAL-CHECKS.md`: credit when an unexpected error the probes cause shows up in the app's output. The AI
+    checks already make the test model fail on purpose with an error that carries a marker of its own (`SVERR` and
+    the message's tag), and already read the app's output for other markers.
+    **Claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please continue to work through and
+    pick up new items as you merge"), in branch `claude/error-logged`: `probe.ai-service-failure-logged`, credited in
+    part when that marker is in the app's output; never a finding, since an app that logs to a file or a service
+    writes nothing there; not asked without an `ai` section. Session securevibe-e2's open pull request on the test
+    model speaking Gemini (#1189) touches the same files and changes no question; whichever lands second merges the
+    other in. **Record, `Status: proposed`: ADR-071.** Checked just before this claim: not on `main`, in no open pull
+    request, and in no recent branch.
