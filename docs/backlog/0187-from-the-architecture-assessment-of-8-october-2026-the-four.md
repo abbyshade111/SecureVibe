@@ -290,4 +290,10 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    keep the coverage mirror list held to the full test count"). The record is ADR-059, "Later, 9 October 2026". Recorded
    by session securevibe-e2.
 
-**The owner's decision, 9 October 2026**, asked by session securevibe-e2 with a recommendation for each open choice: **yes to part 10's tool fold, as recommended:** `stackvet_questions` folds into `stackvet_check` and the notes-file tool into the answer-recording tool, with the old names still answering, unlisted, for a few weeks, so a flow that calls them by name (the owner's VS Code walk-through called `stackvet_questions`) keeps working while the guide and the tool count change. Not claimed yet.
+**The owner's decision, 9 October 2026**, asked by session securevibe-e2 with a recommendation for each open choice: **yes to part 10's tool fold, as recommended:** `stackvet_questions` folds into `stackvet_check` and the notes-file tool into the answer-recording tool, with the old names still answering, unlisted, for a few weeks, so a flow that calls them by name (the owner's VS Code walk-through called `stackvet_questions`) keeps working while the guide and the tool count change. **Claimed 9 October 2026 by session securevibe-e9**, at
+the owner's word ("go ahead and take the next thing from the backlog"; Phase 2 of the roadmap, the one part of it the
+owner's decision left to build), in branch `claude/stackvet-e9-tool-fold`: `stackvet_check` takes `section:
+"questions"` and gives what `stackvet_questions` gives, and `stackvet_record_answer` takes over what
+`stackvet_notes_file` does, so the server lists eleven tools rather than thirteen; the two old names still answer as
+before, unlisted, and each answer names the tool to call instead; the guide, the README, and the tool counts
+follow. Read on `main` and the open pull requests just before this claim: no other session had claimed it.
