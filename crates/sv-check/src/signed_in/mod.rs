@@ -72,6 +72,7 @@ mod rules;
 mod sessions;
 mod signin;
 mod sql;
+mod stored_markup;
 mod tokens;
 mod totp;
 mod uploads;
@@ -91,6 +92,7 @@ pub(crate) use rules::{Rule, finding};
 use sessions::*;
 use signin::*;
 use sql::*;
+use stored_markup::*;
 use tokens::*;
 use totp::*;
 use uploads::*;
@@ -2352,6 +2354,8 @@ mod page_cookie_tests;
 mod resignup_tests;
 #[cfg(test)]
 mod storage_check_tests;
+#[cfg(test)]
+mod stored_markup_tests;
 
 #[cfg(test)]
 mod tests {
@@ -2485,6 +2489,21 @@ mod tests {
             ),
             (
                 Flaws {
+                    owner_from_request: true,
+                    record_names_owner: true,
+                    ..Default::default()
+                },
+                OWNER_FIELD.rule_id,
+            ),
+            (
+                Flaws {
+                    notes_unescaped: true,
+                    ..Default::default()
+                },
+                STORED_HTML.rule_id,
+            ),
+            (
+                Flaws {
                     no_csrf_check: true,
                     ..Default::default()
                 },
@@ -2611,6 +2630,7 @@ mod tests {
                 no_csrf_check: true,
                 logout_keeps_session: true,
                 no_httponly: true,
+                notes_unescaped: true,
                 ..Default::default()
             },
             &users(),
@@ -2623,6 +2643,7 @@ mod tests {
             FORGERY.rule_id,
             LOGOUT.rule_id,
             SESSION_COOKIE.rule_id,
+            STORED_HTML.rule_id,
         ];
         expected.sort_unstable();
         assert_eq!(found, expected, "{:?}", o.not_assessed);
