@@ -53,6 +53,9 @@ jobs:
           grep -q "Read " check.txt || { echo "::error title=sv check::sv check on examples/flask-booking did not read the app"; exit 1; }
       - name: The whole test suite
         run: |
+          # GitHub runs bash with -e and pipefail; a search that finds nothing must not end the step
+          # before the results are reported. The step still ends with the suite's own status.
+          set +e +o pipefail
           CARGO_TERM_COLOR=never cargo test --workspace --no-fail-fast > suite.txt 2>&1 && status=0 || status=$?
           passed=$(awk '/^test result/{p+=$4} END{print p+0}' suite.txt)
           failed=$(awk '/^test result/{f+=$6} END{print f+0}' suite.txt)
