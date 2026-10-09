@@ -35,6 +35,10 @@ listed apart, below this item.
    built in the call, and its inline conditions (`Find(&users, "id = " + id)`); each comes off `unreadPackages` only
    once every one of its calls named here is read, with a test of each, and stays on otherwise. Confirmed on `main`
    just before this claim: knex and `gorm.io/gorm` are on the list, and no other session holds this part.
+   **That part done the same day** (`docs/design/0323-the-sql-rule-reads-knex-s-and-gorm-s-own-calls-9-october.md`):
+   both read, both off the list, each call with a case that must be found and one that must not
+   (`crates/sv-check/src/ast/orm_raw_tests.rs`). TypeORM, Sequelize, Drizzle, Mongoose and the MongoDB drivers,
+   Supabase's clients, Django, PyMongo, and Laravel remain, each still holding V1.2.4's credit back.
 2. **Dependencies in .NET, Dart, Swift, Elixir, and Deno are invisible, and V15.2.1 is credited anyway.**
    (`docs/GAP-ANALYSIS.md`, 1.5.) Detect `*.csproj`, `packages.lock.json`, `pubspec.yaml`/`.lock`,
    `Package.swift`/`.resolved`, `mix.exs`, and `deno.json`/`.lock` as ecosystems `sv` does not read, so they hold
