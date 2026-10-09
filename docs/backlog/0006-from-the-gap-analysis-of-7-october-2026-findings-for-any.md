@@ -314,6 +314,10 @@ listed apart, below this item.
    whom the other checks rely on. `creates` stays unclaimed: stackvet.toml gives no way to read back what those
    requests make, so an owner sent there could not be seen to take. Read on `main` and the open pull requests just
    before this claim: no other session had claimed it.
+   **(a) on `change-email` done the same day**
+   (`docs/design/0329-a-role-sent-with-an-email-change-9-october-2026.md`): `probe.email-change-role-trusted`, a rule of
+   its own rather than `probe.role-field-trusted`, so the crash check (ADR-021) follows each by its name. `creates`
+   stays open.
    **(g) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
    you merge"), in branch `claude/securevibe-e2-gemini`: the test model answers Google's Gemini format as it answers
    OpenAI's and Anthropic's. A POST whose path ends `:generateContent` or `:streamGenerateContent` (whatever comes

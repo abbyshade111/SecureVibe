@@ -130,6 +130,8 @@ struct Flaws {
     raw_response: bool,
     /// When the model service fails, it passes the service's error on to the person.
     passes_model_error: bool,
+    /// When the model service fails, it writes the service's error to its output (V16.3.4).
+    logs_model_error: bool,
     /// It sets no time limit on the model: a message the model never answers is never answered.
     waits_on_model: bool,
     /// As `waits_on_model`, with one worker: nothing else is answered until the model lets go.
@@ -813,6 +815,11 @@ impl FakeChat {
             .is_some_and(|k| k == "FAIL")
         {
             self.failures += 1;
+            if self.flaws.logs_model_error {
+                self.log.push(format!(
+                    "ERROR model call failed: The test model failed on purpose (SVERR{failing})."
+                ));
+            }
             self.broken = self.flaws.down_after_model_error;
             self.busy_until = self.clock + self.flaws.busy_after_model_error;
             return if self.flaws.passes_model_error {
@@ -1327,6 +1334,85 @@ fn hidden_characters_kept_from_the_model_are_credited_in_part_and_passed_on_are_
         careful.not_assessed
     );
     assert!(!found(&careful).contains(&CHARSET.rule_id));
+}
+
+#[test]
+fn the_ai_service_failing_is_credited_in_part_when_the_app_writes_it_down() {
+    // ADR-071, V16.3.4. Written to its output: credited, in part.
+    let logs = ask_and_read(
+        Flaws {
+            logs_model_error: true,
+            ..Default::default()
+        },
+        Logs::Unrelated,
+    );
+    let credit = logs
+        .verified
+        .iter()
+        .find(|v| v.check_id == FAILURE_LOGGED.rule_id)
+        .unwrap_or_else(|| panic!("{:?}", logs.not_assessed));
+    assert!(credit.in_part, "{credit:?}");
+    assert_eq!(credit.requirement_ids, vec!["V16.3.4"]);
+    // Not written there, or nothing written at all: said, never found.
+    for (logs, words) in [
+        (
+            ask_and_read(Flaws::default(), Logs::Unrelated),
+            "was not in what the app wrote",
+        ),
+        (
+            ask_and_read(Flaws::default(), Logs::Nothing),
+            "was not in what the app wrote",
+        ),
+    ] {
+        assert!(!credited(&logs).contains(&FAILURE_LOGGED.rule_id));
+        assert!(!found(&logs).contains(&FAILURE_LOGGED.rule_id));
+        assert!(
+            why(&logs, "V16.3.4").iter().any(|w| w.contains(words)),
+            "{:?}",
+            logs.not_assessed
+        );
+    }
+    // Another marker of the same failure is not enough: the error of a different message.
+    let mut app = FakeChat {
+        flaws: Flaws {
+            logs_model_error: true,
+            ..Default::default()
+        },
+        logs: Logs::Unrelated,
+        ..Default::default()
+    };
+    let (mut o, markers) = run(&mut app, &section(), &context(None, &NO_POLICY));
+    let elsewhere = app.log.join("\n").replace("SVERR", "SVERR0");
+    logged(&markers, &elsewhere, &mut o);
+    assert!(
+        !credited(&o).contains(&FAILURE_LOGGED.rule_id),
+        "{:?}",
+        o.verified
+    );
+    // No failure caused (the model is never reached): said as not asked.
+    let unreached = ask_and_read(
+        Flaws {
+            ignores_base_url: true,
+            ..Default::default()
+        },
+        Logs::Full,
+    );
+    assert!(!credited(&unreached).contains(&FAILURE_LOGGED.rule_id));
+    // The AI feature answered, and the failure never reached the test model: said so.
+    let mut o = Outcome::default();
+    logged(&call_markers(), "ERROR SVERRabc123", &mut o);
+    assert!(
+        !credited(&o).contains(&FAILURE_LOGGED.rule_id),
+        "{:?}",
+        o.verified
+    );
+    assert!(
+        why(&o, "V16.3.4")
+            .iter()
+            .any(|w| w.contains("did not reach it, so there was no failure")),
+        "{:?}",
+        o.not_assessed
+    );
 }
 
 #[test]
@@ -2820,6 +2906,7 @@ fn counts_must_stand_as_numbers_of_their_own() {
         injection: None,
         model_reached: true,
         who: None,
+        failure: None,
     };
     // 44321 and 12345 contain the counts but are not them.
     let mut o = Outcome::default();
@@ -2848,6 +2935,7 @@ fn call_markers() -> LogMarkers {
         injection: Some("abc123".into()),
         model_reached: true,
         who: None,
+        failure: None,
     }
 }
 

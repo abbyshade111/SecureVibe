@@ -61,6 +61,7 @@ mod archives;
 mod burst;
 mod codes;
 mod cross_site;
+mod email_role;
 mod flows;
 mod forgery;
 mod once;
@@ -80,6 +81,7 @@ use activation::*;
 use admin::*;
 use burst::*;
 use codes::*;
+use email_role::*;
 use flows::*;
 use forgery::*;
 use once::*;
@@ -1097,6 +1099,10 @@ const RESTS_ON_A_REFUSAL: &[(&str, &[&str])] = &[
     (PRIVATE_PAGE.rule_id, &["private-anonymous"]),
     (ADMIN_PAGE.rule_id, &["login-a", "admin-a"]),
     (ROLE_FIELD.rule_id, &["role-admin-"]),
+    (
+        EMAIL_ROLE_FIELD.rule_id,
+        &["email-role-admin-", "email-role-change"],
+    ),
     (
         OTHER_USERS_DATA.rule_id,
         &[
@@ -2176,6 +2182,14 @@ fn run_checks(
         confirm.as_deref(),
         &mut out
     ));
+    //     The same fields sent with an email change, by an account made for it (finding 13(a)).
+    quiet!(email_role_check(
+        http,
+        users,
+        accounts,
+        confirm.as_deref(),
+        &mut out
+    ));
     // 9e. The action that should go through once, sent many times at the same instant by A.
     asked!(
         out,
@@ -2342,6 +2356,8 @@ pub(crate) fn sign_up(
 mod asked_tests;
 #[cfg(test)]
 mod check_guard_tests;
+#[cfg(test)]
+mod email_role_tests;
 #[cfg(test)]
 mod fake_app;
 #[cfg(test)]
@@ -3962,6 +3978,7 @@ mod crash_tests {
                         booking_races: true,
                         code_guessing_unlimited: true,
                         signup_trusts_role: true,
+                        email_change_trusts_role: true,
                         ..Default::default()
                     },
                     signed_up,

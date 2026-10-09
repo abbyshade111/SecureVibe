@@ -1427,7 +1427,7 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
     }
     more_questions(http, section, &mut ask, shows_replies, &mut out);
     shape_questions(http, &mut ask, shows_replies, &mut out);
-    failure_questions(http, &mut ask, shows_replies, &mut out);
+    markers.failure = failure_questions(http, &mut ask, shows_replies, &mut out);
     record_tool_questions(http, section, &mut ask, records, &mut out);
     retrieval_questions(http, &mut ask, notes, &mut out);
     // Last, because an app it holds may answer nothing until the test model lets go.
@@ -2169,7 +2169,14 @@ where
 /// limiter's answer on that second message (a 429, or a 503 with `Retry-After`, as ADR-021 reads
 /// them) says nothing either way: it is waited out and the message sent once more, and if the
 /// limiter answers again it is not assessed (item 7 of the review of 1 to 4 October).
-fn failure_questions<F>(http: &mut dyn Http, ask: &mut F, shows_replies: bool, out: &mut Outcome)
+/// Returns the failed message's tag when the failure reached the test model, for V16.3.4's look
+/// at the app's output after the run (ADR-071).
+fn failure_questions<F>(
+    http: &mut dyn Http,
+    ask: &mut F,
+    shows_replies: bool,
+    out: &mut Outcome,
+) -> Option<String>
 where
     F: FnMut(&mut dyn Http, u32, &str, &str) -> (String, Option<ProbeResponse>),
 {
@@ -2184,7 +2191,7 @@ where
                 status(&failed_answer)
             ),
         ));
-        return;
+        return None;
     }
     let shown: Vec<String> = failed_answer
         .as_ref()
@@ -2288,6 +2295,7 @@ where
                 .to_owned(),
         ));
     }
+    Some(failed)
 }
 
 /// How long the test model holds a HANG message before closing it unanswered, as `HANG_SECONDS`
@@ -3037,6 +3045,9 @@ pub struct LogMarkers {
     pub model_reached: bool,
     /// The signed-in test user the AI feature was asked as, when it was asked signed in.
     pub who: Option<String>,
+    /// The tag of the message the test model failed on, when the failure reached it: its error
+    /// carries `SVERR` and this tag, which nothing else in the run writes (V16.3.4, ADR-071).
+    pub failure: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -3044,6 +3055,58 @@ pub struct Call {
     pub model: String,
     pub input_tokens: u64,
     pub output_tokens: u64,
+}
+
+/// V16.3.4 (ADR-071): only ever credited, and in part, so its impact and fix say what the credit
+/// stands for.
+const FAILURE_LOGGED: Rule = Rule {
+    rule_id: "probe.ai-service-failure-logged",
+    requirement_ids: &["V16.3.4"],
+    cwe: &["CWE-778"],
+    impact: "An outside service failing, which nothing in the app expected, leaves no trace to find \
+             the cause by, or to see that it keeps happening.",
+    fix: "Write every unexpected error to the app's log, with the error's own message and what the \
+          app was doing, and never the secrets or personal data in the request.",
+};
+
+/// V16.3.4, from the app's output after the run: the failed message's marker found in it credits,
+/// in part; not found says nothing either way, since an app that logs elsewhere writes nothing
+/// there. Asked whenever the AI checks ran, before anything else here can return.
+fn failure_logged(markers: &LogMarkers, log: &str, out: &mut Outcome) {
+    if markers.call.is_none() && markers.injection.is_none() && markers.failure.is_none() {
+        return;
+    }
+    let why = match &markers.failure {
+        None => Some(
+            "Whether the app logs an unexpected error: the message the test model was to fail on \
+             did not reach it, so there was no failure to look for."
+                .to_owned(),
+        ),
+        Some(tag) if log.contains(&format!("SVERR{tag}")) => {
+            out.verified.push(
+                crate::Verified::new(
+                    FAILURE_LOGGED.rule_id,
+                    FAILURE_LOGGED.requirement_ids,
+                    "the AI service failing one message on purpose: the app's output carried the \
+                     service's own error for it; one kind of failure of one service, not every \
+                     unexpected error or security control failure"
+                        .to_owned(),
+                )
+                .in_part(),
+            );
+            None
+        }
+        Some(_) => Some(
+            "Whether the app logs an unexpected error: the AI service failed one message on \
+             purpose, and its error was not in what the app wrote to its output. That is not a \
+             finding: an app that logs to a file or a service writes nothing there."
+                .to_owned(),
+        ),
+    };
+    if let Some(why) = why {
+        out.not_assessed.push(("V16.3.4".to_owned(), why));
+    }
+    crate::verified::unless_credited(FAILURE_LOGGED.rule_id, &out.verified);
 }
 
 const CALL_LOG: Rule = Rule {
@@ -3186,6 +3249,7 @@ pub fn logged(markers: &LogMarkers, log: &str, out: &mut Outcome) {
     let say = |ids: &str, why: String, out: &mut Outcome| {
         out.not_assessed.push((ids.to_owned(), why));
     };
+    failure_logged(markers, log, out);
     if markers.call.is_none() && markers.injection.is_none() {
         return;
     }

@@ -35,7 +35,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Can be credited | Supporting only | Nothing |
 |---|---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 172 (50%) | 121 (35%) | 10 | 163 |
+| OWASP ASVS 5.0 | 345 | 173 (50%) | 122 (35%) | 10 | 162 |
 | OWASP AISVS 1.0 | 191 | 42 (22%) | 23 (12%) | 0 | 149 |
 | AISVS Appendix C | 68 | 3 (4%) | 2 (3%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 0 (0%) | 11 | 25 |
@@ -47,10 +47,10 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Can be credited | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 58 | 44 | 17 | 1 | 6 | 39 | 21 | 3 |
-| L2 | 183 | 93 | 68 | 24 | 0 | 19 | 47 | 28 | 2 |
+| L2 | 183 | 94 | 69 | 24 | 0 | 20 | 47 | 28 | 2 |
 | L3 | 92 | 21 | 9 | 3 | 0 | 8 | 2 | 6 | 3 |
 
-51 of the 172 ASVS requirements that can be settled can only ever be marked *needs attention*: a check can show the control missing, and finding nothing does not show it present, so a clean run credits none of them. They are counted under *Can settle* and not under *Can be credited*, and the kinds of check above count every requirement a check can settle either way.
+51 of the 173 ASVS requirements that can be settled can only ever be marked *needs attention*: a check can show the control missing, and finding nothing does not show it present, so a clean run credits none of them. They are counted under *Can settle* and not under *Can be credited*, and the kinds of check above count every requirement a check can settle either way.
 
 With nothing beyond plain `sv check`, 44 ASVS requirements can be settled. 25 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
@@ -81,7 +81,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V13 Configuration | 21 | 10 | 3 | 1 | 10 |
 | V14 Data Protection | 13 | 4 | 2 | 2 | 7 |
 | V15 Secure Coding and Architecture | 21 | 12 | 7 | 0 | 9 |
-| V16 Security Logging and Error Handling | 17 | 11 | 9 | 0 | 6 |
+| V16 Security Logging and Error Handling | 17 | 12 | 10 | 0 | 5 |
 | V17 WebRTC | 12 | 0 | 0 | 0 | 12 |
 
 ## ASVS 5.0 requirement by requirement
@@ -132,10 +132,10 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.3 | L2 | Reads the code: `config.development-server-started`; The running app: `probe.development-console-open` (sv only ever as a finding: `config.development-server-started`, `probe.development-console-open`) |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` (sv only ever as a finding: `ast.download-piped-to-shell`) |
-| V15.3.3 | L2 | Reads the code: `ast.request-body-passed-whole`; Signed in: `probe.role-field-trusted`, `probe.owner-field-trusted`; Outside tools: `brakeman`, `semgrep` (sv only ever as a finding: `ast.request-body-passed-whole`, `probe.owner-field-trusted`, `probe.role-field-trusted`) |
+| V15.3.3 | L2 | Reads the code: `ast.request-body-passed-whole`; Signed in: `probe.role-field-trusted`, `probe.email-change-role-trusted`, `probe.owner-field-trusted`; Outside tools: `brakeman`, `semgrep` (sv only ever as a finding: `ast.request-body-passed-whole`, `probe.email-change-role-trusted`, `probe.owner-field-trusted`, `probe.role-field-trusted`) |
 | V16.5.3 | L2 | Reads the code: `ast.check-passes-on-error` (sv only ever as a finding: `ast.check-passes-on-error`) |
 
-### Settled by asking the running app (114)
+### Settled by asking the running app (115)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -214,7 +214,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V7.5.1 | L2 | Signed in: `probe.email-change-without-password` |
 | V8.2.1 | L1 | Reads the code: `config.firebase-rules-open`, `config.supabase-table-without-rls`, `config.supabase-policy-allows-all`; Signed in: `probe.private-page-anonymous`, `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user` (sv only ever as a finding: `config.firebase-rules-open`, `config.supabase-policy-allows-all`, `config.supabase-table-without-rls`) |
 | V8.2.2 | L1 | Reads the code: `config.firebase-rules-open`, `config.supabase-table-without-rls`, `config.supabase-policy-allows-all`; Signed in: `probe.owner-field-trusted`, `probe.other-users-data` (sv only ever as a finding: `config.firebase-rules-open`, `config.supabase-policy-allows-all`, `config.supabase-table-without-rls`, `probe.owner-field-trusted`) |
-| V8.2.3 | L2 | Signed in: `probe.role-field-trusted`, `probe.owner-field-trusted`, `probe.record-returns-secret-fields` (sv only ever as a finding: `probe.owner-field-trusted`, `probe.record-returns-secret-fields`, `probe.role-field-trusted`) |
+| V8.2.3 | L2 | Signed in: `probe.role-field-trusted`, `probe.email-change-role-trusted`, `probe.owner-field-trusted`, `probe.record-returns-secret-fields` (sv only ever as a finding: `probe.email-change-role-trusted`, `probe.owner-field-trusted`, `probe.record-returns-secret-fields`, `probe.role-field-trusted`) |
 | V8.4.2 | L3 | The running app: `probe.admin-opened-by-address` (sv only ever as a finding: `probe.admin-opened-by-address`) |
 | V9.1.1 | L1 | Reads the code: `ast.token-signature-not-checked`; Signed in: `probe.app-token-signature-not-checked`, `probe.app-token-placeholder-key`; Outside tools: `semgrep`, `codeql-javascript` (sv only ever as a finding: `ast.token-signature-not-checked`, `probe.app-token-placeholder-key`) |
 | V9.1.2 | L1 | Signed in: `probe.app-token-alg-none`; Outside tools: `semgrep` |
@@ -243,13 +243,14 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V15.2.3 | L2 | Reads the code: `config.development-server-started`; The running app: `probe.development-console-open` (sv only ever as a finding: `config.development-server-started`, `probe.development-console-open`) |
 | V15.3.1 | L1 | Signed in: `probe.record-returns-secret-fields` (sv only ever as a finding: `probe.record-returns-secret-fields`) |
 | V15.3.2 | L2 | The running app: `probe.fetch-follows-redirect` |
-| V15.3.3 | L2 | Reads the code: `ast.request-body-passed-whole`; Signed in: `probe.role-field-trusted`, `probe.owner-field-trusted`; Outside tools: `brakeman`, `semgrep` (sv only ever as a finding: `ast.request-body-passed-whole`, `probe.owner-field-trusted`, `probe.role-field-trusted`) |
+| V15.3.3 | L2 | Reads the code: `ast.request-body-passed-whole`; Signed in: `probe.role-field-trusted`, `probe.email-change-role-trusted`, `probe.owner-field-trusted`; Outside tools: `brakeman`, `semgrep` (sv only ever as a finding: `ast.request-body-passed-whole`, `probe.email-change-role-trusted`, `probe.owner-field-trusted`, `probe.role-field-trusted`) |
 | V15.3.4 | L2 | Signed in: `probe.forwarded-for-trusted` (sv only ever as a finding: `probe.forwarded-for-trusted`) |
 | V16.2.1 | L2 | Signed in: `probe.log-line-metadata` |
 | V16.2.2 | L2 | Signed in: `probe.log-timestamp-zoned` |
 | V16.2.4 | L2 | Signed in: `probe.log-common-format` |
 | V16.3.1 | L2 | Signed in: `probe.authentication-logged` |
 | V16.3.2 | L2 | Signed in: `probe.authorization-failure-logged` |
+| V16.3.4 | L2 | The running app: `probe.ai-service-failure-logged` |
 | V16.5.1 | L2 | The running app: `probe.error-detail-leak`, `probe.ai-service-error-shown` (sv only ever as a finding: `probe.ai-service-error-shown`) |
 | V16.5.2 | L2 | The running app: `probe.ai-service-failure-handled` |
 | V16.5.4 | L3 | The running app: `probe.app-stopped-during-questions` (sv only ever as a finding: `probe.app-stopped-during-questions`) |
@@ -298,7 +299,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V2.3.4 | L2 | Signed in: `probe.action-done-twice` |
 | V5.4.3 | L2 | Signed in: `probe.upload-not-scanned` |
 | V6.2.12 | L2 | Signed in: `probe.breached-password-accepted` |
-| V8.3.1 | L1 | Signed in: `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user`, `probe.role-field-trusted` (sv only ever as a finding: `probe.role-field-trusted`) |
+| V8.3.1 | L1 | Signed in: `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user`, `probe.role-field-trusted`, `probe.email-change-role-trusted` (sv only ever as a finding: `probe.email-change-role-trusted`, `probe.role-field-trusted`) |
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |
 | V12.2.2 | L1 | Your own live site: `probe.certificate-not-trusted` |
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.openai-key`, `secrets.huggingface-token`, `secrets.aws-access-key` and 22 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` (sv only ever as a finding: `config.secret-under-public-name`, `secrets.credential-assignment`, `secrets.password-in-url`) |
