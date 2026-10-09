@@ -126,7 +126,7 @@ fn a_where_built_from_pieces_is_found_in_go() {
 }
 
 #[test]
-fn the_mongodb_packages_are_off_the_unread_list_and_supabase_is_not() {
+fn the_mongodb_packages_are_off_the_unread_list() {
     let rule = rules().rules().find(|r| r.id == RULE).unwrap();
     let listed = |ecosystem: &str, package: &str| {
         rule.unread_packages
@@ -142,8 +142,10 @@ fn the_mongodb_packages_are_off_the_unread_list_and_supabase_is_not() {
     ] {
         assert!(!listed(ecosystem, package), "{ecosystem}: {package}");
     }
-    // The setup: the list is still read, and Supabase's filter text is still on it.
-    assert!(listed("npm", "@supabase/supabase-js") && listed("Python", "supabase"));
+    // The setup: the list is still read.
+    assert!(
+        rule.unread_packages.contains_key("npm") && rule.unread_packages.contains_key("Python")
+    );
 }
 
 #[test]

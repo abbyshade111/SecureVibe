@@ -450,3 +450,11 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     **Done on 9 October 2026** (DESIGN, "The app's log files served to anybody who asks (9 October 2026)"; ADR-072,
     accepted). `probe.log-file-served` asks for nine common log addresses, not signed in, and finds one answered with
     lines that read as a log; it never credits. Not done: the static half, and whether a log can be modified.
+20. **C12.2.5: token use recorded for each user, from the running app. Not verified.** From
+    `docs/PARTIAL-CHECKS.md`: the line the AI checks already find as the record of one model call, by the token counts
+    the test model gave it, read again for whose call it was.
+    **Claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please continue whenever you're
+    ready"), in branch `claude/token-attribution`: `probe.ai-token-use-attributed`, credited in part when that line
+    names the signed-in test user or carries a user or session field, since the requirement's per-feature and per-team
+    parts cannot be seen; never a finding, since the same may be recorded elsewhere. **Record, `Status: proposed`:
+    ADR-073.** Checked just before this claim: not on `main`, in no open pull request, and in no recent branch.

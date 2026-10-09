@@ -127,3 +127,83 @@ fn it_writes_only_into_its_own_folder() {
     assert!(again.status.success(), "{}", said(&again));
     assert!(gone && kept);
 }
+
+#[test]
+fn the_board_page_sorts_the_items_by_status_and_carries_the_tools_counts() {
+    let dir = scratch("board");
+    let out = script(&["--out", dir.to_str().unwrap()]);
+    let board = std::fs::read_to_string(dir.join("backlog-board.html")).unwrap_or_default();
+    let index = std::fs::read_to_string(dir.join("index.html")).unwrap_or_default();
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(out.status.success(), "{}", said(&out));
+    // The counts are the tool's own, so the page and `tools/backlog.py summary` cannot drift apart.
+    let summary = Command::new("python3")
+        .arg("-I")
+        .arg(repo().join("tools/backlog.py"))
+        .arg("summary")
+        .output()
+        .expect("python3 runs");
+    let counts = String::from_utf8_lossy(&summary.stdout).trim().to_owned();
+    assert!(counts.contains(" items: "), "the setup: {counts}");
+    assert!(board.contains(&counts), "the board carries {counts:?}");
+    assert!(
+        index.contains(&counts) && index.contains("backlog-board.html"),
+        "the index links the board"
+    );
+    // Every item once: a table row per item and three header rows, so an item filed under two headings, or
+    // under none, is caught by the count alone.
+    let total: usize = counts
+        .split(' ')
+        .next()
+        .unwrap()
+        .parse()
+        .expect("the summary starts with the count");
+    assert_eq!(
+        board.matches("<tr>").count(),
+        total + 3,
+        "one row per item, plus a header row per table"
+    );
+    // Three headings in this order, and each item under the right one: the first open item the tool lists is
+    // under "Still to come", and the first claimed one under "Being worked on".
+    let at = |needle: &str| {
+        board
+            .find(needle)
+            .unwrap_or_else(|| panic!("{needle:?} is on the board"))
+    };
+    let (working, coming, done) = (at("Being worked on"), at("Still to come"), at(">Done <"));
+    assert!(
+        working < coming && coming < done,
+        "the headings are in order"
+    );
+    let first_title = |flag: &str| -> String {
+        let list = Command::new("python3")
+            .arg("-I")
+            .arg(repo().join("tools/backlog.py"))
+            .args(["list", flag])
+            .output()
+            .expect("python3 runs");
+        let line = String::from_utf8_lossy(&list.stdout)
+            .lines()
+            .next()
+            .unwrap_or_default()
+            .to_owned();
+        // The list prints the number, the kind, the parts, the sessions, then the title, cut at 80 characters.
+        line.split_whitespace()
+            .skip(1)
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    for (flag, from, to) in [("--open", coming, done), ("--claimed", working, coming)] {
+        let title = first_title(flag);
+        let word = title
+            .rsplit(' ')
+            .find(|w| w.len() > 5)
+            .unwrap_or(&title)
+            .to_owned();
+        let section = &board[from..to];
+        assert!(
+            section.contains(&word) || section.contains(&title.replace('`', "")),
+            "the first {flag} item ({title:?}) is under its heading"
+        );
+    }
+}

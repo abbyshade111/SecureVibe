@@ -81,6 +81,9 @@ listed apart, below this item.
    reports text built from pieces there, and only text: a function handed to an array's `filter` is not read. Both
    Supabase clients then come off its unread list, which leaves the list empty. Read on `main` and the open pull
    requests just before this claim: no other session had claimed it.
+   **That part done the same day** (DESIGN, "The SQL rule reads Supabase's filter text"): `.or`/`.filter` on npm and
+   `.or_`/`.filter` in Python (`crates/sv-check/src/ast/orm_supabase_tests.rs`), and the unread list empty; the
+   hold-back's end-to-end tests run on a stand-in list. With it, both halves of finding 1 are done.
 2. **Dependencies in .NET, Dart, Swift, Elixir, and Deno are invisible, and V15.2.1 is credited anyway.**
    (`docs/GAP-ANALYSIS.md`, 1.5.) Detect `*.csproj`, `packages.lock.json`, `pubspec.yaml`/`.lock`,
    `Package.swift`/`.resolved`, `mix.exs`, and `deno.json`/`.lock` as ecosystems `sv` does not read, so they hold
@@ -263,6 +266,17 @@ listed apart, below this item.
    `ast.request-body-passed-whole` in Python, JavaScript, and TypeScript, only ever a finding, with the fields picked
    out or the body checked by a schema left alone; four guards broken in turn, each caught. Every part of this finding
    is now done.
+   **The `none` algorithm claimed 9 October 2026 by session securevibe-e9** ("please continue to work through and
+   pick up new items as you merge"), in branch `claude/stackvet-e9-token-none`. The part of this finding still open:
+   the running check (`probe.app-token-alg-none`) and Semgrep speak to it, and plain `sv check` does not. It adds a code
+   rule, `ast.token-none-algorithm`, citing V9.1.2 and only ever a finding, for a token check whose list of accepted
+   algorithms includes `none`. That covers PyJWT and python-jose's `algorithms=[...]`, jsonwebtoken's
+   `algorithms: [...]`, golang-jwt's `WithValidMethods` and `UnsafeAllowNoneSignatureType`, and ruby-jwt's
+   `algorithm:`. A list without `none`, or `none` in an unrelated setting, is not reported. Read on `main` and the
+   open pull requests just before this claim: no other session had claimed it.
+   **The `none` algorithm done the same day** (DESIGN, "A token check that accepts the none algorithm"):
+   `ast.token-none-algorithm` in Python, JavaScript and TypeScript, Go, and Ruby (`crates/sv-check/src/ast/token_none_tests.rs`),
+   only ever a finding. With it, every part of finding 11 is done.
 12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
    Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
    and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
@@ -510,6 +524,16 @@ listed apart, below this item.
 21. **The loop trials cannot tell fixing from dodging.** (`docs/GAP-ANALYSIS.md`, 4.5.) Add to the trial measures
    how each finding went away, and credit-seeking edits (ids added to tests, `by = "owner"`, finding reviews,
    `not-the-app` or scope changes); run an outside tool as an independent check of the loop arm.
+   **The measures (the first half) claimed 9 October 2026 by session securevibe-e9** ("please continue to work
+   through and pick up new items as you merge"), in branch `claude/stackvet-e9-loop-dodging`. The loop trials'
+   scoring script (`docs/prompts/loop-pilot/loop_measures.py`) gains two measures, read from each build's transcript:
+   - **How each finding went away.** For a finding one `sv` check reported and a later one did not, whether the code
+     at it was changed, it was set aside (a finding review, `not-the-app`, or a scope change), or its file was removed.
+   - **Credit-seeking edits.** Requirement ids written into test names, `by = "owner"` lines, finding reviews, and
+     `not-the-app` or scope changes, counted per build.
+   Each is tested on written-out transcripts. Running an outside tool on the loop arm needs a new trial, which
+   spends the owner's money, so that half stays open. Read on `main` and the open pull requests just before this
+   claim: no other session had claimed any part of finding 21.
 22. **Smaller trust gaps in the build loop.** (`docs/GAP-ANALYSIS.md`, 4.6.) Each claimable on its own: (a) the
    seal key's passphrase on by default, and the report saying when a seal's key has none (a change to ADR-043); (b)
    reports read back as MCP resources fenced as app text; (c) a "drafted by your AI tool, adopted by you" label for

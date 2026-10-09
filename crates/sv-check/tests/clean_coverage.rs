@@ -1645,7 +1645,7 @@ fn languages_the_rule_reads_alike_share_one_phrase() {
          `Joins`, `Select`, `Find`, `First`, `Last`, `Take`, `FirstOrInit`, `FirstOrCreate`, and \
          `$where`), 2 python \
          files (the calls it reads: `execute`, `executemany`, `executescript`, `raw`, `read_sql`, \
-         `read_sql_query`, `extra`, `RawSQL`, and `$where`), and 1 ruby file (the calls it reads: `execute`, `exec_query`, \
+         `read_sql_query`, `extra`, `RawSQL`, `$where`, `or_`, and `filter`), and 1 ruby file (the calls it reads: `execute`, `exec_query`, \
          `find_by_sql`, `select_all`, `select_rows`, `select_values`, `where`, `rewhere`, `order`, \
          `reorder`, `having`, `group`, `joins`, `from`, `pluck`, and `count_by_sql`)"
     );

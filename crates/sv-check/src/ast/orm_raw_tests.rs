@@ -117,7 +117,7 @@ fn knex_and_gorm_are_off_the_unread_list() {
             .is_some_and(|p| p.contains_key(package))
     };
     // The list itself is still read: the rest of what #1163 listed is there.
-    assert!(listed("npm", "@supabase/supabase-js") && listed("Python", "supabase"));
+    assert!(rule.unread_packages.contains_key("npm") && rule.unread_packages.contains_key("Go"));
     assert!(
         !listed("npm", "knex"),
         "knex's calls are read, so it holds nothing back"
