@@ -15,7 +15,11 @@
         "bitbucket-pipelines.yml",
         ".woodpecker.yml",
         "buildkite.yml",
-        ".teamcity"
+        ".buildkite",
+        ".teamcity",
+        ".travis.yml",
+        "cloudbuild.yaml",
+        "cloudbuild.yml"
       ]
     },
     {
@@ -25,16 +29,20 @@
       "files": [
         "*.tf",
         "*.tfvars",
-        "Dockerfile",
-        "docker-compose.yml",
-        "docker-compose.yaml",
+        "**/Dockerfile",
+        "**/docker-compose.yml",
+        "**/docker-compose.yaml",
+        "**/compose.yaml",
+        "**/compose.yml",
+        "**/Containerfile",
         "cloudformation.yml",
         "template.yaml",
         "serverless.yml",
         "Pulumi.yaml",
+        "cdk.json",
         "*.bicep",
         "kustomization.yaml",
-        "Chart.yaml",
+        "**/Chart.yaml",
         "k8s",
         "helm"
       ]
