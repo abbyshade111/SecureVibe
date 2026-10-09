@@ -1,6 +1,6 @@
 # False alarms, part 2: a person's record that a finding is a false alarm, or an accepted risk
 
-**Status:** partly done: 1 of 5 parts done, 0 claimed, 4 open, as its markers read on 8 October 2026
+**Status:** done, 9 October 2026
 
 From the same investigation. **The owner's decisions, 27 September 2026, each as recommended:**
 1. Build it: a section in `securevibe.toml` where a finding is set aside with a verdict, who decided,
@@ -23,3 +23,5 @@ itself, so a flagged key is never copied into the file. **Claimed the same day b
 securevibe-e2**, to follow part 1. **Done the same day:** see DESIGN, "False alarms: a person's record that a
 finding is wrong, or accepted". One choice beyond the five decisions: a key or password cannot be an
 accepted risk, since a real one is replaced and one that is not real is a false alarm.
+
+**Marked done 9 October 2026 by session securevibe-e2**, from the roadmap (Phase 5): every part was built and recorded already (see the done notes above); the status line read the numbered decisions or proposals as parts still open.

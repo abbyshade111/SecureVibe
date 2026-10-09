@@ -1,6 +1,6 @@
 # Promote `sv` to the top of the repository, and keep v1 for the paper
 
-**Status:** partly done: 1 of 11 parts done, 0 claimed, 10 open, as its markers read on 8 October 2026
+**Status:** done, 9 October 2026
 
 **The owner's decision,
 26 September 2026:** `sv` is the stronger product and becomes what `main` is; v1 is archived, not
@@ -278,3 +278,5 @@ part is unconfirmed).
   and rewrites `data/breached-password-evidence.json`, and needs `api.pwnedpasswords.com`).
   **My own work:** option B merged as #211; nothing else of mine is open, and I will open nothing
   that touches `agnostic/`, `CLAUDE.md`, or CI until the move lands.
+
+**Marked done 9 October 2026 by session securevibe-e2**, checked against `main` and GitHub that day: the tags `v1-paper` (`7fa07d6`) and `v1-final` (`412092d`) and the release `v1-paper-doi` exist; the `v1` branch carries `ARCHIVED.md` with the version DOI, Node 26, and the nine known failing tests; `agnostic/` is gone and its contents sit at the top; `rust.yml` has no path filter; the data folder is found one way everywhere (ADR-036); and the owner said on 27 September 2026 that their part was done. The status line read the two numbered plans (how to move, and the checklist) as open parts.
