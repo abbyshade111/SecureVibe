@@ -38,3 +38,9 @@ ESLint 10 loads its plugins from the folder it runs in: run over an app, it woul
 owner's machine outside the network fence, while TypeScript needs a parser the plugin does not
 bring. The shape to keep: SARIF only, not installed means not run, and a rule mapped only where it
 can be shown to be about its requirement.
+**Its status claimed 9 October 2026 by session securevibe-e9** ("please continue to work through and pick up new
+items as you merge"), from the roadmap (Phase 5, "More adapters"), in branch `claude/stackvet-e9-adapters-note`.
+Read against `main` just before this claim, nothing in this item is left to build. The registry run is done. Both
+data entries were looked at: staticcheck was judged not worth the code change it needs, and the owner said no to
+phpcs-security-audit on 5 October. `eslint-plugin-security` was looked at and not added. The item is owed a done
+note, not a build. No other session had claimed it.
