@@ -16,7 +16,7 @@ use anyhow::Result;
 use std::path::Path;
 
 /// What the five scanners that read the app's files found, built once for a run.
-pub(crate) struct StaticScan {
+pub struct StaticScan {
     /// One walk of the folder, shared by every check (DESIGN, "One walk of the app").
     pub listing: sv_scan::files::Listing,
     /// Its languages and frameworks, and the folders the manifest sets apart as applied (ADR-031).
@@ -31,7 +31,7 @@ pub(crate) struct StaticScan {
 impl StaticScan {
     /// Reads the app at `app_dir`, calling `starting` with each stage's number (`REPORT_STAGES`,
     /// 0 to 5) as it begins. `not_the_app` is what the manifest says is not the app, or nothing.
-    pub(crate) fn read(
+    pub fn read(
         app_dir: &Path,
         not_the_app: &[String],
         loaded: &Loaded,
@@ -66,7 +66,7 @@ impl StaticScan {
     /// Every finding of the five scanners, as one list. The bill of materials speaks for itself
     /// here: incomplete is a finding against V15.1.2, complete is evidence for it (`passed`), and
     /// exactly one of the two says anything.
-    pub(crate) fn findings(&self) -> Vec<sv_check::Finding> {
+    pub fn findings(&self) -> Vec<sv_check::Finding> {
         let mut findings = self.secrets.findings.clone();
         findings.extend(self.config.findings.iter().cloned());
         findings.extend(sv_check::sbom::incompleteness_finding(
@@ -78,7 +78,7 @@ impl StaticScan {
 
     /// What was checked and found fine: the configuration checks that passed, and a complete bill
     /// of materials.
-    pub(crate) fn passed(&self) -> Vec<sv_check::Verified> {
+    pub fn passed(&self) -> Vec<sv_check::Verified> {
         let mut passed = self.config.passed.clone();
         passed.extend(sv_check::sbom::completeness_verified(
             &self.bill_of_materials,
@@ -87,7 +87,7 @@ impl StaticScan {
     }
 
     /// What the checks that read the app's files could not do, for the exit status.
-    pub(crate) fn file_gaps(&self) -> crate::exit::Gaps {
+    pub fn file_gaps(&self) -> crate::exit::Gaps {
         crate::exit::Gaps::of_files(&self.listing, &self.secrets, &self.code)
     }
 
@@ -95,7 +95,7 @@ impl StaticScan {
     /// of the app when a symbolic link was not followed; the rules that read code, also when a
     /// file was not opened or did not parse, or a language had no parser; a single code rule, when
     /// it could not run or had not been taught a language here.
-    pub(crate) fn examined(&self) -> Vec<sv_report::Examined> {
+    pub fn examined(&self) -> Vec<sv_report::Examined> {
         let (listing, code, secrets, config) =
             (&self.listing, &self.code, &self.secrets, &self.config);
         let family = |rules: &str, short: Vec<String>| {
@@ -209,7 +209,7 @@ fn held_back_why(held: &sv_check::ast::HeldBackByPackage) -> String {
 /// is what this run looked at, complete, so an entry that matches nothing can say whether its rule
 /// looked (deep review R3).
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn settle(
+pub fn settle(
     app_dir: &Path,
     reviews: &[sv_manifest::FindingReview],
     findings: Vec<sv_check::Finding>,

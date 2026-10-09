@@ -270,3 +270,8 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    arguments and the printing; (3) the MCP server's tools calling the library, nothing of the CLI. Branches
    `claude/stackvet-e9-library-1` and on. Confirmed on `main` just before this claim: `sv-cli` has no library target,
    `assemble.rs` reads everything in `main.rs` (`use super::*`), and no other session holds this part.
+   **Its first step done the same day**
+   (`docs/design/0321-the-report-s-assembly-in-a-library-under-sv-the-first-step.md`; ADR-056, Later, 9 October
+   2026): `crates/sv-cli/src/lib.rs`, holding the stages of a run, `Loaded`, `ReportOptions`, what they call, and the
+   modules they need (`exit`, `report_lock`, `bundle`), about 820 lines of `main.rs` moved unchanged; the stage results
+   public as `Advisories`, `Tools`, `RunningApp`, `PersonsWord`, and `Gathered`. Steps 2 and 3 remain.
