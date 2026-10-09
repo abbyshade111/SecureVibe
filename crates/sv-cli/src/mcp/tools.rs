@@ -64,6 +64,13 @@ impl Server {
                 if let Some(check) = last.take() {
                     let _ = check.join();
                 }
+                if let Ok(report) = &report {
+                    *self
+                        .last_counts
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner) =
+                        Some(sv_report::LoopCounts::of(report));
+                }
                 report
             }
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => Err(crate::Remedy::error(

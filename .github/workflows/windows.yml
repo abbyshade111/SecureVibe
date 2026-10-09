@@ -1,0 +1,77 @@
+# Building and testing `sv` on Windows, to find out what breaks there (backlog 0120, step 2; the owner asked on
+# 9 October 2026 for Windows as well as Mac and Linux).
+#
+# `sv` had never been built on Windows. This workflow is how that is found out, so it is not required and never
+# blocks a pull request: it runs on every change to `main`, weekly, by hand, and on a pull request that changes
+# this file. Its results are written as
+# annotations (one per failing test, and one with the counts), which the GitHub API returns, so a session can read
+# them without downloading the log. A failure here is a finding to fix or to write down, never a reason to skip a
+# test: the guide keeps saying Windows is untried until this is green and someone has used it.
+
+name: Windows
+
+on:
+  push:
+    branches: [main]
+  # Also on a pull request that changes this file, so a change to it is seen working before it merges.
+  pull_request:
+    paths: [.github/workflows/windows.yml]
+  schedule:
+    - cron: "41 5 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Use the toolchain this workspace needs
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+      - name: Build sv
+        run: |
+          cargo build --release --locked -p sv-cli > build.txt 2>&1 && status=0 || status=$?
+          tail -80 build.txt
+          if [ "$status" -ne 0 ]; then
+            # Each compile error, with the lines after it that say where and why, as one annotation.
+            tr -d '\r' < build.txt | awk '/^error/{n++} n>0 && n<=20 {print}' | awk 'BEGIN{RS="\nerror"} NR<=20 {gsub(/\n/," | "); print "error" $0}' | sed 's/^errorerror/error/' | while read -r line; do
+              echo "::error title=Did not build on Windows::${line:0:900}"
+            done
+          fi
+          exit "$status"
+      - name: sv runs, finds its data, and checks an example app
+        run: |
+          ./target/release/sv.exe --version
+          ./target/release/sv.exe check examples/flask-booking > check.txt 2>&1 || true
+          head -40 check.txt
+          grep -q "Read " check.txt || { echo "::error title=sv check::sv check on examples/flask-booking did not read the app"; exit 1; }
+      - name: The whole test suite
+        run: |
+          # GitHub runs bash with -e and pipefail; a search that finds nothing must not end the step
+          # before the results are reported. The step still ends with the suite's own status.
+          set +e +o pipefail
+          CARGO_TERM_COLOR=never cargo test --workspace --no-fail-fast > suite.txt 2>&1 && status=0 || status=$?
+          passed=$(awk '/^test result/{p+=$4} END{print p+0}' suite.txt)
+          failed=$(awk '/^test result/{f+=$6} END{print f+0}' suite.txt)
+          groups=$(grep -c '^test result' suite.txt || true)
+          echo "::notice title=Windows test counts::${passed} passed, ${failed} failed, in ${groups} groups (cargo exit ${status})"
+          grep -E '^test .* FAILED$' suite.txt | sed 's/^test //; s/ \.\.\. FAILED$//' | head -45 | while read -r name; do
+            echo "::error title=Failed on Windows::${name}"
+          done
+          if ! grep -q '^test result' suite.txt; then
+            tr -d '\r' < suite.txt | awk '/^error/{n++} n>0 && n<=20 {print}' | awk 'BEGIN{RS="\nerror"} NR<=20 {gsub(/\n/," | "); print "error" $0}' | sed 's/^errorerror/error/' | while read -r line; do
+              echo "::error title=Tests did not build on Windows::${line:0:900}"
+            done
+            # Whatever the form of the failure, its last lines, one annotation each.
+            tr -d '\r' < suite.txt | sed 's/\x1b\[[0-9;]*m//g' | grep -v '^\s*$' | tail -25 | while read -r line; do
+              echo "::warning title=Last lines before it stopped::${line:0:900}"
+            done
+          fi
+          tail -60 suite.txt
+          exit "$status"

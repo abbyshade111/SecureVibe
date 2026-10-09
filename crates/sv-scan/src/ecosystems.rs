@@ -948,17 +948,23 @@ pub const REPORT_FILES: [&str; 5] = [
     "report.json",
 ];
 
+/// The record of the build loop (ADR-076): one line for each call the AI coding tool made to `sv`'s
+/// MCP server for the app, kept in its report folder beside the reports and read when one is written.
+/// Not a report file and not sealed: it grows between reports, and the report carries what it read.
+pub const BUILD_LOOP_RECORD: &str = "build-loop.jsonl";
+
 /// Every name `sv` writes in a report folder: the marker, the lock, their old forms (a report folder
-/// from before the rename holds those), and the five reports.
+/// from before the rename holds those), the record of the build loop, and the five reports.
 pub const REPORT_FOLDER_NAMES: &[&str] = &{
-    let mut names = [""; 4 + REPORT_FILES.len()];
+    let mut names = [""; 5 + REPORT_FILES.len()];
     names[0] = REPORT_MARKER;
     names[1] = REPORT_LOCK;
     names[2] = sv_frameworks::names::OLD_REPORT_MARKER;
     names[3] = sv_frameworks::names::OLD_REPORT_LOCK;
+    names[4] = BUILD_LOOP_RECORD;
     let mut i = 0;
     while i < REPORT_FILES.len() {
-        names[4 + i] = REPORT_FILES[i];
+        names[5 + i] = REPORT_FILES[i];
         i += 1;
     }
     names

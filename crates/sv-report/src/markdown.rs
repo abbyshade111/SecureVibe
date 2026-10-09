@@ -194,6 +194,9 @@ pub fn compliance(report: &Report) -> String {
     if let Some(line) = crate::baseline_line(report) {
         out.push_str(&format!("{}\n\n", inert(&line)));
     }
+    if let Some(line) = crate::build_loop_line(report) {
+        out.push_str(&format!("{}\n\n", inert(&line)));
+    }
     let (worst, rest) = crate::bluf::worst_findings(report);
     if !worst.is_empty() {
         for f in worst {
@@ -786,6 +789,9 @@ pub fn security(report: &Report) -> String {
     if let Some(line) = crate::baseline_line(report) {
         out.push_str(&format!("{}\n\n", inert(&line)));
     }
+    if let Some(line) = crate::build_loop_line(report) {
+        out.push_str(&format!("{}\n\n", inert(&line)));
+    }
 
     if !report.gaps.is_empty() {
         // Deliberately before the findings. A list of findings read without this reads as the whole
@@ -954,6 +960,7 @@ mod tests {
         let report = crate::Report {
             level_why: None,
             baseline: None,
+            build_loop: None,
             app_name: "test".into(),
             target_level: 1,
             generated: None,

@@ -618,6 +618,10 @@ listed apart, below this item.
    `sv brief` and `stackvet_before` give briefs for `owned-records`, `api-keys`, `background-jobs`, and
    `organizations`. A brief now names only a condition that brings a requirement, so `api-keys` names none:
    `public-api` is asked and no applicability rule keys on it. Whether it should is left open.
+   **The owner's decision, 9 October 2026, asked by session securevibe-e9:** the `api-keys` brief names V14.2.1
+   (level 1: an API key never in the address or its query string), which already applies to every app, so
+   `public-api` still brings no requirement of its own. **Claimed the same day by session securevibe-e9**, in branch
+   `claude/stackvet-e9-api-keys-brief`.
    **(a) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
    you merge"), in branch `claude/securevibe-e2-passphrase`: when `sv review` makes the signing key, a passphrase is
    what pressing Enter chooses, and having none takes typing `none`; still offered, never required (ADR-043's third
@@ -637,6 +641,11 @@ listed apart, below this item.
    so let's go with the first option"), in branch `claude/stackvet-e9-build-loop`: the first option, a record of the
    MCP calls made while building, which the report reads back. **`Status: proposed`: ADR-076.** Read on `main` and the
    open pull requests just before this claim: no other session had claimed (d).
+   **(d) done the same day** (`docs/design/0340-the-build-loop-written-down-and-the-report-saying-what-it.md`, ADR-076
+   accepted): `sv mcp` writes each call for an app into `stackvet-report/build-loop.jsonl` (the time, the tool, and a
+   check's counts), and every report written into a report folder says, in one paragraph at the top, how many calls
+   and checks there were and how the counts moved, or that nothing shows `sv` was used. It credits nothing; it can be
+   turned off with `build-loop-record = false` under `[app]`, and the report then says so.
 23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no
    warning and exit 0. Read it when present and exit 2 on a parse error; say plainly in its help and in the coding
    rule that the terminal command is the narrower scan.
