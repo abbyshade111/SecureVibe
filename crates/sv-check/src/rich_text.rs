@@ -131,7 +131,7 @@ fn listed(list: &[(&str, &str)], ecosystem: &str, name: &str) -> bool {
 }
 
 /// The manifest line that names a package, for the finding's location.
-fn where_named(listing: &Listing, name: &str) -> Location {
+pub(crate) fn where_named(listing: &Listing, name: &str) -> Location {
     const MANIFESTS: &[&str] = &[
         "package.json",
         "requirements.txt",
