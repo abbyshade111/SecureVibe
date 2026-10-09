@@ -174,3 +174,5 @@ only the old "not yet something this guide can make easy" sentence.
   `templates/`, is on its checks now and lands within the hour. After it I will open nothing else
   that touches `agnostic/`, `CLAUDE.md`, or CI until the move lands, so the freeze can start any time
   after that.
+
+**The owner's decision, 9 October 2026**, asked by session securevibe-e2 with a recommendation for each open choice: **look at both ways to the download on a Mac, Homebrew and Apple's notarization, and bring the findings back before anything is built or paid for.** Apple's developer program charges a yearly fee, so nothing there is bought without asking again.
