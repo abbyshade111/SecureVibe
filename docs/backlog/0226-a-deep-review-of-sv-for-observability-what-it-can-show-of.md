@@ -219,3 +219,9 @@ redaction removed failed its own test.
 2"), in branch `claude/explain-whose-word`: `sv explain` reading whose word a status rests on as the report does, so
 an answer only the AI coding tool gave, confirmed through `sv review`, is never told to the owner as their own.
 Open pull requests and recent branches read first: none touches `crates/sv-cli/src/explain.rs`.
+
+**Part 1, item 2 done the same day:** `sv explain` reads whose word a status rests on by the report's own rule, now one
+function (`sv_report::confirmed_only_by`, with its labels in `Status::shown`), so the tool's answer somebody confirmed
+through `sv review` is given as the report gives it and never as the owner's. Breaks: `sv explain` ignoring the rule
+failed its new test; the rule broken failed that test and the new one in `crates/sv-report/src/whose_word_tests.rs`,
+where before nothing in the report crate had failed.
