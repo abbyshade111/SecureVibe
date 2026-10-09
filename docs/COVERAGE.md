@@ -36,7 +36,7 @@ What each kind of check needs before it can run:
 | Framework | Requirements | Can settle | Can be credited | Supporting only | Nothing |
 |---|---|---|---|---|---|
 | OWASP ASVS 5.0 | 345 | 169 (49%) | 119 (34%) | 10 | 166 |
-| OWASP AISVS 1.0 | 191 | 39 (20%) | 22 (12%) | 0 | 152 |
+| OWASP AISVS 1.0 | 191 | 41 (21%) | 23 (12%) | 0 | 150 |
 | AISVS Appendix C | 68 | 3 (4%) | 2 (3%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 0 (0%) | 11 | 25 |
 
@@ -314,7 +314,7 @@ does not reach.
 | Chapter | Requirements | Can settle | Can be credited | Supporting only | Nothing |
 |---|---|---|---|---|---|
 | C1 Training Data Integrity & Traceability | 13 | 0 | 0 | 0 | 13 |
-| C2 Input Validation | 12 | 5 | 1 | 0 | 7 |
+| C2 Input Validation | 12 | 7 | 2 | 0 | 5 |
 | C3 Model Lifecycle Management & Change Control | 15 | 1 | 0 | 0 | 14 |
 | C4 Infrastructure, Configuration & Deployment Security | 14 | 1 | 0 | 0 | 13 |
 | C5 Access Control & Identity for AI Components & Users | 11 | 2 | 0 | 0 | 9 |
@@ -326,13 +326,15 @@ does not reach.
 | C11 Adversarial Robustness | 17 | 2 | 1 | 0 | 15 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 3 | 3 | 0 | 18 |
 
-18 of these 42 can only ever be marked *needs attention*: a check can
+19 of these 44 can only ever be marked *needs attention*: a check can
 show the control missing, and finding nothing does not show it present, so a clean run credits
 none of them. Most are `sv`'s own checks: rules that read the code, and questions asked of the
 running app (`--run`, with an `ai` section). The rest are semgrep's and CodeQL's, and need `--tools`.
 
+- C2.1.2: checked in part only, by `probe.ai-hidden-input`.
 - C2.1.3: settled by `probe.ai-injection-unscreened`.
 - C2.1.4: found failing by sv's `probe.ai-input-truncated`.
+- C2.1.5: found failing by sv's `probe.ai-input-charset-unrestricted`.
 - C2.1.6: found failing by codeql-javascript's `js/system-prompt-injection`.
 - C2.2.1: found failing by semgrep's `mistral-missing-moderation`, `openai-missing-moderation`, `openai-missing-moderation-check`.
 - C2.2.2: found failing by sv's `probe.ai-injection-other-languages`.

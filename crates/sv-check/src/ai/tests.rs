@@ -157,6 +157,9 @@ struct Flaws {
     refuses_hidden_input: bool,
     /// As `refuses_hidden_input`, and then stops working: every message after it is answered 500.
     refuses_then_down: bool,
+    /// It answers a message with tag letters in it 200, with words of its own, and never passes it
+    /// on: not a refusal the check can read.
+    answers_hidden_itself: bool,
     /// It passes control and private-use characters on to the model (C2.1.5).
     keeps_odd_chars: bool,
     /// Its tool loop fails after three rounds, and it catches the error and answers 200 with
@@ -699,6 +702,9 @@ impl FakeChat {
                 "{\"error\":\"That message has characters we do not accept.\"}".into(),
             );
         }
+        if tagged && self.flaws.answers_hidden_itself {
+            return answer(200, "{\"reply\":\"I could not read that message.\"}".into());
+        }
         let message = &self.cleaned(message);
         self.passed_on += 1;
         let cut: String = if self.flaws.truncates_input {
@@ -1181,7 +1187,11 @@ fn hidden_characters_kept_from_the_model_are_credited_in_part_and_passed_on_are_
         .unwrap_or_else(|| panic!("{:?}", careful.steps));
     assert!(credit.in_part, "{credit:?}");
     assert_eq!(credit.requirement_ids, vec!["C2.1.2"]);
-    assert!(credit.scope.contains("zero-width characters were left"), "{}", credit.scope);
+    assert!(
+        credit.scope.contains("zero-width characters were left"),
+        "{}",
+        credit.scope
+    );
     let all_out = ask(Flaws {
         strips_zero_width: true,
         ..Default::default()
@@ -1217,7 +1227,11 @@ fn hidden_characters_kept_from_the_model_are_credited_in_part_and_passed_on_are_
             .iter()
             .find(|f| f.rule_id == HIDDEN_INPUT.rule_id)
             .unwrap_or_else(|| panic!("{what}: {:?}", o.steps));
-        assert!(f.description.contains(what) && f.description.contains("false"), "{}", f.description);
+        assert!(
+            f.description.contains(what) && f.description.contains("false"),
+            "{}",
+            f.description
+        );
         assert!(!credited(&o).contains(&HIDDEN_INPUT.rule_id));
     }
     // Part of the hidden instruction through: neither.
@@ -1228,7 +1242,9 @@ fn hidden_characters_kept_from_the_model_are_credited_in_part_and_passed_on_are_
     assert!(!found(&part).contains(&HIDDEN_INPUT.rule_id));
     assert!(!credited(&part).contains(&HIDDEN_INPUT.rule_id));
     assert!(
-        why(&part, "C2.1.2").iter().any(|w| w.contains("part of the instruction")),
+        why(&part, "C2.1.2")
+            .iter()
+            .any(|w| w.contains("part of the instruction")),
         "{:?}",
         part.not_assessed
     );
@@ -1242,13 +1258,20 @@ fn hidden_characters_kept_from_the_model_are_credited_in_part_and_passed_on_are_
         .iter()
         .find(|v| v.check_id == HIDDEN_INPUT.rule_id)
         .unwrap_or_else(|| panic!("{:?}", refused.steps));
-    assert!(credit.in_part && credit.scope.contains("refused (400)"), "{credit:?}");
+    assert!(
+        credit.in_part && credit.scope.contains("refused (400)"),
+        "{credit:?}"
+    );
     // Refused, and nothing answered after it: the refusal may not have been of those characters.
     let down = ask(Flaws {
         refuses_then_down: true,
         ..Default::default()
     });
-    assert!(!credited(&down).contains(&HIDDEN_INPUT.rule_id), "{:?}", down.steps);
+    assert!(
+        !credited(&down).contains(&HIDDEN_INPUT.rule_id),
+        "{:?}",
+        down.steps
+    );
     assert!(!found(&down).contains(&HIDDEN_INPUT.rule_id));
     assert!(
         why(&down, "C2.1.2")
@@ -1256,6 +1279,25 @@ fn hidden_characters_kept_from_the_model_are_credited_in_part_and_passed_on_are_
             .any(|w| w.contains("did not reach it either")),
         "{:?}",
         down.not_assessed
+    );
+
+    // Answered 200 without reaching the model: not read as a refusal, and said.
+    let itself = ask(Flaws {
+        answers_hidden_itself: true,
+        ..Default::default()
+    });
+    assert!(
+        !credited(&itself).contains(&HIDDEN_INPUT.rule_id),
+        "{:?}",
+        itself.steps
+    );
+    assert!(!found(&itself).contains(&HIDDEN_INPUT.rule_id));
+    assert!(
+        why(&itself, "C2.1.2")
+            .iter()
+            .any(|w| w.contains("was not a refusal")),
+        "{:?}",
+        itself.not_assessed
     );
 
     // C2.1.5: only ever a finding.
@@ -1269,7 +1311,8 @@ fn hidden_characters_kept_from_the_model_are_credited_in_part_and_passed_on_are_
         .find(|f| f.rule_id == CHARSET.rule_id)
         .unwrap_or_else(|| panic!("{:?}", odd.steps));
     assert!(
-        f.description.contains("control characters and a private-use character as they were"),
+        f.description
+            .contains("control characters and a private-use character as they were"),
         "{}",
         f.description
     );
