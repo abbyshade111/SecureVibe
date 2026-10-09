@@ -102,7 +102,7 @@ fn the_tool_s_files_get_a_section_of_their_own_and_count_toward_nothing() {
     );
     assert_eq!(
         json["ai_tool"]["read"],
-        serde_json::json!([".claude/settings.json"])
+        serde_json::json!([".claude/settings.json", "AGENTS.md"])
     );
     assert_eq!(json["ai_tool"]["notes"].as_array().map(Vec::len), Some(2));
 }
