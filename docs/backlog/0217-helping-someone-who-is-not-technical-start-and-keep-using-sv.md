@@ -1,6 +1,6 @@
 # Helping someone who is not technical start and keep using sv
 
-**Status:** claimed by securevibe-e2, 9 October 2026
+**Status:** partly done: the recommendation is written (9 October 2026); which parts to build, and in what order, is the owner's
 
 Asked for by the owner on 8 October 2026: "consider the best way to help someone non-technical start and use sv.
 One thought is to turn the getting started guide into a prompt so the AI tool can walk the person through the
@@ -68,3 +68,60 @@ person's path from "I have heard of SecureVibe" to "my AI tool is using it, and 
 cost $18 to $35 each, `docs/prompts/library-trial/`) is asked first, every time. Windows has never been tried at
 all (`docs/GETTING-STARTED.md`, "Installing SecureVibe on your computer"); whether to support it is the owner's
 call, and until then every part above says so rather than implying it works there.
+
+**The recommendation, 9 October 2026, by session securevibe-e2.** Read against `main` that day; nothing was built or
+paid for. "Checked" means looked up in the code or the guide; "not checked" is said where it applies.
+
+What reading the code settled, which the parts above did not know:
+
+- **The container cannot find `docker` for the settings file.** The settings file's `command` must be the full path
+  to `docker` on the person's computer (`/opt/homebrew/bin/docker` or `/usr/local/bin/docker`), because an app
+  started from the Dock often has no search path (the guide, step 3). A program running *inside* the container
+  cannot see that path. It can see the app folder's real path, when started with `-v "$PWD":"$PWD" -w "$PWD"` as the
+  guide's own copy-and-paste lines are. So part 2 cannot work alone: something on the person's computer has to say
+  where `docker` is, either the person (which is the step that fails today) or the AI tool, running `which docker`
+  in its terminal. That is what part 1 does well and part 2 does not.
+- **An "is everything ready?" tool cannot answer the question people most need answered.** When Docker is not
+  running, `sv`'s tools are missing, so a `stackvet_status` tool is missing with them; and inside the container,
+  `sv` has no way to tell whether the person's copy of the image is older than the latest one without opening a
+  network connection, which it does not do. What it *can* say offline is narrower: whether the folder is in git,
+  whether `securevibe.toml` reads, which version this is (the image already records its commit for `sv --version`),
+  and what `--run` would need. Useful, but it is not the fix for setup.
+- **The rules file reaches only tools that read `AGENTS.md`.** `sv rules` writes `AGENTS.md` and nothing else. Which
+  tools read it on their own is not checked here (it is each tool's documentation, and it changes); Claude Code
+  reads `CLAUDE.md`, so whether it also reads `AGENTS.md` needs checking before part 4 claims anything for it.
+
+**Recommended order.**
+
+1. **Part 1, the setup prompt, first, with a small piece of part 2 inside it.** The AI tool runs the steps the
+   person stops at today: it checks that Docker is installed and running (and, if not, says where to click and
+   waits), runs `docker pull`, `git init`, `pwd`, and `which docker`, and writes the settings file for the tool it
+   is, with the paths it found. It asks before installing anything or writing outside the app's folder, and it
+   stops and says so at any step it cannot finish. The settings text comes from `sv` itself, so the prompt never
+   holds a copy that can drift: a new `sv connect <tool> --docker <path>` prints (never writes) the settings block
+   for Claude, VS Code, or Cursor, with the folder's path from where it was started. Printing, not writing, keeps
+   it outside the "writes into someone's folder" decision; the AI tool writes the file, with the person's
+   approval, as it writes every other file. Kept in `docs/prompts/setup.md`, printed by `sv prompts setup`, and
+   held by a test to the guide's image name and to `sv connect`'s output. **Cost:** one or two pull requests; no
+   money. **Trying it:** the owner, once, in the tool they use, from an empty folder; a paid trial is not needed
+   for a first answer.
+2. **Part 7, the words.** A glossary of a dozen terms (terminal, Docker, image, MCP, git, folder path, "not
+   assessed", "finding"), linked from the guide's first use of each, and a pass over the guide for a step that
+   assumes knowledge. Cheap, and it helps whatever else is built.
+3. **Part 5, the report read with you.** A prompt (`sv prompts report`), not a new tool: the AI tool can
+   already read `compliance.md`; the prompt tells it to start with what was not checked and why that matters, then the
+   three things to do first, and never to say the app is secure. A test holds the prompt to those three
+   instructions. No money.
+4. **Part 3, narrowed to what it can know:** `sv doctor` and a `stackvet_status` tool that answer git,
+   `securevibe.toml`, version, and `--run` readiness in plain sentences. Worth building after 1, because the setup
+   prompt's last step can call it to show the connection works.
+5. **Part 4, measured, not built.** Add one line to the next paid prompt trial that is already happening: remove
+   the tools partway and see whether the AI tool says so. No trial of its own.
+6. **Part 8 is the test of all of the above,** and it is the owner's to arrange; until it happens, the guide says
+   which tools each step was tried in, and by whom.
+7. **Part 6 stays in 0120.** The download is the biggest barrier left for `--run`, but it needs signed releases
+   (0191 part 4), and Mac notarization costs money, so it is the owner's decision there.
+
+Windows: nothing above is tried there, and every part says so until the owner decides whether to support it.
+
+**For the owner:** say which of these to build, or "as recommended", and the first is claimed the same day.
