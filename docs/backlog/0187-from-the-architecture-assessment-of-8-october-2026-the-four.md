@@ -192,3 +192,10 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    than leaving its signature silently unread. Confirmed on `main` just before this claim: the field is a `String`
    read with `Condition::from_name` and skipped when unknown (`sv-scan/src/lib.rs`), every name in both files is
    known today, and no other session had claimed this part. The rest of item 12 stays open.
+   **Its second part, `not_for_tests` moved, claimed 9 October 2026 by session securevibe-e9**, from the roadmap
+   (Phase 2, item 12, the next unclaimed part in its order), in branch `claude/stackvet-e9-not-for-tests`: the rule for
+   what an application's own tests cannot show (a requirement classed as documentation or deployment, the AISVS
+   appendix on the development process, and one whose own words ask for documentation) moves from
+   `requirements_for_tests` in `crates/sv-cli/src/assemble.rs` to `sv-frameworks`, beside `verification_class_for`,
+   with tests of its own there. Nothing a report concludes changes. Confirmed on `main` just before this claim: the
+   rule is still written inline in `assemble.rs`, it has no test of its own, and no other session holds this part.
