@@ -1,7 +1,7 @@
 //! What the tests of this crate share.
 
-use std::io::Write;
 use std::path::Path;
+#[cfg(unix)]
 use std::process::{Command, Stdio};
 
 /// Writes `text` to `path` as a program, and makes it one that can be run, from a child process
@@ -15,6 +15,7 @@ use std::process::{Command, Stdio};
 /// it 45 times in 1,200 written here, and never written by a child.
 #[cfg(unix)]
 pub fn executable(path: &Path, text: &str) {
+    use std::io::Write;
     let mut child = Command::new("sh")
         .args(["-c", "cat > \"$1\" && chmod 755 \"$1\"", "sh"])
         .arg(path)
@@ -32,6 +33,14 @@ pub fn executable(path: &Path, text: &str) {
         "the script was not written: {}",
         path.display()
     );
+}
+
+/// Elsewhere a file runs by what it is named and what runs it, not by a permission, and the race is
+/// a Unix one (a child keeps what its parent had open until its own program begins), so the file is
+/// written here, as the tests did before this helper.
+#[cfg(not(unix))]
+pub fn executable(path: &Path, text: &str) {
+    std::fs::write(path, text).expect("the script is written");
 }
 
 #[cfg(test)]

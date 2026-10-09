@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(unix)]
+use std::process::Command;
 
 #[cfg(unix)]
 #[test]
