@@ -237,3 +237,9 @@ backlog", in branch `claude/stackvet-e9-history-honest`: `#[serde(default)]` on 
 added later does not hide every older run, and the page saying how many runs it could not read, each with a test
 that fails without it. Open pull requests (#1302, #1304, #1305) and the branches of the last few hours read first:
 none touches `crates/sv-cli/src/history.rs` or `crates/sv-report/src/dashboard.rs`.
+
+**Part 1, item 4 claimed on 9 October 2026 by session stackvet-e9**, under the owner's "continue to work off the
+backlog", in branch `claude/stackvet-e9-suite-steps`: the steps of the MCP-server and fetch suites carried to the
+report and to `sv run`'s printout as the other suites' are, with a test that fails without it. Open pull requests
+(#1305, #1308, both this session's) and the branches of the last few hours read first: none touches
+`crates/sv-cli/src/assemble.rs`, `crates/sv-check/src/mcp_server.rs`, or `crates/sv-check/src/fetch.rs`.
