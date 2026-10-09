@@ -1,6 +1,6 @@
 # Helping someone who is not technical start and keep using sv
 
-**Status:** partly done: parts 7 (a glossary), 5 (the report read with you), and 3 (sv doctor) are to build, in that order; part 1 is built (9 October 2026) and not yet tried in an AI coding tool
+**Status:** partly done: parts 5 (the report read with you) and 3 (sv doctor) are to build, in that order; parts 1 and 7 are built (9 October 2026), neither yet tried by someone who is not technical
 
 Asked for by the owner on 8 October 2026: "consider the best way to help someone non-technical start and use sv.
 One thought is to turn the getting started guide into a prompt so the AI tool can walk the person through the
@@ -129,3 +129,5 @@ Windows: nothing above is tried there, and every part says so until the owner de
 **The owner's decision, 9 October 2026: as recommended.** Parts 1 (the setup prompt, with `sv connect` printing the settings block), 7 (the glossary), 5 (the report read with you), and 3 narrowed (`sv doctor` and a status tool) are built in that order, each claimed on its own; part 4 is measured in the next paid prompt trial that runs anyway; part 8 is the owner's to arrange; part 6 stays in 0120.
 
 **Part 1 done 9 October 2026 by session securevibe-e2** (`docs/design/0339-sv-connect-and-a-prompt-that-sets-stackvet-up-9-october-2026.md`): `sv connect TOOL [--docker PATH] [--user UID:GID]` prints the settings block for Claude, VS Code, or Cursor with the folder's real path filled in, and writes nothing; `docs/prompts/setup.md` is the setup prompt, offered at the top of the guide. Neither has been tried in an AI coding tool yet.
+
+**Part 7 done 9 October 2026 by session securevibe-e2** (`docs/GLOSSARY.md`, linked from the guide; design entry "A glossary for the guide and the reports"). Not yet read by someone who is not technical.
