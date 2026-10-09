@@ -145,7 +145,7 @@ enum NoHistory {
 /// when the app is a subfolder of a larger repository. Until 29 September 2026 only the app folder
 /// was looked at, so `sv report repo/app` said "not a git repository" of an app in one.
 fn repository_root(app_dir: &Path) -> Option<std::path::PathBuf> {
-    let full = std::fs::canonicalize(app_dir).unwrap_or_else(|_| app_dir.to_path_buf());
+    let full = sv_frameworks::paths::canonical(app_dir).unwrap_or_else(|_| app_dir.to_path_buf());
     full.ancestors()
         .find(|folder| folder.join(".git").exists())
         .map(Path::to_path_buf)
@@ -321,7 +321,8 @@ fn gitignore_covers_env(app_dir: &Path) -> Outcome {
     let root = repository_root(app_dir);
     let path = app_dir.join(".gitignore");
     let Ok(text) = std::fs::read_to_string(&path) else {
-        let full = std::fs::canonicalize(app_dir).unwrap_or_else(|_| app_dir.to_path_buf());
+        let full =
+            sv_frameworks::paths::canonical(app_dir).unwrap_or_else(|_| app_dir.to_path_buf());
         if root.as_deref() == Some(full.as_path()) {
             return Outcome::Failed(Box::new(env_not_ignored_finding(
                 ".gitignore",

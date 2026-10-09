@@ -28,6 +28,7 @@ use regex::Regex;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::sync::LazyLock;
+use sv_frameworks::paths::Canonical;
 
 /// A version that is floating or unsettled, with where it is written.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -212,7 +213,7 @@ fn inherit(
     if candidate.is_dir() {
         candidate = candidate.join("pom.xml");
     }
-    let (Ok(found), Ok(root)) = (candidate.canonicalize(), app_dir.canonicalize()) else {
+    let (Ok(found), Ok(root)) = (candidate.canonical(), app_dir.canonical()) else {
         return;
     };
     let Ok(text) = std::fs::read_to_string(&found) else {
