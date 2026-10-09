@@ -67,6 +67,33 @@ fn status_words(status: &str) -> &str {
     }
 }
 
+/// The check ids in one of a report row's lists of credits (`checked_by`, `attested_by`, ...).
+fn named(row: &Value, key: &str) -> Vec<String> {
+    row[key]
+        .as_array()
+        .map(|v| {
+            v.iter()
+                .filter_map(|x| x.get("check_id").and_then(Value::as_str).or(x.as_str()))
+                .map(str::to_owned)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The report's own label when only the AI coding tool's word stands behind the row's status and a
+/// person confirmed it, read by the report's own rule (`sv_report::confirmed_only_by`); `None` when
+/// the status is somebody's own record, or not one of those kinds at all.
+fn confirmed_label(row: &Value) -> Option<&'static str> {
+    let status: sv_report::Status = serde_json::from_value(row["status"].clone()).ok()?;
+    sv_report::confirmed_only_by(
+        status,
+        &named(row, "attested_by"),
+        &named(row, "by_hand"),
+        &named(row, "documented_by"),
+    )
+    .then(|| status.shown(true))
+}
+
 /// What the app's last report said about `id`: its status and what stood behind it, or that the
 /// requirement was not among those that apply to the app.
 fn from_report(report: &Value, id: &str, checks: &[CheckLine]) -> String {
@@ -81,22 +108,15 @@ fn from_report(report: &Value, id: &str, checks: &[CheckLine]) -> String {
         );
     };
     let status = row["status"].as_str().unwrap_or("unknown");
-    let mut out = format!(
-        "In {app}'s last report, {id} is {}.\n",
-        status_words(status)
-    );
-    let named = |key: &str| -> Vec<String> {
-        row[key]
-            .as_array()
-            .map(|v| {
-                v.iter()
-                    .filter_map(|x| x.get("check_id").and_then(Value::as_str).or(x.as_str()))
-                    .map(str::to_owned)
-                    .collect()
-            })
-            .unwrap_or_default()
+    let words = match confirmed_label(row) {
+        Some(shown) => format!(
+            "{shown}: the AI coding tool gave this answer and somebody confirmed it with `sv review`; \
+             nothing here checks it"
+        ),
+        None => status_words(status).to_owned(),
     };
-    let checked = named("checked_by");
+    let mut out = format!("In {app}'s last report, {id} is {words}.\n");
+    let checked = named(row, "checked_by");
     if !checked.is_empty() {
         out.push_str(&format!("Checked by: {}.\n", checked.join(", ")));
     }
@@ -267,3 +287,6 @@ pub fn command(id: &str, app: Option<&Path>) -> Result<String> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod whose_word_tests;

@@ -33,6 +33,9 @@ pub const OLD_REPORT_MARKER: &str = ".securevibe-report";
 /// The lock `sv report` holds on the folder while it writes.
 pub const REPORT_LOCK: &str = ".stackvet-report.lock";
 pub const OLD_REPORT_LOCK: &str = ".securevibe-report.lock";
+/// Who holds that lock, beside it and never locked, so another run can read it on Windows, where a
+/// locked file cannot be read by anyone else (backlog 0120, ADR-041). New with the rename; no old form.
+pub const REPORT_HOLDER: &str = ".stackvet-report.holder";
 
 /// The end of a bundle's default name, after the app's own.
 pub const BUNDLE_SUFFIX: &str = "stackvet-bundle.zip";

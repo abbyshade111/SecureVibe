@@ -227,7 +227,7 @@ fn a_report_is_not_written_through_a_symlink_out_of_the_app() {
     assert_eq!(result["isError"], true, "{}", text(&result));
 }
 
-/// Each name `write_report_files` writes, the marker, the lock, and the record of the build loop
+/// Each name `write_report_files` writes, the marker, the lock and its holder, and the record of the build loop
 /// (ADR-076) included, written out by hand so
 /// the list the names derive from (`sv_scan::ecosystems::REPORT_FILES`) is held to what is written.
 const FOLDER_NAMES: &[&str] = &[
@@ -236,6 +236,7 @@ const FOLDER_NAMES: &[&str] = &[
     ".securevibe-report",
     ".securevibe-report.lock",
     "build-loop.jsonl",
+    crate::report_lock::HOLDER_NAME,
     "report.html",
     "compliance.md",
     "security.md",
