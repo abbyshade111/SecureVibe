@@ -242,3 +242,9 @@ none touches `crates/sv-cli/src/history.rs` or `crates/sv-report/src/dashboard.r
 kept before it, and a kept file that does not read as a run is counted and said on the page ("could not be read as a
 run, and is not shown") rather than passed over. Breaks: without the defaults the older run vanished from the test;
 without the count, or without the sentence, its test failed.
+
+**Part 1, item 4 claimed on 9 October 2026 by session stackvet-e9**, under the owner's "continue to work off the
+backlog", in branch `claude/stackvet-e9-suite-steps`: the steps of the MCP-server and fetch suites carried to the
+report and to `sv run`'s printout as the other suites' are, with a test that fails without it. Open pull requests
+(#1305, #1308, both this session's) and the branches of the last few hours read first: none touches
+`crates/sv-cli/src/assemble.rs`, `crates/sv-check/src/mcp_server.rs`, or `crates/sv-check/src/fetch.rs`.
