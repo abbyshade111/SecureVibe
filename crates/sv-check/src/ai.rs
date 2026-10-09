@@ -3319,8 +3319,10 @@ const FLAG_NOT_GATING: Rule = Rule {
 /// with no flag seen or no plain message getting through, is said.
 fn flag_gating(markers: &LogMarkers, caught: bool, out: &mut Outcome) {
     let say = |why: &str, out: &mut Outcome| {
-        out.not_assessed
-            .push(("C11.4.2".to_owned(), format!("Whether a flagged input is stopped: {why}")));
+        out.not_assessed.push((
+            "C11.4.2".to_owned(),
+            format!("Whether a flagged input is stopped: {why}"),
+        ));
     };
     if !caught {
         say(

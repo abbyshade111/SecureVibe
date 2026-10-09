@@ -61,6 +61,9 @@
   "C11.2.2": [
    "running"
   ],
+  "C11.4.2": [
+   "running"
+  ],
   "C12.1.1": [
    "running"
   ],
@@ -3549,6 +3552,14 @@
     "run": "The running app",
     "looks_for": "The model service's whole response reaches the browser, with its identifiers and whatever else the service sends, where only the reply's text was needed. That is more than the person needs, and it helps anyone studying the model.",
     "finding_only": true
+   }
+  ],
+  "C11.4.2": [
+   {
+    "id": "probe.ai-flag-not-gating",
+    "run": "The running app",
+    "looks_for": "The app notices an attack and lets it through anyway: the record says it was caught, and the model was given it as it came, so the detector gives comfort and no protection.",
+    "finding_only": false
    }
   ],
   "C12.1.1": [

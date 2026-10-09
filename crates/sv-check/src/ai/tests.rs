@@ -4488,7 +4488,11 @@ fn a_flagged_injection_that_is_stopped_is_credited_in_part_and_one_passed_on_is_
     // Said, neither: the plain message after it did not get through; no flag recorded; no output.
     for (markers, log, words) in [
         (with(None), caught, "cannot be told"),
-        (with(Some(false)), "2026-10-09T12:00:01Z INFO GET /api/chat 200", "no flag"),
+        (
+            with(Some(false)),
+            "2026-10-09T12:00:01Z INFO GET /api/chat 200",
+            "no flag",
+        ),
         (with(Some(true)), "", "no flag"),
     ] {
         let mut o = Outcome::default();
@@ -4507,5 +4511,26 @@ fn a_flagged_injection_that_is_stopped_is_credited_in_part_and_one_passed_on_is_
         credited(&careful).contains(&FLAG_NOT_GATING.rule_id),
         "{:?}",
         careful.not_assessed
+    ); // End to end: an app that answers one message and refuses every one after it, and writes the
+    // injection down as caught, is not credited: its refusal of the injection says nothing about
+    // the flag, since the plain message after it was refused too.
+    let everything = ask_and_read(
+        Flaws {
+            one_message_only: true,
+            ..Default::default()
+        },
+        Logs::Full,
+    );
+    assert!(
+        !credited(&everything).contains(&FLAG_NOT_GATING.rule_id),
+        "{:?}",
+        everything.verified
+    );
+    assert!(
+        why(&everything, "C11.4.2")
+            .iter()
+            .any(|w| w.contains("cannot be told")),
+        "{:?}",
+        everything.not_assessed
     );
 }
