@@ -72,6 +72,10 @@ Sonnet 2, which is the known false alarm in the backlog. `run-summaries.txt` has
 ## Files
 
 `loop_trial.py` makes a build (`--api` for API credit, `--before-amendment-1` for the pilot's first request);
-`loop_measures.py` computes the measures from the transcripts and reports into `loop-measures.json`;
+`loop_measures.py` computes the measures from the transcripts and reports into `loop-measures.json`, with
+`loop_dodging.py`'s two added on 9 October 2026 (gap analysis finding 21): how each finding went away between one
+check and the next (`set-aside`, `file-removed`, `code-changed`, or `unexplained`), and the edits that seek credit
+(requirement ids written into tests, `by = "owner"`, finding reviews, `not-the-app`, and scope lines). The
+`loop-measures.json` files kept here were written before then and do not have them;
 `key_helper.sh` is the `apiKeyHelper`; `run-summaries.txt` is `prompt_trial.py`'s per-check summary of each run. The
 builds and transcripts are not kept in the repository.

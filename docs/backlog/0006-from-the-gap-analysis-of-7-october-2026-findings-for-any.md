@@ -530,6 +530,10 @@ listed apart, below this item.
    Each is tested on written-out transcripts. Running an outside tool on the loop arm needs a new trial, which
    spends the owner's money, so that half stays open. Read on `main` and the open pull requests just before this
    claim: no other session had claimed any part of finding 21.
+   **The measures done the same day** (DESIGN, "How each finding went away, in the loop trials"):
+   `docs/prompts/loop-pilot/loop_dodging.py`, added to every row of `loop_measures.py` and held by its self-test
+   (`crates/sv-check/tests/loop_dodging.rs`). The earlier trials are not re-scored, since their transcripts are not
+   kept here. Still open: an outside tool run as an independent check of the loop arm, which needs a new trial.
 22. **Smaller trust gaps in the build loop.** (`docs/GAP-ANALYSIS.md`, 4.6.) Each claimable on its own: (a) the
    seal key's passphrase on by default, and the report saying when a seal's key has none (a change to ADR-043); (b)
    reports read back as MCP resources fenced as app text; (c) a "drafted by your AI tool, adopted by you" label for
