@@ -123,6 +123,9 @@ What a clean result says, each optional:
 - `findingsOnly` (true or false, false when left out): the rule can show the fault present and never its absence, so
   finding nothing credits nothing.
 - `jsxQuery` (text): patterns added to the `typescript` query for files that may hold JSX (`.tsx`, `.astro`).
+- `unreadPackages` (per ecosystem, package name to text): packages that build queries through calls of their own the
+  rule does not read, each with those calls in a few words. Ecosystems are named as the bill of materials names them
+  (`npm`, `Python`, `Go`, `PHP`). While the app ships one, the rule claims nothing, and the report names the package.
 
 ## Passwords
 

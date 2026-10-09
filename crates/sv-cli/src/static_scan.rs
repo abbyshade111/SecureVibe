@@ -48,7 +48,11 @@ impl StaticScan {
         starting(4);
         let config = sv_check::config::check_dir_in(&listing, &bill_of_materials);
         starting(5);
-        let code = sv_check::ast::scan_listing(&loaded.ast_rules, &listing);
+        let mut code = sv_check::ast::scan_listing(&loaded.ast_rules, &listing);
+        let uses = (bill_of_materials.components.iter())
+            .map(|c| (c.ecosystem.as_str(), c.name.as_str()))
+            .chain((scan_report.declared.iter()).map(|d| (d.ecosystem.as_str(), d.name.as_str())));
+        sv_check::ast::hold_back_for_packages(&loaded.ast_rules, &mut code, uses);
         Ok(StaticScan {
             listing,
             scan_report,
@@ -144,6 +148,12 @@ impl StaticScan {
                 ),
             ));
         }
+        for held in &code.held_back_by_packages {
+            examined.push(sv_report::Examined::partly(
+                held.rule_id.clone(),
+                held_back_why(held),
+            ));
+        }
         for untaught in &code.untaught {
             examined.push(sv_report::Examined::partly(
                 untaught.rule_id.clone(),
@@ -166,6 +176,29 @@ impl StaticScan {
         }
         examined
     }
+
+    /// The rules whose clean result a package the app uses held back, as gaps in the written report.
+    pub(crate) fn package_gaps(&self) -> Vec<sv_report::Gap> {
+        (self.code.held_back_by_packages.iter())
+            .map(|held| sv_report::Gap {
+                what: format!(
+                    "{}, for code that goes through {}",
+                    held.rule_id, held.package
+                ),
+                why: held_back_why(held),
+            })
+            .collect()
+    }
+}
+
+/// Why a package the app uses kept a code rule from claiming anything, in the words both the gap and
+/// the `examined` entry use.
+fn held_back_why(held: &sv_check::ast::HeldBackByPackage) -> String {
+    format!(
+        "the app uses {} ({}), which builds queries through calls of its own this rule does not \
+         read ({}), so finding nothing is not evidence; what it found stands",
+        held.package, held.ecosystem, held.calls
+    )
 }
 
 /// The findings as every report lists them and every exit status counts them, from `findings`

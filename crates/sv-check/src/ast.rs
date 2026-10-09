@@ -218,6 +218,17 @@ pub struct AstRule {
     /// being encrypted: the address is usually built at run time, where no rule can see it.
     #[serde(default)]
     pub findings_only: bool,
+    /// Per ecosystem (as the bill of materials names it: `npm`, `Python`, `Go`, `PHP`), packages
+    /// that build queries through calls of their own this rule does not read, each with those calls
+    /// in a few words. While the app ships one, the rule claims nothing.
+    ///
+    /// knex's `whereRaw("name = '" + name + "'")` is the same flaw as a query joined by hand, and a
+    /// rule that has not been taught `whereRaw` finds nothing in it. Until 9 October 2026 that
+    /// nothing credited V1.2.4 for an app whose every query went through such a call (the gap
+    /// analysis of 7 October 2026, finding 1). A package comes off the list in the change that
+    /// teaches the rule its calls.
+    #[serde(default)]
+    pub unread_packages: BTreeMap<String, BTreeMap<String, String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -608,6 +619,9 @@ pub struct AstScan {
     /// command built in Rust. Before this was kept, such a rule claimed the requirement on the
     /// strength of the Python beside it.
     pub untaught: Vec<Untaught>,
+    /// Rules that claim nothing because the app ships a package that builds queries through calls
+    /// the rule does not read (`AstRule::unread_packages`), set by [`hold_back_for_packages`].
+    pub held_back_by_packages: Vec<HeldBackByPackage>,
     /// Rules whose query for a language met in this app would not compile, so they did not run
     /// there. Like an unread file, this keeps every rule from claiming anything is absent.
     pub broken_queries: Vec<BrokenQuery>,
@@ -619,6 +633,16 @@ pub struct AstScan {
     /// the app's code builds a query, not at a file of SQL (ADR-054). Named so their silence is not
     /// taken for a reading.
     pub sql_files: Vec<String>,
+}
+
+/// One rule kept from claiming anything by a package the app ships, and the calls of that package
+/// the rule does not read.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HeldBackByPackage {
+    pub rule_id: String,
+    pub ecosystem: String,
+    pub package: String,
+    pub calls: String,
 }
 
 /// One rule, and the languages in this app it was not able to look in.
@@ -1680,6 +1704,52 @@ pub fn scan_dir(rules: &AstRules, app_dir: &std::path::Path) -> AstScan {
 }
 
 /// `scan_dir`, over a listing already made.
+/// Takes back the clean result of every rule whose `unread_packages` names a package the app uses,
+/// and says which package: the rule cannot see the queries built through it, so finding nothing is
+/// no evidence they keep values apart (ADR-018, Later, 9 October 2026). Findings stay. `uses` is
+/// every (ecosystem, name) the app's lockfiles list or its manifests declare: an app with only a
+/// `package.json` lists nothing in its bill of materials and still uses knex.
+pub fn hold_back_for_packages<'a>(
+    rules: &AstRules,
+    scan: &mut AstScan,
+    uses: impl IntoIterator<Item = (&'a str, &'a str)>,
+) {
+    let uses: Vec<(&str, &str)> = uses.into_iter().collect();
+    for rule in rules.rules() {
+        for (ecosystem, packages) in &rule.unread_packages {
+            for (_, name) in uses.iter().filter(|(e, _)| e == ecosystem) {
+                let Some((package, calls)) = packages
+                    .iter()
+                    .find(|(listed, _)| package_names_match(listed, name))
+                else {
+                    continue;
+                };
+                if !scan.held_back_by_packages.iter().any(|h| {
+                    h.rule_id == rule.id && h.ecosystem == *ecosystem && h.package == *package
+                }) {
+                    scan.held_back_by_packages.push(HeldBackByPackage {
+                        rule_id: rule.id.clone(),
+                        ecosystem: ecosystem.clone(),
+                        package: package.clone(),
+                        calls: calls.clone(),
+                    });
+                }
+            }
+        }
+    }
+    let held = &scan.held_back_by_packages;
+    scan.verified
+        .retain(|v| !held.iter().any(|h| h.rule_id == v.check_id));
+}
+
+/// A package's name as a rule writes it against the name a manifest gave, without regard to case or
+/// to `-`, `_`, and `.`: Python's rule (PEP 503), and harmless elsewhere, where names are written in
+/// lower case and a name still matches itself.
+fn package_names_match(listed: &str, shipped: &str) -> bool {
+    let normal = |name: &str| name.to_ascii_lowercase().replace(['_', '.'], "-");
+    listed == shipped || normal(listed) == normal(shipped)
+}
+
 pub fn scan_listing(rules: &AstRules, listing: &sv_scan::files::Listing) -> AstScan {
     let mut scan = AstScan::default();
     let mut parameter_destinations = Vec::new();

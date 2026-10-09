@@ -215,7 +215,32 @@
           "^(where|rewhere|order|reorder|having|group|joins|from|pluck)$": "^(\"|'|%[qQ]?[^\\w\\s]|<<[~-]?)"
         }
       },
-      "boundParametersLowerConfidence": true
+      "boundParametersLowerConfidence": true,
+      "unreadPackages": {
+        "npm": {
+          "knex": "`whereRaw` and its other `...Raw` calls",
+          "typeorm": "its query builder's `where`, `andWhere`, `orWhere`, and `orderBy`",
+          "sequelize": "`Sequelize.literal` and `where` built from text",
+          "drizzle-orm": "`sql.raw`",
+          "mongoose": "a `$where` written into a query",
+          "mongodb": "a `$where` written into a query",
+          "@supabase/supabase-js": "filter text such as `.or(...)` and `.filter(...)`"
+        },
+        "Python": {
+          "django": "`.extra(...)` and `RawSQL(...)`",
+          "pymongo": "a `$where` written into a query",
+          "supabase": "filter text such as `.or_(...)` and `.filter(...)`"
+        },
+        "Go": {
+          "gorm.io/gorm": "`Raw` and `Where` with text built in the call",
+          "go.mongodb.org/mongo-driver": "a `$where` written into a query",
+          "go.mongodb.org/mongo-driver/v2": "a `$where` written into a query"
+        },
+        "PHP": {
+          "laravel/framework": "`DB::select`, `DB::statement`, and `whereRaw` and its other `...Raw` calls",
+          "illuminate/database": "`DB::select`, `DB::statement`, and `whereRaw` and its other `...Raw` calls"
+        }
+      }
     },
     {
       "id": "ast.unsafe-deserialization",
