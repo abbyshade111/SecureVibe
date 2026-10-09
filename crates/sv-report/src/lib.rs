@@ -693,11 +693,6 @@ pub struct LevelWhy {
     pub because: String,
     /// At level 1, how many more requirements would apply at level 2.
     pub level_two_more: usize,
-    /// At level 1, what the app's own code shows that the answers do not: a sign-up route, or
-    /// field names for sensitive information (ADR-024, Later, 9 October 2026). A question for the
-    /// owner, never a finding.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub hints: Vec<sv_check::level_hints::Hint>,
 }
 
 #[derive(Debug, Clone, Serialize)]

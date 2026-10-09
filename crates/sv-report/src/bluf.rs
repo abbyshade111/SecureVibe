@@ -231,12 +231,6 @@ fn level_why_sentence(level: u8, why: &crate::LevelWhy) -> String {
             if why.level_two_more == 1 { "" } else { "s" }
         ));
     }
-    if level == 1
-        && let Some(question) = sv_check::level_hints::question(&why.hints)
-    {
-        said.push(' ');
-        said.push_str(&question);
-    }
     said
 }
 

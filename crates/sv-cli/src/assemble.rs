@@ -2192,7 +2192,6 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
             .iter()
             .filter(|id| frameworks.get(id.as_str()).is_some_and(|r| r.level == 2))
             .count(),
-        hints: level_hints(manifest, listing, &scan_report.set_apart),
     };
     let mut report = sv_report::build(sv_report::Inputs {
         on_the_internet: manifest.app.deployment == sv_manifest::Deployment::Internet,
@@ -2270,41 +2269,4 @@ fn at_the_manifest(mut finding: sv_check::Finding, manifest_file: &str) -> sv_ch
         finding.location.file = manifest_file.to_owned();
     }
     finding
-}
-
-/// At level 1, what the app's own code shows that the answers setting the level do not (the gap
-/// analysis of 7 October 2026, finding 17; ADR-024, Later, 9 October 2026). Nothing at level 2,
-/// where there is nothing more to ask; and nothing, said on standard error, when the list of
-/// names cannot be read, since a question missing is not a pass.
-fn level_hints(
-    manifest: &sv_manifest::Manifest,
-    listing: &sv_scan::files::Listing,
-    set_apart: &std::collections::BTreeSet<String>,
-) -> Vec<sv_check::level_hints::Hint> {
-    if manifest.target_level() != 1 {
-        return Vec::new();
-    }
-    let hints =
-        match sv_check::level_hints::Hints::load(&sv_frameworks::data::file("level-hints.json")) {
-            Ok(hints) => hints,
-            Err(why) => {
-                eprintln!(
-                    "sv: the code was not compared with the answers that set the level: {why}"
-                );
-                return Vec::new();
-            }
-        };
-    let private_audience = matches!(
-        manifest.app.audience,
-        sv_manifest::Audience::JustMe | sv_manifest::Audience::MyTeam
-    );
-    sv_check::level_hints::find(
-        listing,
-        &hints,
-        &sv_check::level_hints::Answers {
-            private_audience,
-            listed: manifest.data.listed(),
-        },
-        set_apart,
-    )
 }
