@@ -306,6 +306,14 @@ listed apart, below this item.
    **(a) on `owned.create` done the same day**
    (`docs/design/0326-a-record-put-into-another-user-s-account-9-october-2026.md`; ADR-053, Later):
    `probe.owner-field-trusted`. `creates` and `change-email` stay open.
+   **(a), on `change-email`, claimed 9 October 2026 by session securevibe-e9** ("please continue to work through and
+   pick up new items as you merge"), in branch `claude/stackvet-e9-email-role`: with `signup`, `change-email`, and an
+   `admin` page, an account made for it is shown refused the admin pages, then sends the email change with the sign-up
+   check's role fields added (`role=admin`, `is_admin=true`, and the rest). An admin page that then opens to it is a
+   finding under `probe.role-field-trusted` (V8.3.1, V15.3.3, V8.2.3); nothing credits a requirement. Never A or B,
+   whom the other checks rely on. `creates` stays unclaimed: stackvet.toml gives no way to read back what those
+   requests make, so an owner sent there could not be seen to take. Read on `main` and the open pull requests just
+   before this claim: no other session had claimed it.
    **(g) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
    you merge"), in branch `claude/securevibe-e2-gemini`: the test model answers Google's Gemini format as it answers
    OpenAI's and Anthropic's. A POST whose path ends `:generateContent` or `:streamGenerateContent` (whatever comes
