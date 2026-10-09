@@ -1285,6 +1285,7 @@ fn what_was_not_read(
         });
     }
     gaps.extend(untaught_gaps(&code.untaught));
+    gaps.extend(static_scan.package_gaps());
     examined.extend(static_scan.examined());
     if !scan_report.unread_extensions.is_empty() {
         let mut exts: Vec<&str> = scan_report
