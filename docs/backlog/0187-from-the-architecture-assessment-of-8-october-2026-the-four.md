@@ -184,6 +184,20 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    **Done the same day** (CLAUDE.md, the claim bullet; DESIGN, "The tests of the seven largest modules live beside
    them"): the rule written down, and the eleven test modules of the seven files moved to `src/<module>/<name>.rs`,
    verbatim. Not done: `ast.rs` and `sbom.rs` along their seams.
+   **The second half, `ast.rs` and `sbom.rs` along their seams, claimed 9 October 2026 by session securevibe-e2**,
+   from the roadmap (Phase 2, item 11's second half, the first unclaimed sub-item once the open parts of item 12 were
+   claimed or wait on a decision), in branch `claude/securevibe-e2-ast-sbom-seams`: code moved, not changed, into
+   files beside each module. From `ast.rs` (4,584 lines), the page reader (`html_fragments` and the tag reading
+   under it) to `ast/html.rs`, what counts as fixed text (`is_literal`, `Fixed`, and the bindings under it) to
+   `ast/fixed.rs`, and the notebook and template readers (Jupyter, Astro, EJS, Svelte, Vue) to `ast/templates.rs`;
+   from `sbom.rs` (1,560 lines), the lockfile and manifest readers to `sbom/lockfiles.rs` and the CycloneDX writer
+   to `sbom/cyclonedx.rs`. Nothing `sv` does changes, and the census and credit lines, which name a file and line,
+   are checked after the move. Confirmed on `main` just before this claim: both files are whole, and no other session
+   holds this part.
+   **That half done the same day** (`docs/design/0319-ast-rs-and-sbom-rs-along-their-seams-9-october.md`; ADR-018 and
+   ADR-054, Later, 9 October 2026): five files beside the two modules, the code in them unchanged, `ast.rs` from 4,584
+   lines to 2,087 and `sbom.rs` from 1,560 to 739. The census of credits, which names a file and a line, read the same
+   checks crediting the same requirements after the move.
 12. **Smaller seams in the pipeline.** `Signature.condition` in `sv-scan` is a `String` skipped at run time when
    unknown (`sv-scan/src/lib.rs:297`), where the `Condition` enum refuses unknown names everywhere else: type it
    (ADR-015 governs both data files; one line). `not_for_tests` (`main.rs:4492-4510`) decides an applicability
@@ -225,6 +239,11 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    `requirements_for_tests` in `crates/sv-cli/src/assemble.rs` to `sv-frameworks`, beside `verification_class_for`,
    with tests of its own there. Nothing a report concludes changes. Confirmed on `main` just before this claim: the
    rule is still written inline in `assemble.rs`, it has no test of its own, and no other session holds this part.
+   **That part done the same day**
+   (`docs/design/0319-what-an-app-s-own-tests-cannot-show-decided-beside-the.md`): `ApplicabilityConfig::not_for_tests`
+   in `sv-frameworks`, called by the CLI, and `crates/sv-frameworks/tests/not_for_tests.rs`, which holds each of its four
+   reasons on a requirement only that reason covers. Before it, nothing in the workspace failed when the rule held for
+   nothing. The rest of item 12 is open.
    **Its fifth part, the anonymous probes sent in one go, claimed 9 October 2026 by session securevibe-e9**, from the
    roadmap (Phase 2, item 12, the next unclaimed part: the third waits on a decision, as securevibe-e2 noted, and the
    fourth is theirs), in branch `claude/stackvet-e9-probes-in-one`. Not `probe_together` as it stands, which starts

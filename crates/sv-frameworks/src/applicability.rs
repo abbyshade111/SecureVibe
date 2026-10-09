@@ -135,6 +135,22 @@ impl ApplicabilityConfig {
             .unwrap_or(self.default_verification_class)
     }
 
+    /// Whether an application's own tests cannot show `id` at all, so a report does not list it as a
+    /// test worth writing: a requirement classed as documentation or deployment, the AISVS appendix
+    /// on the development process (`AC.`), and one whose own words ask for documentation. A person
+    /// answers each of these. Until 9 October 2026 this was decided in the CLI, apart from the
+    /// classes it reads (BACKLOG, "From the architecture assessment of 8 October 2026", item 12).
+    pub fn not_for_tests(&self, frameworks: &Frameworks, id: &str) -> bool {
+        matches!(
+            self.verification_class_for(id),
+            VerificationClass::DocGenerated | VerificationClass::DeploymentTime
+        ) || id.starts_with("AC.")
+            || frameworks.get(id).is_some_and(|r| {
+                let text = r.description.to_lowercase();
+                text.contains("documentation") || text.contains("documented")
+            })
+    }
+
     pub fn deployment_note_for(&self, id: &str) -> Option<&str> {
         self.rules_for(id)
             .into_iter()

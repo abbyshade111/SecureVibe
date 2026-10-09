@@ -1,6 +1,6 @@
 # The loop: `sv` as the MCP server an AI tool uses while it builds
 
-**Status:** partly done: 0 of 6 parts done, 1 claimed, 5 open, as its markers read on 8 October 2026
+**Status:** done, 6 October 2026
 
 Proposed on 5 October 2026 by session
 paper-facts, after the third prompts trial (`docs/prompts/trial-3/README.md`), where the MCP server's instructions
