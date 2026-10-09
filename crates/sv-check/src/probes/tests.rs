@@ -721,6 +721,7 @@ fn the_suite_asks_what_it_says_it_asks() {
         6 + LISTING_PATHS.len()
             + UNUSED_METHODS.len()
             + 1
+            + LOG_PATHS.len()
             + EXPOSED_PATHS.len()
             + 1
             + CONSOLES.len()
@@ -2141,4 +2142,68 @@ fn a_hosted_backend_in_the_packages_is_named_as_out_of_reach() {
         running_app_gaps(true, &[], &[]).len(),
         unassessed_requirements(true).len()
     );
+}
+
+#[test]
+fn a_log_file_served_to_anybody_is_found_by_its_lines() {
+    // ADR-072, V16.4.2. Each common shape of log line, at three addresses.
+    for (path, body) in [
+        (
+            "/storage/logs/laravel.log",
+            "[2026-10-09 12:00:01] production.ERROR: Undefined index: email\n[2026-10-09 12:00:02] production.INFO: Signed in a@example.test\n[2026-10-09 12:00:03] production.WARNING: Slow query\n",
+        ),
+        (
+            "/logs/app.log",
+            "{\"level\":\"info\",\"time\":\"2026-10-09T12:00:01Z\",\"msg\":\"request\"}\n{\"level\":\"error\",\"time\":\"2026-10-09T12:00:02Z\",\"msg\":\"db\"}\n{\"level\":\"info\",\"time\":\"2026-10-09T12:00:03Z\",\"msg\":\"request\"}\n",
+        ),
+        (
+            "/error.log",
+            "Oct  9 12:00:01 app node[1]: started\nOct  9 12:00:02 app node[1]: token=abc\nOct  9 12:00:03 app node[1]: stopped\n",
+        ),
+        (
+            "/npm-debug.log",
+            "10.0.0.1 - - [09/Oct/2026:12:00:01 +0000] \"GET / HTTP/1.1\" 200\n10.0.0.1 - - [09/Oct/2026:12:00:02 +0000] \"GET /a HTTP/1.1\" 200\n10.0.0.1 - - [09/Oct/2026:12:00:03 +0000] \"GET /b HTTP/1.1\" 404\n",
+        ),
+    ] {
+        let found = evaluate(&[
+            good_home(),
+            response(&log_id(path), 200, &[("Content-Type", "text/plain")], body),
+        ]);
+        let f = found
+            .iter()
+            .find(|f| f.rule_id == "probe.log-file-served")
+            .unwrap_or_else(|| panic!("{path}: {found:?}"));
+        assert_eq!(f.severity, Severity::High);
+        assert!(f.description.contains(path), "{}", f.description);
+        assert_eq!(f.requirement_ids, ["V16.4.2"]);
+    }
+}
+
+#[test]
+fn a_page_that_is_not_a_log_is_never_taken_for_one() {
+    let three_lines = "[2026-10-09 12:00:01] a\n[2026-10-09 12:00:02] b\n[2026-10-09 12:00:03] c\n";
+    for (path, status, body) in [
+        // The app's own page, answered at every address.
+        ("/logs/app.log", 200, "<!doctype html><html><body>Welcome</body></html>"),
+        // A listing of a logs folder, whose rows carry dates: the listing check's to find.
+        (
+            "/logs/",
+            200,
+            "<html><body><a href=\"app.log\">app.log</a> 2026-10-09 12:00  4K\n<a href=\"b.log\">b.log</a> 2026-10-09 12:01  4K\n<a href=\"c.log\">c.log</a> 2026-10-09 12:02  4K\n</body></html>",
+        ),
+        // Two lines are not enough.
+        ("/error.log", 200, "[2026-10-09 12:00:01] a\n[2026-10-09 12:00:02] b\n"),
+        // Not served.
+        ("/debug.log", 404, three_lines),
+        ("/log/", 403, three_lines),
+    ] {
+        let found = evaluate(&[
+            good_home(),
+            response(&log_id(path), status, &[], body),
+        ]);
+        assert!(
+            !ids(&found).contains(&"probe.log-file-served"),
+            "{path} {status}: {found:?}"
+        );
+    }
 }
