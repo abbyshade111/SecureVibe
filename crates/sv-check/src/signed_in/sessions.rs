@@ -779,6 +779,7 @@ pub(super) fn private_page_checks(
     http: &mut dyn Http,
     users: &UsersSection,
     signed_in: &SignedIn,
+    carried: Option<bool>,
     out: &mut Outcome,
 ) {
     if users.private.is_empty() {
@@ -799,6 +800,21 @@ pub(super) fn private_page_checks(
     let mut with_link = Vec::new();
     let mut without_link = Vec::new();
     let mut without_headers = Vec::new();
+    // The cookies shown to carry the session: set at sign-in, with the page refused without them
+    // (`sign_in_cookies_carry_session`). A page that sets one again replaces it in the browser, so
+    // its attributes are judged as sign-in's were; a cookie that does not carry the session is
+    // not held to HttpOnly (the running-app review of 3 October 2026, part 3).
+    let session_names: Vec<&str> = if carried == Some(true) {
+        signed_in
+            .set_at_login
+            .iter()
+            .map(|c| c.name.as_str())
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let mut set_again_bare = Vec::new();
+    let mut set_again_kept = Vec::new();
 
     for path in &users.private {
         let Some(response) = http.send(&get("private-page-headers", path, &signed_in.session))
@@ -809,6 +825,31 @@ pub(super) fn private_page_checks(
             continue;
         }
         opened.push(path.clone());
+        for (_, header) in response.headers.iter().filter(|(k, _)| k == "set-cookie") {
+            let Some(cookie) = parse_set_cookie(header) else {
+                continue;
+            };
+            // An empty value clears the cookie, which leaves nothing in the browser to protect.
+            if cookie.value.is_empty() || !session_names.contains(&cookie.name.as_str()) {
+                continue;
+            }
+            let mut lacks = Vec::new();
+            if !cookie.http_only {
+                lacks.push("HttpOnly");
+            }
+            if cookie.same_site.is_none() {
+                lacks.push("SameSite");
+            }
+            if lacks.is_empty() {
+                set_again_kept.push(format!("{path} (`{}`)", cookie.name));
+            } else {
+                set_again_bare.push(format!(
+                    "{path} sets `{}` again without {}",
+                    cookie.name,
+                    lacks.join(" or ")
+                ));
+            }
+        }
         let missing = crate::probes::missing_headers(&response);
         if !missing.is_empty() {
             without_headers.push(format!(
@@ -854,6 +895,26 @@ pub(super) fn private_page_checks(
                 .to_owned(),
         ));
         return;
+    }
+
+    // ---- V3.3.2, V3.3.4: the session cookie, when a signed-in page sets it again
+    if !set_again_kept.is_empty() {
+        out.steps.push(format!(
+            "the session cookie, set again by {}, kept HttpOnly and SameSite",
+            set_again_kept.join(", ")
+        ));
+    }
+    if !set_again_bare.is_empty() {
+        out.findings.push(finding(
+            &SESSION_COOKIE,
+            "A signed-in page sets the session cookie again without the attributes that protect it",
+            Severity::High,
+            format!(
+                "{}. Sign-in set it with them, but a browser keeps whichever it was given last, so \
+                 from that page on the session cookie is without them.",
+                set_again_bare.join("; ")
+            ),
+        ));
     }
 
     // ---- V14.3.2: Cache-Control: no-store
