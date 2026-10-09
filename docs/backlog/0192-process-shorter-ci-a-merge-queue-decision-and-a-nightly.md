@@ -1,6 +1,6 @@
 # Process: shorter CI, a merge queue decision, and a nightly routine on `main`
 
-**Status:** open
+**Status:** partly done: parts 1 (shorter CI) and 2 (a merge queue, a repository setting and the owner's to decide)
 
 From the same write-up; each
 claimable on its own, and the second is the owner's to decide.
