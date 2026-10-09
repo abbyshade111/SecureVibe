@@ -719,12 +719,7 @@ pub fn markdown(items: &[Item], ahead: &[Item], unread: &[String]) -> String {
 
 const AHEAD_OPENING: &str = "\n## What `sv run` will look for, read in the code\n\nNot something `sv run` needs: what it will check once the app is running. \"Look at this\" means nothing in the code reads like a way of handling it; if the app handles it some other way, nothing needs changing. Nothing here is evidence either way, and nothing is credited.\n\n";
 
-pub(crate) fn markdown_with(
-    items: &[Item],
-    ahead: &[Item],
-    unread: &[String],
-    fence: &Fence,
-) -> String {
+pub fn markdown_with(items: &[Item], ahead: &[Item], unread: &[String], fence: &Fence) -> String {
     let mut out = String::from(OPENING);
     let looks = items.iter().filter(|i| i.answer == Answer::Look).count();
     out.push_str(&format!(

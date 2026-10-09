@@ -31,12 +31,8 @@ macro_rules! print {
     ($($arg:tt)*) => { ::std::print!("{}", ::sv_report::visible(&::std::format!($($arg)*))) };
 }
 
-mod brief;
 mod history;
 mod mcp;
-mod parts;
-mod plan;
-mod preflight;
 mod report_files;
 mod report_folder;
 mod report_seal;
@@ -408,18 +404,6 @@ fn wrap(text: &str, width: usize) -> Vec<String> {
     lines
 }
 
-/// The design-time prompts, read on their own: the second of the library's files.
-pub(crate) fn design_prompts() -> Result<sv_check::prompts::Prompts> {
-    let paths = prompts_paths();
-    sv_check::prompts::Prompts::load_all(&[&paths[1]])
-}
-
-/// The coding prompts, read on their own: the first of the library's files.
-pub(crate) fn coding_prompts() -> Result<sv_check::prompts::Prompts> {
-    let paths = prompts_paths();
-    sv_check::prompts::Prompts::load_all(&[&paths[0]])
-}
-
 /// The coding prompts shown to work, in full, for the two places every builder reads before any code:
 /// the end of the specification (`sv init`, `stackvet_spec`) and of the MCP server's opening
 /// instructions. In the delivery test (docs/prompts/library-trial/delivery.md) a prompt pasted where
@@ -470,61 +454,6 @@ pub(crate) fn whole_app_prompts(loaded: &Loaded) -> Result<Vec<sv_check::prompts
         .filter(|p| p.status == sv_check::prompts::Status::Shown)
         .filter(|p| !p.requirements.iter().any(|r| brought.contains(r)))
         .collect())
-}
-
-/// The plan for an app from its brief, built from the report's own parts (ADR-030).
-pub(crate) fn plan_for(app_dir: &Path, report: &sv_report::Report) -> Result<plan::Plan> {
-    let (manifest, _) = Manifest::load_in(app_dir)?;
-    Ok(plan::from_report(report, &manifest, &design_prompts()?))
-}
-
-/// The options a plan's report is built with: nothing started and no tool run, since a plan reads
-/// the brief and needs no code.
-pub(crate) fn plan_options() -> ReportOptions {
-    ReportOptions::reading_only("`sv plan`")
-}
-
-/// The features a brief can be written for (`sv brief`, `stackvet_before`).
-pub(crate) fn feature_briefs_path() -> PathBuf {
-    sv_frameworks::data::file("feature-briefs.json")
-}
-
-/// The brief for one feature of an app, from the report's own parts, as the plan is.
-pub(crate) fn brief_for(
-    report: &sv_report::Report,
-    feature: &str,
-    loaded: &Loaded,
-) -> Result<brief::Brief> {
-    let features = brief::Features::load(&feature_briefs_path())?;
-    let feature = features.get(feature)?;
-    let brought = brief::brought(feature, &loaded.frameworks, &loaded.config_rules);
-    let rules = sv_check::coding_rules::CodingRules::load(&coding_rules_path())?;
-    Ok(brief::from_report(
-        report,
-        feature,
-        &brought,
-        &loaded.frameworks,
-        &design_prompts()?,
-        &coding_prompts()?,
-        &rules,
-    ))
-}
-
-/// One feature's brief for an app with no `stackvet.toml` yet: what the feature brings, whole,
-/// with what only the file can decide said to be waiting for it.
-pub(crate) fn brief_without_manifest(feature: &str, loaded: &Loaded) -> Result<brief::Brief> {
-    let features = brief::Features::load(&feature_briefs_path())?;
-    let feature = features.get(feature)?;
-    let brought = brief::brought(feature, &loaded.frameworks, &loaded.config_rules);
-    let rules = sv_check::coding_rules::CodingRules::load(&coding_rules_path())?;
-    Ok(brief::without_manifest(
-        feature,
-        &brought,
-        &loaded.frameworks,
-        &design_prompts()?,
-        &coding_prompts()?,
-        &rules,
-    ))
 }
 
 /// Prints one feature's brief, or the features there are when none is named. Like the plan, it
@@ -1168,14 +1097,6 @@ pub(crate) fn coding_rules_for(app_dir: &Path) -> Result<RulesForApp> {
         given,
         withheld,
     })
-}
-
-/// The prompt library's files: the prompts for the coding, then the design-time ones.
-pub(crate) fn prompts_paths() -> [PathBuf; 2] {
-    [
-        sv_frameworks::data::file("prompts.json"),
-        sv_frameworks::data::file("design-prompts.json"),
-    ]
 }
 
 /// The library's prompts for one requirement, or all of them, as Markdown, and the ones chosen.

@@ -849,3 +849,86 @@ impl ReviewLookup<'_> {
         None
     }
 }
+
+pub mod brief;
+
+pub mod parts;
+
+pub mod plan;
+
+pub mod preflight;
+
+/// The plan for an app from its brief, built from the report's own parts (ADR-030).
+pub fn plan_for(app_dir: &Path, report: &sv_report::Report) -> Result<plan::Plan> {
+    let (manifest, _) = Manifest::load_in(app_dir)?;
+    Ok(plan::from_report(report, &manifest, &design_prompts()?))
+}
+
+/// The options a plan's report is built with: nothing started and no tool run, since a plan reads
+/// the brief and needs no code.
+pub fn plan_options() -> ReportOptions {
+    ReportOptions::reading_only("`sv plan`")
+}
+
+/// The features a brief can be written for (`sv brief`, `stackvet_before`).
+pub fn feature_briefs_path() -> PathBuf {
+    sv_frameworks::data::file("feature-briefs.json")
+}
+
+/// The brief for one feature of an app, from the report's own parts, as the plan is.
+pub fn brief_for(
+    report: &sv_report::Report,
+    feature: &str,
+    loaded: &Loaded,
+) -> Result<brief::Brief> {
+    let features = brief::Features::load(&feature_briefs_path())?;
+    let feature = features.get(feature)?;
+    let brought = brief::brought(feature, &loaded.frameworks, &loaded.config_rules);
+    let rules = sv_check::coding_rules::CodingRules::load(&coding_rules_path())?;
+    Ok(brief::from_report(
+        report,
+        feature,
+        &brought,
+        &loaded.frameworks,
+        &design_prompts()?,
+        &coding_prompts()?,
+        &rules,
+    ))
+}
+
+/// One feature's brief for an app with no `stackvet.toml` yet: what the feature brings, whole,
+/// with what only the file can decide said to be waiting for it.
+pub fn brief_without_manifest(feature: &str, loaded: &Loaded) -> Result<brief::Brief> {
+    let features = brief::Features::load(&feature_briefs_path())?;
+    let feature = features.get(feature)?;
+    let brought = brief::brought(feature, &loaded.frameworks, &loaded.config_rules);
+    let rules = sv_check::coding_rules::CodingRules::load(&coding_rules_path())?;
+    Ok(brief::without_manifest(
+        feature,
+        &brought,
+        &loaded.frameworks,
+        &design_prompts()?,
+        &coding_prompts()?,
+        &rules,
+    ))
+}
+
+/// The design-time prompts, read on their own: the second of the library's files.
+pub fn design_prompts() -> Result<sv_check::prompts::Prompts> {
+    let paths = prompts_paths();
+    sv_check::prompts::Prompts::load_all(&[&paths[1]])
+}
+
+/// The coding prompts, read on their own: the first of the library's files.
+pub fn coding_prompts() -> Result<sv_check::prompts::Prompts> {
+    let paths = prompts_paths();
+    sv_check::prompts::Prompts::load_all(&[&paths[0]])
+}
+
+/// The prompt library's files: the prompts for the coding, then the design-time ones.
+pub fn prompts_paths() -> [PathBuf; 2] {
+    [
+        sv_frameworks::data::file("prompts.json"),
+        sv_frameworks::data::file("design-prompts.json"),
+    ]
+}
