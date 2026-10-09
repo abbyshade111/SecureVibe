@@ -237,3 +237,9 @@ backlog", in branch `claude/stackvet-e9-history-honest`: `#[serde(default)]` on 
 added later does not hide every older run, and the page saying how many runs it could not read, each with a test
 that fails without it. Open pull requests (#1302, #1304, #1305) and the branches of the last few hours read first:
 none touches `crates/sv-cli/src/history.rs` or `crates/sv-report/src/dashboard.rs`.
+
+**Part 1, items 9 and 10 claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please do"), in
+branch `claude/explain-seal-and-path`: `sv explain` checking a report's seal before repeating it, and saying when it
+is not shown to be `sv`'s (item 9); and `sv explain ID PATH` taking the path as the app, as its own documentation
+says (item 10). Open pull requests and recent branches read first: session stackvet-e9 holds items 3, 4, 7, and 8,
+and none touches `crates/sv-cli/src/explain.rs`.
