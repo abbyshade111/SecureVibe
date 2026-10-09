@@ -403,3 +403,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     the account by its exact address does. Only after the reset check has shown its own email arriving. **Record,
     `Status: proposed`: ADR-069.** Checked just before this claim: not on `main`, in no open pull request, and in no
     recent branch.
+    **Done on 9 October 2026** (DESIGN, "A Bcc header typed into the address a reset is mailed to (9 October 2026)";
+    ADR-069, accepted). `probe.mail-header-injected` asks for two more resets after the reset check, the address
+    followed by a line break and a `Bcc` header: anything reaching the header's address is a finding, the account's
+    email with nothing reaching it is credited in part, and no email is said. Not done: other fields and other mail.

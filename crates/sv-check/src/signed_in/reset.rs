@@ -16,6 +16,116 @@ pub(super) fn reset_checks(
     confirm: Option<&str>,
     out: &mut Outcome,
 ) {
+    let mut mailed = None;
+    reset_flow(http, users, accounts, confirm, &mut mailed, out);
+    // Last, after the whole reset: a new request may cancel the code the flow above was using.
+    match (&users.reset, mailed) {
+        (Some(reset), Some(account)) => {
+            mail_header_check(http, reset, &account, &accounts.spare, out);
+        }
+        _ => out.not_assessed.push((
+            "V1.3.11".to_owned(),
+            "Whether a header typed into an email address reaches the app's email: it is asked of \
+             the password reset, once its email has been seen to arrive, and it was not."
+                .to_owned(),
+        )),
+    }
+}
+
+/// V1.3.11 (ADR-069): the reset requested twice more for the account, its address followed by a
+/// line break and a `Bcc` header naming an address of `sv`'s own, once with `\r\n` and once with
+/// `\n`. Asked only once the reset email has been seen to arrive for that account.
+fn mail_header_check(
+    http: &mut dyn Http,
+    reset: &sv_manifest::ResetSection,
+    account: &Account,
+    spare: &str,
+    out: &mut Outcome,
+) {
+    let theirs = format!("sv-bcc-{}@example.test", &spare[12..24]);
+    let before = http.mail(&account.user, 0).map_or(0, |m| m.len());
+    let mut answers = Vec::new();
+    for (label, line_break) in [("crlf", "\r\n"), ("lf", "\n")] {
+        let user = format!("{}{line_break}Bcc: {theirs}", account.user);
+        let values = Values {
+            user: &user,
+            ..Default::default()
+        };
+        let mut session = Session::default();
+        let answer = send_template(
+            http,
+            &format!("reset-header-{label}"),
+            &reset.request,
+            &values,
+            &mut session,
+            &[],
+        )
+        .0;
+        answers.push(status(&answer));
+    }
+    // The account's own email first, waited for: by the time it has come, so has anything sent
+    // with it.
+    let to_account = http
+        .mail(&account.user, before + 1)
+        .map_or(0, |m| m.len().saturating_sub(before));
+    let to_theirs = http
+        .mail(&theirs, usize::from(to_account == 0))
+        .map_or(0, |m| m.len());
+    out.steps.push(format!(
+        "asked for a reset twice more for {} with a line break and a `Bcc` header after the address \
+         ({}): {to_account} email{} came to the account and {to_theirs} to the address in the header",
+        account.user,
+        answers.join(", "),
+        if to_account == 1 { "" } else { "s" }
+    ));
+    if to_theirs > 0 {
+        out.findings.push(finding(
+            &MAIL_HEADER_INJECTED,
+            "A header typed into the email address is added to the app's email",
+            Severity::High,
+            format!(
+                "Asked for a password reset through {} with `Bcc: {theirs}` after a line break in \
+                 the address, the app's email reached {theirs} as well.",
+                reset.request.path
+            ),
+        ));
+    } else if to_account > 0 {
+        out.verified.push(
+            crate::Verified::new(
+                MAIL_HEADER_INJECTED.rule_id,
+                MAIL_HEADER_INJECTED.requirement_ids,
+                format!(
+                    "the address field of the password reset request ({}), sent with a line break \
+                     and a `Bcc` header after the address: the account's reset email came, and \
+                     nothing reached the address in the header; one field and one kind of mail",
+                    reset.request.path
+                ),
+            )
+            .in_part(),
+        );
+    } else {
+        out.not_assessed.push((
+            "V1.3.11".to_owned(),
+            format!(
+                "Whether a header typed into an email address reaches the app's email: a reset asked \
+                 for with a line break and a `Bcc` header after the address sent no email at all \
+                 ({}), which an app that finds the account by the exact address it was given does, \
+                 so it shows nothing either way.",
+                answers.join(", ")
+            ),
+        ));
+    }
+    crate::verified::unless_credited(MAIL_HEADER_INJECTED.rule_id, &out.verified);
+}
+
+fn reset_flow(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    confirm: Option<&str>,
+    mailed: &mut Option<Account>,
+    out: &mut Outcome,
+) {
     const IDS: &str = "V6.4.3, V6.3.8";
     let Some(reset) = &users.reset else {
         out.not_assessed.push((
@@ -143,6 +253,7 @@ pub(super) fn reset_checks(
         ));
         return;
     }
+    *mailed = Some(account.clone());
     let codes: Vec<String> = arrived
         .iter()
         .filter_map(|m| reset_code(m, &patterns))
@@ -415,6 +526,82 @@ mod tests {
             .filter(|(ids, _)| ids.contains("V6.4.3"))
             .map(|(_, why)| why.as_str())
             .collect()
+    }
+
+    #[test]
+    fn a_header_typed_into_the_reset_address_is_found_or_credited_or_said() {
+        // ADR-069, V1.3.11. Found: the app mails the address as typed, `Bcc:` line and all.
+        let o = run_against(
+            Flaws {
+                reset_mails_typed_address: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        let f = o
+            .findings
+            .iter()
+            .find(|f| f.rule_id == MAIL_HEADER_INJECTED.rule_id)
+            .unwrap_or_else(|| panic!("{:?}", o.steps));
+        assert!(f.description.contains("sv-bcc-"), "{}", f.description);
+        assert!(!verified_ids(&o).contains(&MAIL_HEADER_INJECTED.rule_id));
+        // The reset flow before it still ran in full, so the check came after it.
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s == "the password the used code tried to set was refused"),
+            "{:?}",
+            o.steps
+        );
+        // Credited in part: the app cuts the address at the line break and mails the account.
+        let o = run_against(
+            Flaws {
+                reset_cuts_line_breaks: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        let credit = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == MAIL_HEADER_INJECTED.rule_id)
+            .unwrap_or_else(|| panic!("{:?}", o.steps));
+        assert!(credit.in_part, "{credit:?}");
+        assert!(!rule_ids(&o).contains(&MAIL_HEADER_INJECTED.rule_id));
+        // Said, neither found nor credited: the app finds the account by the exact address, so
+        // nothing is sent (the fake app's way by default).
+        let o = run_against(Flaws::default(), &users());
+        assert!(!rule_ids(&o).contains(&MAIL_HEADER_INJECTED.rule_id));
+        assert!(!verified_ids(&o).contains(&MAIL_HEADER_INJECTED.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(id, why)| id == "V1.3.11" && why.contains("sent no email at all")),
+            "{:?}",
+            o.not_assessed
+        );
+        // Not asked at all when the reset email never arrived.
+        let o = run_against(
+            Flaws {
+                reset_sends_nothing: true,
+                reset_mails_typed_address: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        assert!(
+            !o.steps.iter().any(|s| s.contains("`Bcc` header")),
+            "{:?}",
+            o.steps
+        );
+        assert!(!rule_ids(&o).contains(&MAIL_HEADER_INJECTED.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(id, why)| id == "V1.3.11" && why.contains("it was not")),
+            "{:?}",
+            o.not_assessed
+        );
     }
 
     #[test]
