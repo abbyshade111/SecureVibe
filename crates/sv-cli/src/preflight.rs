@@ -638,6 +638,7 @@ pub fn of(app_dir: &Path) -> anyhow::Result<Found> {
     let source = Source::of(&Listing::of(app_dir));
     let mut items = preflight(&manifest, &source);
     items.extend(install(&manifest, app_dir));
+    items.extend(build_installs(&manifest));
     Ok((sorted(items), ahead(&manifest, &source), source.unread))
 }
 
@@ -710,6 +711,81 @@ fn install(manifest: &Manifest, app_dir: &Path) -> Option<Item> {
         ),
     })
 }
+
+/// A build step that downloads packages (the gap analysis of 7 October 2026, finding 9). The step
+/// runs inside the fence like the app, where nothing can be downloaded and nothing outside `/tmp`
+/// written, so it fails whatever it prints; until now that was said only after a run had failed
+/// (`never_ready_detail` in `sv-run`). Read a command at a time, so `pip install` is found in
+/// `cd api && pip install -r requirements.txt` and not in `pip --version`.
+fn build_installs(manifest: &Manifest) -> Option<Item> {
+    let build = manifest.stack.run.build.as_deref()?.trim();
+    let found = installer_in(build)?;
+    Some(Item::new(
+        "build-install",
+        Answer::Look,
+        vec![
+            sv("The build step ("),
+            app(format!("`{build}`")),
+            sv(format!(
+                ") runs `{found}`, which downloads packages. The build step runs inside the fence, where nothing can be downloaded and nothing outside /tmp written, so it fails there. Two ways work: `install = true` under [stack.run] has `sv` install the packages in requirements.txt or package.json before the run, outside the fence; or build an image of your own that already holds them and name it in `image` (docs/GETTING-STARTED.md, \"An image of your own\")."
+            )),
+        ],
+    ))
+}
+
+/// The first command in `build` that downloads packages, as it is usually written, or `None`.
+fn installer_in(build: &str) -> Option<String> {
+    // A quote starts or ends a command as `;` does, so `sh -c "pip install flask"` is read; a
+    // message such as `echo "pip install"` is then read as run too, and a warning to look costs
+    // less than missing the step.
+    let mut words: Vec<String> = Vec::new();
+    for w in build.split_whitespace() {
+        // `&&`, `||`, `;`, `|` and quotes end a command, written apart or against a word.
+        let mut rest = w;
+        while let Some(at) = rest.find([';', '&', '|', '"', '\'']) {
+            if at > 0 {
+                words.push(rest[..at].to_owned());
+            }
+            words.push(";".to_owned());
+            rest = rest[at + 1..].trim_start_matches(['&', '|']);
+        }
+        if !rest.is_empty() {
+            words.push(rest.to_owned());
+        }
+    }
+    for segment in words.split(|w| w == ";") {
+        let segment: Vec<&str> = segment
+            .iter()
+            .map(String::as_str)
+            .skip_while(|w| w.contains('=') || *w == "sudo")
+            .collect();
+        let (Some(&tool), next) = (segment.first(), segment.get(1).copied()) else {
+            continue;
+        };
+        let tool = tool.rsplit('/').next().unwrap_or(tool);
+        let next = next.unwrap_or("");
+        let named = match (tool, next) {
+            ("pip" | "pip3", "install") => format!("{tool} install"),
+            ("python" | "python3", "-m")
+                if segment.get(2) == Some(&"pip") && segment.get(3) == Some(&"install") =>
+            {
+                format!("{tool} -m pip install")
+            }
+            ("uv", "pip") if segment.get(2) == Some(&"install") => "uv pip install".to_owned(),
+            ("uv", "sync") | ("poetry" | "pipenv", "install") => format!("{tool} {next}"),
+            ("npm", "install" | "i" | "ci") | ("pnpm", "install" | "i") => format!("{tool} {next}"),
+            ("yarn", "" | "install") => "yarn install".to_owned(),
+            ("yarn", w) if w.starts_with('-') => "yarn install".to_owned(),
+            ("bundle", "install") | ("composer", "install") => format!("{tool} install"),
+            _ => continue,
+        };
+        return Some(named);
+    }
+    None
+}
+
+#[cfg(test)]
+mod build_install_tests;
 
 const OPENING: &str = "# Preflight: what `sv run` will need, looked for in the code\n\nNothing was run. Each answer is a reading of the app's files: \"looks right\" means what `sv run` needs was found in the text, not that it works, and \"look at this\" may be a route or a name built from parts. Nothing here is evidence for any requirement, and nothing is credited.\n";
 
