@@ -1179,7 +1179,7 @@ fn session_values(s: &SignedIn) -> Vec<(String, String)> {
     values
 }
 
-/// V7.2.2 (ADR-066): whether the session is one fixed key, from the first test user's sign-in and
+/// V7.2.2 (ADR-067): whether the session is one fixed key, from the first test user's sign-in and
 /// the next one `session_id_check` makes. A fixed key for everybody, or for each person, is the same
 /// at both. The same value twice is the finding; every one different is credited, once a private
 /// page has opened with the new session, so a sign-in that quietly failed is not taken for a new
@@ -1231,7 +1231,8 @@ fn static_session_check(
         ));
         return;
     }
-    let opened = confirm.is_some_and(|path| ok(&http.send(&get("static-again", path, &again.session))));
+    let opened =
+        confirm.is_some_and(|path| ok(&http.send(&get("static-again", path, &again.session))));
     if unmatched || !opened {
         let why = if unmatched {
             "Whether the session is one fixed key: no value repeated, but not every value the first \

@@ -1402,12 +1402,19 @@ mod tests {
             app.users
                 .insert(account.user.clone(), (account.password.clone(), false));
         }
-        run_with(&mut app, &bearer_users(), &acc, true, &Default::default(), false)
+        run_with(
+            &mut app,
+            &bearer_users(),
+            &acc,
+            true,
+            &Default::default(),
+            false,
+        )
     }
 
     #[test]
     fn a_session_that_is_one_fixed_key_is_found_whether_cookie_or_token() {
-        // ADR-066, V7.2.2. A new value at each sign-in, and the new session opens a private page:
+        // ADR-067, V7.2.2. A new value at each sign-in, and the new session opens a private page:
         // credited, for the cookie and for the token.
         for (o, what) in [
             (run_against(Flaws::default(), &users()), "the cookie `sid`"),
@@ -1465,22 +1472,28 @@ mod tests {
             vec![WEAK_SESSION_ID.rule_id, STATIC_SESSION.rule_id],
             "the repeated cookie"
         );
-        // A later sign-in that fails quietly, or sets no cookie: neither found nor credited, and
-        // each said.
-        for (later_anonymous, said) in [
-            (true, "did not open with the new session"),
-            (false, "not every value the first sign-in set was set again"),
+        // A later sign-in that fails quietly, sets no cookie, or is refused by a limiter: neither
+        // found nor credited, and each said.
+        for (case, said) in [
+            (0, "did not open with the new session"),
+            (1, "not every value the first sign-in set was set again"),
+            (2, "limit on sign-in attempts"),
         ] {
             let mut app = FakeApp::new(Flaws::default());
-            app.later_sign_ins_anonymous = later_anonymous;
-            app.later_sign_ins_set_no_cookie = !later_anonymous;
+            app.later_sign_ins_anonymous = case == 0;
+            app.later_sign_ins_set_no_cookie = case == 1;
+            app.later_sign_ins_limited = case == 2;
             let acc = accounts();
             for account in [&acc.a, &acc.b] {
                 app.users
                     .insert(account.user.clone(), (account.password.clone(), false));
             }
             let o = run_with(&mut app, &users(), &acc, true, &Default::default(), false);
-            assert!(!credited(&o).contains(&STATIC_SESSION.rule_id), "{said}: {:?}", o.verified);
+            assert!(
+                !credited(&o).contains(&STATIC_SESSION.rule_id),
+                "{said}: {:?}",
+                o.verified
+            );
             assert!(!found(&o).contains(&STATIC_SESSION.rule_id), "{said}");
             assert!(
                 not_assessed(&o, "V7.2.2").iter().any(|w| w.contains(said)),
@@ -1499,7 +1512,11 @@ mod tests {
                 .insert(account.user.clone(), (account.password.clone(), false));
         }
         let o = run_with(&mut app, &u, &acc, true, &Default::default(), false);
-        assert!(!credited(&o).contains(&STATIC_SESSION.rule_id), "{:?}", o.verified);
+        assert!(
+            !credited(&o).contains(&STATIC_SESSION.rule_id),
+            "{:?}",
+            o.verified
+        );
         assert!(
             not_assessed(&o, "V7.2.2")
                 .iter()

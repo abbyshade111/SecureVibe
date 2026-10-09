@@ -600,7 +600,7 @@ pub(super) const WEAK_SESSION_ID: Rule = Rule {
           cryptographically secure generator, rather than making them by hand.",
 };
 
-/// V7.2.2 (ADR-066): a session value that is the same at two sign-ins.
+/// V7.2.2 (ADR-067): a session value that is the same at two sign-ins.
 pub(super) const STATIC_SESSION: Rule = Rule {
     rule_id: "probe.session-token-static",
     requirement_ids: &["V7.2.2"],

@@ -60,6 +60,9 @@ pub(super) struct FakeApp {
     pub(super) later_sign_ins_anonymous: bool,
     /// Every sign-in of a user after their first sets no cookie.
     pub(super) later_sign_ins_set_no_cookie: bool,
+    /// Every sign-in of a user after their first is answered by a limiter, 429, however long the
+    /// wait.
+    pub(super) later_sign_ins_limited: bool,
     /// How many times each user has signed in.
     pub(super) sign_in_counts: BTreeMap<String, u32>,
     /// Two-factor secrets, by user.
@@ -820,6 +823,9 @@ impl FakeApp {
         let count = self.sign_in_counts.entry(who.clone()).or_default();
         *count += 1;
         let later = *count > 1;
+        if later && self.later_sign_ins_limited {
+            return Self::respond(429, vec![], "too many attempts");
+        }
         if later && self.later_sign_ins_set_no_cookie {
             return Self::respond(303, vec![("Location", "/account".into())], "");
         }

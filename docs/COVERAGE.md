@@ -35,7 +35,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Can be credited | Supporting only | Nothing |
 |---|---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 169 (49%) | 119 (34%) | 10 | 166 |
+| OWASP ASVS 5.0 | 345 | 170 (49%) | 120 (35%) | 10 | 165 |
 | OWASP AISVS 1.0 | 191 | 41 (21%) | 23 (12%) | 0 | 150 |
 | AISVS Appendix C | 68 | 3 (4%) | 2 (3%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 0 (0%) | 11 | 25 |
@@ -46,11 +46,11 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Can be credited | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|---|
-| L1 | 70 | 57 | 43 | 17 | 1 | 6 | 37 | 21 | 3 |
+| L1 | 70 | 58 | 44 | 17 | 1 | 6 | 38 | 21 | 3 |
 | L2 | 183 | 91 | 67 | 20 | 0 | 19 | 46 | 28 | 2 |
 | L3 | 92 | 21 | 9 | 3 | 0 | 8 | 2 | 6 | 3 |
 
-50 of the 169 ASVS requirements that can be settled can only ever be marked *needs attention*: a check can show the control missing, and finding nothing does not show it present, so a clean run credits none of them. They are counted under *Can settle* and not under *Can be credited*, and the kinds of check above count every requirement a check can settle either way.
+50 of the 170 ASVS requirements that can be settled can only ever be marked *needs attention*: a check can show the control missing, and finding nothing does not show it present, so a clean run credits none of them. They are counted under *Can settle* and not under *Can be credited*, and the kinds of check above count every requirement a check can settle either way.
 
 With nothing beyond plain `sv check`, 40 ASVS requirements can be settled. 25 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
@@ -72,7 +72,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V4 API and Web Service | 16 | 10 | 5 | 0 | 6 |
 | V5 File Handling | 13 | 8 | 8 | 1 | 4 |
 | V6 Authentication | 47 | 24 | 16 | 1 | 22 |
-| V7 Session Management | 19 | 10 | 9 | 0 | 9 |
+| V7 Session Management | 19 | 11 | 10 | 0 | 8 |
 | V8 Authorization | 13 | 4 | 2 | 1 | 8 |
 | V9 Self-contained Tokens | 7 | 5 | 3 | 0 | 2 |
 | V10 OAuth and OIDC | 36 | 8 | 6 | 0 | 28 |
@@ -131,7 +131,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` (sv only ever as a finding: `ast.download-piped-to-shell`) |
 | V16.5.3 | L2 | Reads the code: `ast.check-passes-on-error` (sv only ever as a finding: `ast.check-passes-on-error`) |
 
-### Settled by asking the running app (112)
+### Settled by asking the running app (113)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -197,6 +197,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V6.6.3 | L2 | Signed in: `probe.email-code-guessing-unlimited` |
 | V6.8.2 | L2 | Signed in: `probe.oidc-signature-not-checked` |
 | V7.2.1 | L1 | Signed in: `probe.session-token-unverified` |
+| V7.2.2 | L1 | Signed in: `probe.session-token-static` |
 | V7.2.3 | L1 | Signed in: `probe.session-id-weak` (sv only ever as a finding: `probe.session-id-weak`) |
 | V7.2.4 | L1 | Signed in: `probe.session-not-renewed` |
 | V7.3.1 | L2 | Signed in: `probe.session-idle-timeout` |
@@ -299,11 +300,11 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V14.2.2 | L2 | Signed in: `probe.private-page-shared-cache` (sv only ever as a finding: `probe.private-page-shared-cache`) |
 | V14.2.3 | L2 | Signed in: `probe.account-details-sent-elsewhere` (sv only ever as a finding: `probe.account-details-sent-elsewhere`) |
 
-### Level 1 with no check at all (10)
+### Level 1 with no check at all (9)
 
 The baseline every app is assessed against, and where a new check does the most good.
 
-V2.1.1, V2.2.1, V6.1.1, V7.2.2, V8.1.1, V10.4.1, V10.4.2, V10.4.3, V10.4.5, V15.1.1
+V2.1.1, V2.2.1, V6.1.1, V8.1.1, V10.4.1, V10.4.2, V10.4.3, V10.4.5, V15.1.1
 
 ## AISVS 1.0 by chapter
 
