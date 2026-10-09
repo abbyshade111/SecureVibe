@@ -288,6 +288,9 @@ listed apart, below this item.
    V8.2.2; nothing credits. A record that names no owner leaves it not assessed, saying so. `creates` and
    `change-email` stay unclaimed. Read on `main` and the open pull requests just before this claim: no other session
    had claimed (a).
+   **(a) on `owned.create` done the same day**
+   (`docs/design/0326-a-record-put-into-another-user-s-account-9-october-2026.md`; ADR-053, Later):
+   `probe.owner-field-trusted`. `creates` and `change-email` stay open.
 14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
    `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
    `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.

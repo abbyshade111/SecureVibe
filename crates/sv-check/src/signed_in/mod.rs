@@ -64,6 +64,7 @@ mod cross_site;
 mod flows;
 mod forgery;
 mod once;
+mod owner_field;
 mod passwords;
 mod redirects;
 mod reset;
@@ -81,6 +82,7 @@ use codes::*;
 use flows::*;
 use forgery::*;
 use once::*;
+use owner_field::*;
 use passwords::*;
 use redirects::*;
 use reset::*;
@@ -2342,6 +2344,8 @@ mod check_guard_tests;
 mod fake_app;
 #[cfg(test)]
 mod in_turn_tests;
+#[cfg(test)]
+mod owner_field_tests;
 #[cfg(test)]
 mod page_cookie_tests;
 #[cfg(test)]

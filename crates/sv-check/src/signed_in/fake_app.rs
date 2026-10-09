@@ -412,6 +412,11 @@ pub(super) struct Flaws {
     pub(super) validation_only_in_browser: bool,
     /// A record is handed back with the owner's password hash in it.
     pub(super) record_leaks_fields: bool,
+    /// A note's page names its owner, as `"user_id":"<who>"` in JSON on the page. Not a flaw on
+    /// its own: what the owner-field check needs to have a value to send.
+    pub(super) record_names_owner: bool,
+    /// A new note's owner is the `user_id` the request sends, when it sends one (mass assignment).
+    pub(super) owner_from_request: bool,
     /// The JSON API reads a JSON body whatever its Content-Type says.
     pub(super) api_parses_any_type: bool,
     /// The JSON API also takes its fields as a form or as multipart.
@@ -2463,6 +2468,10 @@ impl FakeApp {
                     }
                     times.push(now);
                 }
+                let owner = match form(r).get("user_id") {
+                    Some(given) if self.flaws.owner_from_request => given.clone(),
+                    _ => owner,
+                };
                 self.notes
                     .push((owner, form(r).get("text").cloned().unwrap_or_default()));
                 Self::respond(
@@ -2551,11 +2560,17 @@ impl FakeApp {
                     || (self.flaws.idor && user.is_some())
                     || self.flaws.records_public
                 {
-                    let extra = if self.flaws.record_leaks_fields {
+                    let mut extra = if self.flaws.record_leaks_fields {
                         "<script>const row={\"id\":1,\"password_hash\":\"$2b$12$abc\"}</script>"
+                            .to_owned()
                     } else {
-                        ""
+                        String::new()
                     };
+                    if self.flaws.record_names_owner {
+                        extra.push_str(&format!(
+                            "<script>const note={{\"user_id\":\"{owner}\"}}</script>"
+                        ));
+                    }
                     // The prose is deliberate: a real record page often says something like
                     // this, and a check matching the bare word `password` would make a
                     // finding out of every app that has one. Keeping it here means the

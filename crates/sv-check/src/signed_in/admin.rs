@@ -985,6 +985,11 @@ pub(super) fn owned_checks(
         ));
     }
 
+    // Whether the second user can make a record the first user's (the gap analysis, finding 13(a)).
+    if let (Some(b), Some(as_a)) = (&b, &as_a) {
+        owner_field_check(http, users, owned, &session, &b.session, &as_a.body, out);
+    }
+
     forgery_check(http, owned, &session, a, out);
     simple_request_check(http, owned, &session, a, out);
     null_origin_check(http, owned, &users.private, a, out);
@@ -992,7 +997,10 @@ pub(super) fn owned_checks(
 }
 
 /// Where a created record can be read: the `read` path with its id, or the `Location` it was sent to.
-fn record_path(owned: &sv_manifest::OwnedSection, created: &ProbeResponse) -> Option<String> {
+pub(super) fn record_path(
+    owned: &sv_manifest::OwnedSection,
+    created: &ProbeResponse,
+) -> Option<String> {
     let location = created
         .header("location")
         .map(|l| strip_origin(l).to_owned());
