@@ -56,6 +56,9 @@ pub fn write_report_folder(
         say(note);
     }
     let mut report = build()?;
+    // What the record of the build loop shows, read now and carried under this report's seal
+    // (ADR-076).
+    report.build_loop = Some(crate::build_loop::read(app_dir));
     // A manifest read under its old name is said at the terminal as the report says it (ADR-062).
     if let Some(note) = sv_manifest::locate(app_dir)
         .ok()

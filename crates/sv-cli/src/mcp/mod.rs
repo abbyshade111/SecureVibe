@@ -37,6 +37,8 @@ use std::path::{Component, Path, PathBuf};
 
 /// Protocol versions a client that opens with `initialize` can have, newest first. A client asking
 /// for one of these gets it; any other gets the newest, and decides for itself whether it can go on.
+#[cfg(test)]
+mod build_loop_tests;
 mod catalog;
 mod check_text;
 mod confine;
@@ -59,6 +61,7 @@ mod tools;
 
 use catalog::*;
 use check_text::*;
+pub(crate) use confine::create_below;
 use confine::*;
 use protocol::*;
 use resources::*;
@@ -231,6 +234,13 @@ pub struct Server {
     /// time-limit test gives one that waits until it is let go, so the test can ask again while the
     /// check is surely still running, without checking a real app to get there.
     check: std::sync::Arc<Check>,
+    /// What the last check this call ran came to, for the record of the build loop (ADR-076): set
+    /// when a check finishes, taken when the call is written down.
+    last_counts: std::sync::Mutex<Option<sv_report::LoopCounts>>,
+    /// Whether calls are written down in the record of the build loop. Off unless the server is the
+    /// one `sv mcp` starts, or a test asks, so the tests that serve the repository's own examples
+    /// leave nothing in them.
+    recording: bool,
 }
 
 /// A check of the app in the folder, with the frameworks and rules loaded, saying each stage as it
@@ -268,7 +278,11 @@ pub fn cmd_mcp(args: &[String]) -> Result<()> {
             other => anyhow::bail!("unknown option for `sv mcp`: {other}"),
         }
     }
-    let server = Server::new(&root)?.with_time_limit(std::time::Duration::from_secs(time_limit));
+    // The record of the build loop is written by the server a person starts (ADR-076);
+    // `SV_BUILD_LOOP_RECORD=off` is for a test that points it at the repository's own examples.
+    let server = Server::new(&root)?
+        .with_time_limit(std::time::Duration::from_secs(time_limit))
+        .recording(std::env::var("SV_BUILD_LOOP_RECORD").as_deref() != Ok("off"));
     eprintln!(
         "sv mcp: serving {} over stdio; paths outside it are refused",
         server.root.display()
@@ -298,7 +312,15 @@ impl Server {
             time_limit: std::time::Duration::from_secs(TIME_LIMIT_SECONDS),
             last_check: std::sync::Mutex::new(None),
             check: std::sync::Arc::new(assemble),
+            last_counts: std::sync::Mutex::new(None),
+            recording: false,
         })
+    }
+
+    /// Whether calls are written down in the record of the build loop (ADR-076).
+    pub fn recording(mut self, on: bool) -> Self {
+        self.recording = on;
+        self
     }
 
     pub fn with_time_limit(mut self, limit: std::time::Duration) -> Self {
@@ -517,6 +539,40 @@ impl Server {
     }
 
     /// What the AI tool is told about using this server, in either protocol.
+    /// Writes the call down in the record of the build loop (ADR-076), for an app with a
+    /// `stackvet.toml`: the time, the tool, and what a check it ran came to. Whatever goes wrong here
+    /// is left unsaid: the record never changes a tool's answer.
+    fn write_down(&self, tool: &str, args: &Value) {
+        let counts = self
+            .last_counts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        if !self.recording {
+            return;
+        }
+        let Ok(app_dir) = self.app_dir(args) else {
+            return;
+        };
+        if !matches!(sv_manifest::locate(&app_dir), Ok(Some(_))) {
+            return;
+        }
+        let time = crate::bundle::utc_time(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0),
+        );
+        let _ = crate::build_loop::record(
+            &app_dir,
+            &crate::build_loop::Line {
+                time,
+                tool: tool.to_owned(),
+                counts,
+            },
+        );
+    }
+
     fn instructions(&self) -> String {
         format!(
             "{INSTRUCTIONS}{}, adding `--advisories` and a folder of OSV advisories they have \
@@ -579,6 +635,7 @@ impl Server {
             "stackvet_before" => self.before(&args, progress),
             other => return Err(Refusal::UnknownTool(other.to_owned())),
         };
+        self.write_down(name, &args);
         // A tool that could not do its job says so as its result, which the model reads; a protocol
         // error is for a call that was malformed, which this was not. What went wrong is `sv`'s to
         // say, but it quotes the app as often as not: a path, a line of stackvet.toml that does

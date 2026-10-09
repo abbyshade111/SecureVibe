@@ -735,6 +735,12 @@ pub struct Report {
     /// and which of this run's findings it holds. `None` without one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub baseline: Option<BaselineNote>,
+    /// What the record of the build loop shows (ADR-076): how often the AI coding tool asked `sv`
+    /// while the app was built. `None` for a report not written to a report folder, which then says
+    /// nothing about it; a report folder's report always has one, with no calls when nothing shows
+    /// `sv` was used.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build_loop: Option<BuildLoop>,
     /// Passed in rather than read from a clock, so the same app twice produces the same bytes.
     pub generated: Option<String>,
     /// Which `sv` made this report, so whoever reads it can tell which checks it had. Without it, a
@@ -1271,6 +1277,116 @@ pub struct BaselineNote {
     pub folder: String,
     /// The fingerprints of this run's findings that the baseline holds.
     pub held: Vec<String>,
+}
+
+/// What the record of the build loop shows, read when the report is written into its folder
+/// (ADR-076). Evidence about how the app was built, never about the app: nothing here credits a
+/// requirement or changes a count.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct BuildLoop {
+    /// The record is turned off in `stackvet.toml`, so nothing was written down.
+    pub off: bool,
+    /// Calls to `sv`'s MCP server written down for this app, of any tool.
+    pub calls: usize,
+    /// Those that ran a check of the app, and so carry counts.
+    pub checks: usize,
+    /// When the first and the last call were made, in UTC, as written down.
+    pub first: Option<String>,
+    pub last: Option<String>,
+    /// The counts at the first and the last check.
+    pub first_counts: Option<LoopCounts>,
+    pub last_counts: Option<LoopCounts>,
+    /// Lines of the record that could not be read, said rather than skipped quietly.
+    pub unreadable: usize,
+}
+
+/// The counts one check came to, as the record keeps them: no finding's text, only how many.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct LoopCounts {
+    pub findings: usize,
+    pub checked: usize,
+    pub needs_attention: usize,
+    pub not_assessed: usize,
+}
+
+impl LoopCounts {
+    /// The counts of a report, as the record keeps them.
+    pub fn of(report: &Report) -> Self {
+        Self {
+            findings: report.findings.len(),
+            checked: report.counts.checked,
+            needs_attention: report.counts.needs_attention,
+            not_assessed: report.counts.not_assessed,
+        }
+    }
+
+    fn describe(&self) -> String {
+        format!(
+            "{} finding{}, {} requirement{} checked, {} needing attention, {} not assessed",
+            self.findings,
+            if self.findings == 1 { "" } else { "s" },
+            self.checked,
+            if self.checked == 1 { "" } else { "s" },
+            self.needs_attention,
+            self.not_assessed
+        )
+    }
+}
+
+/// One paragraph saying what the record of the build loop shows, for the top of the report. `None`
+/// for a report that was not written into a report folder.
+pub fn build_loop_line(report: &Report) -> Option<String> {
+    let b = report.build_loop.as_ref()?;
+    let caveat = " This is about how the app was built, not about the app: it credits nothing and \
+                  changes no count. sv writes the record beside this report, where the AI coding tool \
+                  can write too: these numbers are what the record said when this report was \
+                  written, sealed with the report, so a change to them afterwards is caught, and a \
+                  change to the record before then is not.";
+    let unreadable = match b.unreadable {
+        0 => String::new(),
+        1 => " One line of the record could not be read, and is left out.".to_owned(),
+        n => format!(" {n} lines of the record could not be read, and are left out."),
+    };
+    if b.off {
+        return Some(
+            "The record of the build loop is turned off in stackvet.toml (`build-loop-record = \
+             false`), so this report cannot say whether sv was used while the app was built."
+                .to_owned(),
+        );
+    }
+    if b.calls == 0 {
+        return Some(format!(
+            "Nothing shows that sv was used while this app was built: no call from an AI coding \
+             tool to sv's MCP server is recorded for it. That is not a finding. The app may have \
+             been checked at a terminal, or built before sv kept this record.{unreadable}"
+        ));
+    }
+    let span = match (&b.first, &b.last) {
+        (Some(first), Some(last)) if first != last => format!(", from {first} to {last}"),
+        (Some(first), _) => format!(", at {first}"),
+        _ => String::new(),
+    };
+    let mut text = format!(
+        "While this app was built, its AI coding tool asked sv {} time{} through sv's MCP server, \
+         {} of them a check of the app{span}.",
+        b.calls,
+        if b.calls == 1 { "" } else { "s" },
+        b.checks
+    );
+    match (&b.first_counts, &b.last_counts) {
+        (Some(first), Some(last)) if b.checks > 1 => text.push_str(&format!(
+            " The first check came to {}; the last, {}.",
+            first.describe(),
+            last.describe()
+        )),
+        (_, Some(last)) => text.push_str(&format!(" The check came to {}.", last.describe())),
+        _ => {}
+    }
+    text.push_str(&unreadable);
+    text.push_str(caveat);
+    Some(text)
 }
 
 impl Report {
@@ -2038,6 +2154,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
     Report {
         level_why: None,
         baseline: None,
+        build_loop: None,
         app_name: inputs.app_name.to_owned(),
         target_level: inputs.target_level,
         generated: inputs.generated,

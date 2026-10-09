@@ -488,3 +488,15 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     2026)"; ADR-075, accepted). `probe.ai-tool-action-logged` credits C12.4.2 in part when a line of the app's output
     records the AI's call to `sv_lookup` with its argument, and says so otherwise; it never finds. Not done: a
     security-critical action, its approver, and its outcome.
+23. **C11.4.2: an input flagged as an attack, and whether the flag stopped it, from the running app. Not verified.**
+    From `docs/PARTIAL-CHECKS.md`: the textbook injection is already judged twice, once for reaching the model
+    (C2.1.3, `probe.ai-injection-unscreened`) and once for being recorded as caught in the app's output (C12.2.1,
+    `probe.ai-injection-logged`); together they show whether a flag gated the request.
+    **Claimed on 9 October 2026 by session paper-facts**, at the owner's word ("go ahead"), in branch
+    `claude/flag-gates`: `probe.ai-flag-not-gating`, credited in part when the injection was recorded as caught and
+    did not reach the model while a plain message straight after did; a finding when it was recorded as caught and
+    still reached the model (detected, not gated); not assessed otherwise. One kind of anomaly, a textbook injection,
+    is tried. C12.2.3 and C10.3.4 were considered first and left: the first asks for rules against coordinated
+    attempts, which one message cannot show (as backlog 0140 says), and the second needs a handshake per message,
+    which an app that connects once at start-up never makes. **Record, `Status: proposed`: ADR-079.** Checked just
+    before this claim: not on `main`, in no open pull request, and in no recent branch.

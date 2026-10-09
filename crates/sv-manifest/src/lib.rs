@@ -102,6 +102,10 @@ pub struct AppSection {
     pub audience: Audience,
     #[serde(default)]
     pub deployment: Deployment,
+    /// Whether `sv`'s MCP server writes down each call the AI coding tool makes for this app, for the
+    /// report to say how it was built (ADR-076). On unless `false`; a report says when it is off.
+    #[serde(default)]
+    pub build_loop_record: Option<bool>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
