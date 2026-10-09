@@ -1,4 +1,4 @@
-//! An app reported on before the rename (ADR-062) has a `securevibe-report` folder with the old
+//! An app reported on before the rename (ADR-062) has a `stackvet-report` folder with the old
 //! marker. `sv report` writes into that folder, under the new marker, rather than leaving it behind
 //! and making a second one; an app with neither folder gets the new name.
 

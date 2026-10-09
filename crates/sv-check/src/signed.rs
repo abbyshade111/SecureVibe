@@ -825,7 +825,7 @@ mod tests {
     fn the_signing_key_is_made_private_once_locked_when_asked_and_never_shown() {
         let s = Scratch::new("key");
         // A folder not there yet, as on a computer where `sv review` has never run.
-        let keys = s.0.join("fresh").join("securevibe");
+        let keys = s.0.join("fresh").join("stackvet");
         assert!(SigningKey::load_from(&keys).unwrap().is_none());
         let made = SigningKey::make_in(&keys, None).unwrap();
         let path = keys.join(SIGNING_KEY_FILE);

@@ -50,7 +50,7 @@ How to ask them. These are for the person you are building this app with, not fo
   wrong yes hides the one thing the question exists to find.
 - They are in order of what is most at stake: level 1, the baseline every app needs, first. When the
   person has had enough, stop. What is unanswered stays on the list for next time.
-- Afterward, check the app again (securevibe_check) so the answers are read.";
+- Afterward, check the app again (stackvet_check) so the answers are read.";
 
 /// The questions for one app, as the AI coding tool is given them.
 pub fn text(report: &Report) -> String {
@@ -111,7 +111,7 @@ pub fn text_with(report: &Report, fence: &crate::fence::Fence) -> String {
         out.push_str(&format!(
             "\n{}. WRITTEN DECISIONS ({}). These ask what the rules are, which only the person can \
              decide. Record each answer, in a sentence or two of the person's words (or from the \
-             code, if they ask you to answer), with securevibe_record_answer and the question's id. \
+             code, if they ask you to answer), with stackvet_record_answer and the question's id. \
              sv marks what it records `Written by: AI coding tool`, which the report counts for less, \
              as stated by the AI coding tool, and asks again: sv cannot tell the person's word from \
              yours, so nothing you record counts as theirs. Show them what you recorded; if they \

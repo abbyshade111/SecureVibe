@@ -67,7 +67,7 @@ struct ChecklistControl {
 
 /// The checklist has no levels, so one is derived from how much its absence costs.
 ///
-/// This is SecureVibe's mapping and not OWASP's, which is why it is one function with a name rather
+/// This is StackVet's mapping and not OWASP's, which is why it is one function with a name rather
 /// than three comparisons spread around.
 fn level_of(control: &ChecklistControl) -> u8 {
     if control.critical || control.severity_if_no == "high" {

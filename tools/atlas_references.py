@@ -38,7 +38,7 @@ def fetch(release: str) -> str:
     assert re.fullmatch(r"\d{4}\.\d{2}(\.\d+)?", release), release
     request = urllib.request.Request(
         RELEASE_URL.format(release),
-        headers={"User-Agent": "SecureVibe-sv-repository-maintenance"},
+        headers={"User-Agent": "StackVet-sv-repository-maintenance"},
     )
     with urllib.request.urlopen(request, timeout=60) as response:
         return response.read().decode("utf-8")

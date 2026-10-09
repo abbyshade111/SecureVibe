@@ -4,7 +4,7 @@
 #
 #     sh tools/install.sh
 #
-# Puts the program and its data in ~/.local/share/securevibe and links ~/.local/bin/sv to it. Put ~/.local/bin on
+# Puts the program and its data in ~/.local/share/stackvet and links ~/.local/bin/sv to it. Put ~/.local/bin on
 # your PATH once, and point your AI coding tool's settings at ~/.local/bin/sv: neither changes when you build again.
 # Run it again after pulling a newer sv; it replaces the program and the data together.
 #
@@ -14,7 +14,7 @@ set -eu
 
 repository=$(cd "$(dirname "$0")/.." && pwd)
 prefix=${SV_PREFIX:-$HOME/.local}
-home="$prefix/share/securevibe"
+home="$prefix/share/stackvet"
 link="$prefix/bin/sv"
 
 if [ -e "$link" ] || [ -L "$link" ]; then

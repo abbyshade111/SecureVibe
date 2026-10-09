@@ -15,7 +15,7 @@ pub(super) fn summary_with(report: &sv_report::Report, fence: &sv_report::fence:
         .collect()
 }
 
-/// The names of the check's sections, in the order of the whole answer, for `securevibe_check`'s `section`.
+/// The names of the check's sections, in the order of the whole answer, for `stackvet_check`'s `section`.
 pub(super) const CHECK_SECTIONS: &[&str] = &[
     "summary",
     "not-examined",
@@ -122,7 +122,7 @@ pub(super) fn check_sections(
     let mut questions = Section::new(
         "questions",
         format!(
-            "The {} questions only the person can answer (securevibe_questions asks them)",
+            "The {} questions only the person can answer (stackvet_questions asks them)",
             report.questions_for_you.len()
         ),
         &[],
@@ -130,7 +130,7 @@ pub(super) fn check_sections(
     if !report.questions_for_you.is_empty() {
         questions.lead = format!(
             "\nQUESTIONS FOR THE OWNER — {} that only a person can answer (how the app is built, \
-             the rules it follows, what to check by hand). Call securevibe_questions and ask the \
+             the rules it follows, what to check by hand). Call stackvet_questions and ask the \
              person them one at a time; `sv notes` and `sv questions` in the lines above are the \
              terminal's way to the same thing.\n",
             report.questions_for_you.len()

@@ -1,5 +1,5 @@
-//! A planted report marker (the review of 8 October 2026, item 4): `securevibe_write_report` with
-//! `out` at a folder of the app's that carries a copied `.securevibe-report` replaced the app's own
+//! A planted report marker (the review of 8 October 2026, item 4): `stackvet_write_report` with
+//! `out` at a folder of the app's that carries a copied `.stackvet-report` replaced the app's own
 //! files there whose names are a report's. A marked folder that holds files `sv` did not write is
 //! written to only when this computer can show, by its seal, that `sv` wrote the report there.
 use super::tests::{call, scratch_app, text};
@@ -48,7 +48,7 @@ fn a_planted_marker_does_not_let_a_report_replace_the_apps_files() {
         let server = Server::new(&root).unwrap();
         let result = call(
             &server,
-            "securevibe_write_report",
+            "stackvet_write_report",
             json!({ "path": "app", "out": "docs" }),
         );
         let security = std::fs::read_to_string(docs.join("security.md")).unwrap();
@@ -78,7 +78,7 @@ fn a_folder_sv_sealed_still_takes_a_report_beside_a_file_of_the_owners() {
     let server = Server::new(&root).unwrap();
     let first = call(
         &server,
-        "securevibe_write_report",
+        "stackvet_write_report",
         json!({ "path": "app", "out": "report" }),
     );
     assert_ne!(first["isError"], true, "{}", text(&first));
@@ -92,7 +92,7 @@ fn a_folder_sv_sealed_still_takes_a_report_beside_a_file_of_the_owners() {
     std::fs::write(folder.join("notes-to-self.txt"), "mine\n").unwrap();
     let again = call(
         &server,
-        "securevibe_write_report",
+        "stackvet_write_report",
         json!({ "path": "app", "out": "report" }),
     );
     let kept = std::fs::read_to_string(folder.join("notes-to-self.txt")).unwrap();

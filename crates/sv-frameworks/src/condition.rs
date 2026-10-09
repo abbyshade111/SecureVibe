@@ -126,8 +126,8 @@ conditions! {
         "Does the app serve several separate customer organizations that share one system?";
     Training => "training", Claim, "This app does not train or fine-tune any AI model.",
         "Does the app train or fine-tune an AI model?";
-    SelfAssessment => "self-assessment", Claim, "This is only evaluated when SecureVibe assesses itself.",
-        "Is this SecureVibe assessing itself?";
+    SelfAssessment => "self-assessment", Claim, "This is only evaluated when StackVet assesses itself.",
+        "Is this StackVet assessing itself?";
 
     // ---- v2: replacing the `never` rules whose reasons described v1's own template ----
     SelfHostedModel => "self-hosted-model", Claim, "This app does not host, build or deploy AI models of its own; it calls a model its vendor hosts.",

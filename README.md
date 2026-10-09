@@ -246,13 +246,13 @@ may hold a key), and asks for your name, or `owner`. What you record is written 
 Why the extra step: the tool rewrites code until a warning stops, and writing `by = "owner"` into the
 file is the easiest way to stop one. `sv review` runs only in a terminal someone is typing in, which an
 AI coding tool does not have, and *signs* each entry with a key of its own, kept in your own settings
-folder (`~/.config/securevibe/review-signing-key`), outside the app. The first time, it makes the key and
+folder (`~/.config/stackvet/review-signing-key`), outside the app. The first time, it makes the key and
 asks whether to protect it with a passphrase. With one, nothing can sign as you without it, your AI coding
 tool included, since the passphrase is only in your head; you type it each time you run `sv review`.
 
 A signature is checked with the key's *public half*, which can check a signature but never make one. `sv
 review` puts that public half, with the app it may sign for, on a list of trusted keys beside the key
-(`~/.config/securevibe/allowed_signers`), and shows you one line to give any other computer that should
+(`~/.config/stackvet/allowed_signers`), and shows you one line to give any other computer that should
 count what you record: CI, the container, or a second computer of yours. Give it as the variable
 `SV_TRUSTED_SEALS` (on GitHub: the repository's Settings, then Secrets and variables, then Actions, then
 Variables, and pass `SV_TRUSTED_SEALS: ${{ vars.SV_TRUSTED_SEALS }}` to the step that runs `sv`). The
@@ -270,16 +270,16 @@ What it cannot show: who was at the keyboard, unless your key has a passphrase; 
 yours, since whoever can change the list, or the repository variable, can add one. A tool set on faking
 it, running as you, could do either; it stops the easy way, not every way. Keep the key file private.
 
-Entries recorded before 6 October 2026 were sealed another way, with `~/.config/securevibe/review-key`,
+Entries recorded before 6 October 2026 were sealed another way, with `~/.config/stackvet/review-key`,
 and count only on the computer that holds that key. The next time you run `sv review` there, it offers to
 sign them all again at one yes, without asking each question again.
 
 With the container, give it a terminal and somewhere to keep the key, made first so that it is yours
-(`mkdir -p ~/.config/securevibe && chmod 700 ~/.config/securevibe`; on Linux, add `--user` as below):
-`docker run --rm -it --network none -v "$PWD":"$PWD" -w "$PWD" -v "$HOME/.config/securevibe":/sv-config/securevibe -e XDG_CONFIG_HOME=/sv-config ghcr.io/abbyshade111/securevibe-sv review .`
+(`mkdir -p ~/.config/stackvet && chmod 700 ~/.config/stackvet`; on Linux, add `--user` as below):
+`docker run --rm -it --network none -v "$PWD":"$PWD" -w "$PWD" -v "$HOME/.config/stackvet":/sv-config/stackvet -e XDG_CONFIG_HOME=/sv-config ghcr.io/abbyshade111/securevibe-sv review .`
 The container that writes your reports needs only the list, and never the key beside it: pass
-`-e SV_TRUSTED_SEALS="$(cat ~/.config/securevibe/allowed_signers)"`, or mount the list alone, read-only,
-with `-v "$HOME/.config/securevibe/allowed_signers":/sv-config/securevibe/allowed_signers:ro -e XDG_CONFIG_HOME=/sv-config`.
+`-e SV_TRUSTED_SEALS="$(cat ~/.config/stackvet/allowed_signers)"`, or mount the list alone, read-only,
+with `-v "$HOME/.config/stackvet/allowed_signers":/sv-config/stackvet/allowed_signers:ro -e XDG_CONFIG_HOME=/sv-config`.
 For the container your AI coding tool starts, the guide (`docs/GETTING-STARTED.md`, step 5) gives the whole `.mcp.json`.
 
 ## Signing in
@@ -411,7 +411,7 @@ claude mcp add securevibe -- ~/.local/bin/sv mcp --root ~/code
 or, for a tool configured with JSON:
 
 ```json
-{ "mcpServers": { "securevibe": { "command": "/path/to/sv", "args": ["mcp", "--root", "/home/you/code"] } } }
+{ "mcpServers": { "stackvet": { "command": "/path/to/sv", "args": ["mcp", "--root", "/home/you/code"] } } }
 ```
 
 It offers thirteen tools: `securevibe_spec` (the `securevibe.toml` to write), `securevibe_plan` (the plan for the
@@ -493,7 +493,7 @@ Then the tool starts it in its `.mcp.json`. Use your own folder in all three pla
 to `docker`, since an app started from the Dock often cannot see `/opt/homebrew/bin`:
 
 ```json
-{ "mcpServers": { "securevibe": {
+{ "mcpServers": { "stackvet": {
   "command": "/opt/homebrew/bin/docker",
   "args": ["run", "-i", "--rm", "--network", "none",
            "-v", "/Users/you/code:/Users/you/code",

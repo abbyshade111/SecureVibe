@@ -71,7 +71,7 @@ def fetch_range(prefix: str) -> dict:
     assert re.fullmatch(r"[0-9A-F]{5}", prefix), prefix
     request = urllib.request.Request(
         API + prefix,
-        headers={"Add-Padding": "true", "User-Agent": "SecureVibe-sv-repository-maintenance"},
+        headers={"Add-Padding": "true", "User-Agent": "StackVet-sv-repository-maintenance"},
     )
     for attempt in range(4):
         try:

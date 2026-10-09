@@ -248,7 +248,7 @@ impl Prompts {
     pub fn markdown(&self, chosen: &[&Prompt]) -> String {
         let mut out = String::from("## Prompts for the AI coding tool\n\n");
         out.push_str(
-            "Each asks the AI coding tool for something SecureVibe checks. A prompt is shown to work \
+            "Each asks the AI coding tool for something StackVet checks. A prompt is shown to work \
              only when an app built with it passed its check and the same app built without it \
              failed; every other one says whether it was tried and not shown to work, or not tried yet. A prompt is an instruction, not \
              evidence: check the app afterwards, whichever you use.\n",

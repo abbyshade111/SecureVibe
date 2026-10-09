@@ -12,7 +12,7 @@
 //! The coding prompts are only those the library marks `shown` (`data/prompts.json`): each was given
 //! to an AI coding tool building an app, and the problem it is for went away under `sv`'s check
 //! (docs/prompts/library-trial/). Those not shown are not offered here: at the moment a feature is
-//! built, a prompt that has not been shown to change anything is noise. `securevibe_prompts` still
+//! built, a prompt that has not been shown to change anything is noise. `stackvet_prompts` still
 //! gives every one, marked.
 //!
 //! # What it is worth
@@ -43,7 +43,7 @@ pub(crate) struct Feature {
     pub requirements: Vec<String>,
     /// Design-time prompts, by id.
     pub prompts: Vec<String>,
-    /// Topics of the coding rules (`securevibe_guidance`) that bear on building it.
+    /// Topics of the coding rules (`stackvet_guidance`) that bear on building it.
     pub guidance: Vec<String>,
     pub settings: Vec<Setting>,
 }
@@ -537,7 +537,7 @@ pub(crate) fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> S
         out.push_str(
             "There is no stackvet.toml yet, so which of these apply to this app, and at which \
              level, cannot be said: below is everything this feature can bring, at every level. \
-             Write stackvet.toml (`securevibe_spec`, or `sv init`), then ask for this brief again: \
+             Write stackvet.toml (`stackvet_spec`, or `sv init`), then ask for this brief again: \
              it will say which apply, and the tests to write for them. Everything after this \
              section is the same for every app, and does not wait.\n\n",
         );
@@ -618,7 +618,7 @@ pub(crate) fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> S
     if brief.rules.is_empty() {
         out.push_str(
             "No topic of the coding rules bears on this feature in particular; \
-             `securevibe_guidance` (`sv rules`) gives the rules for all of the work.\n",
+             `stackvet_guidance` (`sv rules`) gives the rules for all of the work.\n",
         );
     }
     for r in &brief.rules {

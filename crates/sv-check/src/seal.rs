@@ -1011,7 +1011,7 @@ mod tests {
     fn the_key_is_made_private_once_and_read_back_the_same() {
         let dir = std::env::temp_dir().join(format!("sv-seal-key-{}", std::process::id()));
         std::fs::remove_dir_all(&dir).ok();
-        let folder = dir.join("securevibe");
+        let folder = dir.join("stackvet");
         assert!(Key::load_from(&folder).unwrap().is_none());
         let (made, new) = Key::load_or_make_in(&folder).unwrap();
         assert!(new);

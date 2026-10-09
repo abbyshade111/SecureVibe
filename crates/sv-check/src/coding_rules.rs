@@ -24,10 +24,10 @@ use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::path::Path;
 
-/// What an AI coding tool is told to do when SecureVibe is not connected: stop and say so. Without it the
+/// What an AI coding tool is told to do when StackVet is not connected: stop and say so. Without it the
 /// tool builds on, nothing is checked, and nothing tells the person (`docs/GAP-ANALYSIS.md`, 5.3).
-pub const WHEN_NOT_CONNECTED: &str = "**If the `securevibe_` tools are not among the tools you can call, \
-    stop and tell the person before you write any code.** SecureVibe is then not connected, and nothing \
+pub const WHEN_NOT_CONNECTED: &str = "**If the `stackvet_` tools are not among the tools you can call, \
+    stop and tell the person before you write any code.** StackVet is then not connected, and nothing \
     you build is being checked. Do not carry on without it, and never say the app was checked.";
 
 /// Where the rules come from, and on what terms.
@@ -142,8 +142,8 @@ impl CodingRules {
     /// The rules as Markdown, grouped by topic, each ending with the requirements it cites.
     /// `withheld` counts the rules left out because they do not apply, so the text can say so.
     /// The rules as `sv rules` writes them into `AGENTS.md`: `markdown`, with `WHEN_NOT_CONNECTED`
-    /// after the heading. Only there, because a tool reads `AGENTS.md` whether or not SecureVibe is
-    /// connected, and through `securevibe_guidance` it plainly is.
+    /// after the heading. Only there, because a tool reads `AGENTS.md` whether or not StackVet is
+    /// connected, and through `stackvet_guidance` it plainly is.
     pub fn agents_markdown(&self, rules: &[&Rule], withheld: usize) -> String {
         let section = self.markdown(rules, withheld);
         match section.split_once("\n\n") {
@@ -158,7 +158,7 @@ impl CodingRules {
         out.push_str(
             "Follow these while you write or change this app. They come from OWASP guidance for \
              AI-assisted coding, and each names the requirement it comes from (the MCP tool \
-             `securevibe_explain` gives a requirement's full text). They are instructions, not a check: following \
+             `stackvet_explain` gives a requirement's full text). They are instructions, not a check: following \
              them is not evidence that the app meets anything, and `sv` never reports it as such.\n\n",
         );
         for Topic { id: topic, heading } in &self.topics {

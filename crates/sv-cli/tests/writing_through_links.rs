@@ -104,7 +104,7 @@ fn sv_notes_does_not_write_through_a_link_at_the_notes_file() {
 #[test]
 fn sv_bundle_does_not_write_through_a_link_where_its_zip_goes() {
     let (root, app, precious) = scratch("bundle");
-    let link = root.join("app-securevibe-bundle.zip");
+    let link = root.join("app-stackvet-bundle.zip");
     plant(&precious, &link);
     let out = sv(&["bundle", app.to_str().unwrap()]);
     assert_refused_and_left_alone(&out, &precious, &link);

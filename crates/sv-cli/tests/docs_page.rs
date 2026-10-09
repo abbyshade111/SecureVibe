@@ -57,7 +57,7 @@ fn the_pages_hold_the_documents_and_leave_out_the_paper() {
 
     assert!(out.status.success(), "{}", said(&out));
     assert!(marked, "the folder is marked as the tool's own");
-    assert!(index.contains("SecureVibe's documentation"), "{index}");
+    assert!(index.contains("StackVet's documentation"), "{index}");
     assert!(
         index.contains("href=\"docs/adr/ADR-058.html\""),
         "the index lists the records"

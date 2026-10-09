@@ -1,4 +1,4 @@
-//! An answer in parts: `securevibe_plan` and `securevibe_check`, in pieces an AI coding tool takes in whole.
+//! An answer in parts: `stackvet_plan` and `stackvet_check`, in pieces an AI coding tool takes in whole.
 //!
 //! Found in the loop pilot (5 October 2026, BACKLOG "`sv`'s plan is too big for an AI tool to take in as one
 //! answer"): the plan for the trials' club app was 115,618 characters, and Claude Code refused to pass it to the

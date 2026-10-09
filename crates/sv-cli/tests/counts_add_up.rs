@@ -365,7 +365,7 @@ fn the_counts_add_up_to_what_applies_in_every_format() {
     assert_eq!(sum as usize, applicable, "the MCP counts");
 }
 
-/// `securevibe_check` on the app, over stdio as an AI coding tool calls it.
+/// `stackvet_check` on the app, over stdio as an AI coding tool calls it.
 fn mcp_check(dir: &Path) -> Value {
     let mut child = sv(dir)
         .args(["mcp", "--root"])
@@ -379,7 +379,7 @@ fn mcp_check(dir: &Path) -> Value {
     let messages = [
         json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"0"}}}),
         json!({"jsonrpc":"2.0","method":"notifications/initialized"}),
-        json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"securevibe_check","arguments":{"path":name}}}),
+        json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"stackvet_check","arguments":{"path":name}}}),
     ];
     {
         let stdin = child.stdin.as_mut().unwrap();

@@ -311,12 +311,12 @@
     { "scope": "C12.5", "condition": "never", "notApplicableReason": "This app does not train models or manage training data; the model's lifecycle is audited by the vendor." },
 
     { "scope": "AC.1.1", "condition": "always", "verificationClass": "doc-generated" },
-    { "scope": "AC.6", "condition": "never", "notApplicableReason": "SecureVibe does not fine-tune the AI model or run a feedback program that changes it; the model is the vendor's. Flagging a bad suggestion is done by editing your answers or the generated code." },
+    { "scope": "AC.6", "condition": "never", "notApplicableReason": "StackVet does not fine-tune the AI model or run a feedback program that changes it; the model is the vendor's. Flagging a bad suggestion is done by editing your answers or the generated code." },
     { "scope": "AC.6.3", "condition": "always" },
-    { "scope": "AC.7.3", "condition": "never", "notApplicableReason": "SecureVibe does not generate infrastructure or pipeline configuration files (such as Terraform or CI workflows), so there is nothing for policy-as-code tools to check." },
+    { "scope": "AC.7.3", "condition": "never", "notApplicableReason": "StackVet does not generate infrastructure or pipeline configuration files (such as Terraform or CI workflows), so there is nothing for policy-as-code tools to check." },
     { "scope": "AC.7.4", "condition": "never", "notApplicableReason": "There is no CI/CD pipeline in a local build, so there are no pipeline trigger settings to protect." },
-    { "scope": "AC.8.3", "condition": "never", "notApplicableReason": "There is no source-control server, branch protection or merge queue in a local build. SecureVibe enforces its own list of protected files in the tool layer instead (see AC.8.1)." },
-    { "scope": "AC.9", "condition": "never", "notApplicableReason": "There is no deployment pipeline that could check signed origin metadata; SecureVibe writes the app to a folder on this computer. It still records who generated what in securevibe.provenance.json (see AC.10)." },
+    { "scope": "AC.8.3", "condition": "never", "notApplicableReason": "There is no source-control server, branch protection or merge queue in a local build. StackVet enforces its own list of protected files in the tool layer instead (see AC.8.1)." },
+    { "scope": "AC.9", "condition": "never", "notApplicableReason": "There is no deployment pipeline that could check signed origin metadata; StackVet writes the app to a folder on this computer. It still records who generated what in securevibe.provenance.json (see AC.10)." },
     { "scope": "AC.11.7", "condition": "never", "notApplicableReason": "There are no pull requests from outside contributors; the only code the AI reviews is the code it generated for you on this computer." },
     { "scope": "AC.12", "condition": "never", "notApplicableReason": "There is no CI/CD pipeline (no GitHub Actions, GitLab CI or similar) in a local build, so pipeline-hardening requirements do not apply." },
     { "scope": "AC.13", "condition": "never", "notApplicableReason": "This app receives no code contributions from outside people (no pull requests or forks), so there are no inbound contributions to screen." }

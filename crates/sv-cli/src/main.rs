@@ -1,4 +1,4 @@
-//! `sv` — run the SecureVibe checks against code written anywhere, in any language.
+//! `sv` — run the StackVet checks against code written anywhere, in any language.
 
 use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
@@ -113,7 +113,7 @@ fn run() -> Result<i32> {
                 eprintln!(
                     "Wrote only the starter stackvet.toml, because the output went into a file. \
                      The instructions for your AI coding tool were left out: run `sv init` \
-                     without `>` to read them, or let your AI coding tool call securevibe_spec."
+                     without `>` to read them, or let your AI coding tool call stackvet_spec."
                 );
             } else {
                 println!("{}", spec::INSTRUCTIONS);
@@ -224,7 +224,7 @@ const COMMANDS: &[Command] = &[
         word: None,
         flags: &[],
         valued: &["--requirement", "--app", "--report"],
-        help: "  sv prompts [--requirement ID | --app DIR | --report FILE]\n                     prompts to give your AI coding tool, each saying whether it has\n                     been shown to work; --requirement gives only those for one requirement\n                     or Secure by Design control, such as V1.2.4 or SBD-AC-03; --app gives\n                     those for what the app's last report (DIR/securevibe-report/report.json,\n                     or --report FILE) shows unproven\n",
+        help: "  sv prompts [--requirement ID | --app DIR | --report FILE]\n                     prompts to give your AI coding tool, each saying whether it has\n                     been shown to work; --requirement gives only those for one requirement\n                     or Secure by Design control, such as V1.2.4 or SBD-AC-03; --app gives\n                     those for what the app's last report (DIR/stackvet-report/report.json,\n                     or --report FILE) shows unproven\n",
     },
     Command {
         name: "probe",
@@ -245,7 +245,7 @@ const COMMANDS: &[Command] = &[
         word: Some("PATH"),
         flags: &[],
         valued: &["--fail-on"],
-        help: "  sv check [PATH] [--fail-on WHAT]\n                     credentials left in the code, what the rules that read the code find,\n                     and how it is set up: a narrower scan than `sv report` (or\n                     securevibe_check), saying nothing about requirements; it reads\n                     stackvet.toml when it is there only to stop on one it cannot read\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, or an entry that is not an\n                     ordinary file), or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, or no file of the app was read;\n                     3 sv itself failed (no such folder, an option it does not know, a\n                     stackvet.toml it cannot read)\n",
+        help: "  sv check [PATH] [--fail-on WHAT]\n                     credentials left in the code, what the rules that read the code find,\n                     and how it is set up: a narrower scan than `sv report` (or\n                     stackvet_check), saying nothing about requirements; it reads\n                     stackvet.toml when it is there only to stop on one it cannot read\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, or an entry that is not an\n                     ordinary file), or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, or no file of the app was read;\n                     3 sv itself failed (no such folder, an option it does not know, a\n                     stackvet.toml it cannot read)\n",
     },
     Command {
         name: "sbom",
@@ -266,7 +266,7 @@ const COMMANDS: &[Command] = &[
         word: Some("PATH"),
         flags: &["--run", "--slow", "--tools"],
         valued: &["--out", "--advisories", "--fail-on"],
-        help: "  sv report [PATH] [--out DIR] [--run [--slow]] [--tools] [--advisories DIR] [--fail-on WHAT]\n                     write the reports: what applies, what was found, what nobody has answered,\n                     into PATH/securevibe-report unless --out says where; --run starts the app\n                     as `sv run` does, downloading its packages first with `install = true`\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, a tool --tools could\n                     not run, or an --advisories comparison that did not cover the app),\n                     or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, no file of the app was read,\n                     or --run was given and the app could not be started;\n                     3 sv itself failed (no stackvet.toml, a bad manifest, no such folder)\n",
+        help: "  sv report [PATH] [--out DIR] [--run [--slow]] [--tools] [--advisories DIR] [--fail-on WHAT]\n                     write the reports: what applies, what was found, what nobody has answered,\n                     into PATH/stackvet-report unless --out says where; --run starts the app\n                     as `sv run` does, downloading its packages first with `install = true`\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, a tool --tools could\n                     not run, or an --advisories comparison that did not cover the app),\n                     or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, no file of the app was read,\n                     or --run was given and the app could not be started;\n                     3 sv itself failed (no stackvet.toml, a bad manifest, no such folder)\n",
     },
     Command {
         name: "review",
@@ -287,7 +287,7 @@ const COMMANDS: &[Command] = &[
         word: Some("FOLDER..."),
         flags: &[],
         valued: &["--out"],
-        help: "  sv dashboard FOLDER... --out FILE.html\n                     one page for several apps, from the report already in each one's\n                     securevibe-report folder: every app in alphabetical order, and each\n                     app's own view; it checks nothing itself, and writes only FILE.html\n",
+        help: "  sv dashboard FOLDER... --out FILE.html\n                     one page for several apps, from the report already in each one's\n                     stackvet-report folder: every app in alphabetical order, and each\n                     app's own view; it checks nothing itself, and writes only FILE.html\n",
     },
     Command {
         name: "history",
@@ -562,7 +562,7 @@ pub(crate) fn coding_prompts() -> Result<sv_check::prompts::Prompts> {
 }
 
 /// The coding prompts shown to work, in full, for the two places every builder reads before any code:
-/// the end of the specification (`sv init`, `securevibe_spec`) and of the MCP server's opening
+/// the end of the specification (`sv init`, `stackvet_spec`) and of the MCP server's opening
 /// instructions. In the delivery test (docs/prompts/library-trial/delivery.md) a prompt pasted where
 /// the builder starts did better than the same prompt fetched mid-build, every time. Read from
 /// `data/prompts.json`, so the list cannot drift from the library; empty if it cannot be read.
@@ -597,7 +597,7 @@ pub(crate) fn prompts_at_start() -> String {
 
 /// The coding prompts shown to work that no feature's brief gives, because none of their
 /// requirements is one a feature brings (security headers, keys kept out of the code): the ones
-/// for the whole app, which `securevibe_guidance` gives with its rules. Each shown prompt so reaches
+/// for the whole app, which `stackvet_guidance` gives with its rules. Each shown prompt so reaches
 /// a builder once, from the brief for its feature or from the guidance read before any code.
 pub(crate) fn whole_app_prompts(loaded: &Loaded) -> Result<Vec<sv_check::prompts::Prompt>> {
     let features = brief::Features::load(&feature_briefs_path())?;
@@ -625,7 +625,7 @@ pub(crate) fn plan_options() -> ReportOptions {
     ReportOptions::reading_only("`sv plan`")
 }
 
-/// The features a brief can be written for (`sv brief`, `securevibe_before`).
+/// The features a brief can be written for (`sv brief`, `stackvet_before`).
 pub(crate) fn feature_briefs_path() -> PathBuf {
     sv_frameworks::data::file("feature-briefs.json")
 }
@@ -1372,7 +1372,7 @@ pub(crate) fn prompts_for_report(report: &Path) -> Result<ReportPrompts> {
     let text = std::fs::read_to_string(report).map_err(|e| {
         anyhow::anyhow!(
             "there is no report to read at {} ({e}). Make one first: `sv report`, or \
-             `securevibe_write_report` from the AI coding tool.",
+             `stackvet_write_report` from the AI coding tool.",
             report.display()
         )
     })?;
@@ -1644,7 +1644,7 @@ fn write_notes(app_dir: &Path, record: Option<(&str, &str)>) -> Result<NotesWrit
     };
     anyhow::ensure!(
         catalog.section(id).is_some() && applicable.contains(id),
-        "{id} is not one of the questions in {} for this app; securevibe_questions lists the ones \
+        "{id} is not one of the questions in {} for this app; stackvet_questions lists the ones \
          that are",
         catalog.file
     );
@@ -3011,7 +3011,7 @@ fn cmd_bundle(args: &[String]) -> Result<()> {
         None => app_abs
             .parent()
             .unwrap_or(&app_abs)
-            .join(format!("{folder}-securevibe-bundle.zip")),
+            .join(format!("{folder}-{}", sv_frameworks::names::BUNDLE_SUFFIX)),
     };
     // Resolved through whatever links lie on the way (on a Mac `/var` is a link to `/private/var`), so the same
     // folder written two ways is still recognized as the app's own.
@@ -4909,11 +4909,11 @@ mod writing_through_links_tests {
 
     #[test]
     fn a_report_folder_that_is_a_link_is_refused_and_nothing_is_written() {
-        // `sv report` writes to `<app>/securevibe-report` unless told otherwise, and an app can ship
+        // `sv report` writes to `<app>/stackvet-report` unless told otherwise, and an app can ship
         // that name as a link to a folder of the owner's.
         let dir = scratch("folder");
         std::fs::create_dir(dir.join("theirs")).unwrap();
-        std::os::unix::fs::symlink(dir.join("theirs"), dir.join("securevibe-report")).unwrap();
+        std::os::unix::fs::symlink(dir.join("theirs"), dir.join("stackvet-report")).unwrap();
         let app =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/flask-booking");
         let report = super::assemble_report(
@@ -4922,7 +4922,7 @@ mod writing_through_links_tests {
             &super::Loaded::load().unwrap(),
         )
         .unwrap();
-        let result = write_report_files(&report, &dir.join("securevibe-report"));
+        let result = write_report_files(&report, &dir.join("stackvet-report"));
         let written: Vec<_> = std::fs::read_dir(dir.join("theirs")).unwrap().collect();
         std::fs::remove_dir_all(&dir).ok();
         let err = result.expect_err("a report folder that is a link was written through");
@@ -4946,7 +4946,7 @@ mod report_folder_tests {
         let dir = std::env::temp_dir().join(format!("sv-staging-{}", std::process::id()));
         std::fs::remove_dir_all(&dir).ok();
         std::fs::create_dir_all(&dir).unwrap();
-        for name in ["..securevibe-report.sv-98295", ".report.json.sv-7"] {
+        for name in ["..stackvet-report.sv-98295", ".report.json.sv-7"] {
             std::fs::write(dir.join(name), "part").unwrap();
         }
         let held =
@@ -4955,10 +4955,7 @@ mod report_folder_tests {
             dir.join(sv_scan::ecosystems::REPORT_MARKER).is_file(),
             "marked"
         );
-        assert!(
-            !dir.join("..securevibe-report.sv-98295").exists(),
-            "cleared"
-        );
+        assert!(!dir.join("..stackvet-report.sv-98295").exists(), "cleared");
         assert!(!dir.join(".report.json.sv-7").exists(), "cleared");
         drop(held);
         std::fs::remove_dir_all(&dir).ok();
@@ -4982,7 +4979,7 @@ mod report_folder_tests {
             .to_string();
         assert!(refused.contains("files sv did not write"), "{refused}");
         assert!(
-            !theirs.join(".securevibe-report.lock").exists(),
+            !theirs.join(".stackvet-report.lock").exists(),
             "refused before a lock was put in someone else's folder"
         );
         std::fs::remove_dir_all(&theirs).ok();

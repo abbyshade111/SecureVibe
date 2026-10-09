@@ -1,7 +1,7 @@
 //! Which package ecosystems and languages an application actually uses.
 //!
 //! A port of v1's `server/src/scanners/ecosystems.ts`, whose header says the thing worth keeping:
-//! SecureVibe once told a Flask app it was missing a `package-lock.json` and marked it down for not
+//! StackVet once told a Flask app it was missing a `package-lock.json` and marked it down for not
 //! setting `ignore-scripts` in an `.npmrc` it had no reason to own. Those were not coverage gaps,
 //! which are honest and visible — they were wrong statements in a report, and an owner acting on
 //! them would have added npm configuration to a Python application.
@@ -977,7 +977,7 @@ pub enum Skip {
 
 /// A folder carrying `sv`'s marker, or named as `sv`'s default report folder, that holds something
 /// `sv` does not write. It is read as the app's own, and the report says so: the marker can be put
-/// anywhere, by anyone, and an AI tool could once put it there through `securevibe_write_report`.
+/// anywhere, by anyone, and an AI tool could once put it there through `stackvet_write_report`.
 pub fn marker_refused(dir: &Path) -> bool {
     claims_to_be_report(dir) && !holds_only_report_files(dir)
 }

@@ -258,7 +258,7 @@ fn check_exits_3_when_sv_itself_fails() {
 #[test]
 fn check_reads_securevibe_toml_when_it_is_there_and_stops_on_one_it_cannot_read() {
     // Gap analysis 5.1: a broken stackvet.toml finished with 0 at a terminal, while `sv report`
-    // and securevibe_check refused it. Both of the gap analysis's own examples: bad syntax, and a
+    // and stackvet_check refused it. Both of the gap analysis's own examples: bad syntax, and a
     // section misspelt.
     let root = root("check-manifest");
     let app = app(&root, &[("tool.py", "x = 1\n")]);

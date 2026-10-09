@@ -1,5 +1,5 @@
 //! The one way a report folder is written, for `sv report` and the MCP server's
-//! `securevibe_write_report` alike.
+//! `stackvet_write_report` alike.
 //!
 //! Until 8 October 2026 each of the two kept its own copy of the sequence: the folder claimed, the
 //! report built, a changed manifest noted, an older report refused, the files written, the folder
@@ -118,7 +118,7 @@ mod tests {
         );
         let app = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/flask-booking");
         let dir = scratch("order");
-        let out = dir.join("securevibe-report");
+        let out = dir.join("stackvet-report");
         let lock = out.join(report_lock::LOCK_NAME);
         let marker = out.join(sv_scan::ecosystems::REPORT_MARKER);
         let mut said = Vec::new();
@@ -171,7 +171,7 @@ mod tests {
         )));
         let app = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/flask-booking");
         let dir = scratch("older");
-        let out = dir.join("securevibe-report");
+        let out = dir.join("stackvet-report");
         let newer = report_of(&app);
         assert!(
             newer.run_record.is_some(),
@@ -226,7 +226,7 @@ mod tests {
     fn a_report_that_cannot_be_built_leaves_no_folder_behind() {
         let app = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/flask-booking");
         let dir = scratch("undone");
-        let out = dir.join("securevibe-report");
+        let out = dir.join("stackvet-report");
         let mut said = Vec::new();
         let err = match write_report_folder(
             &app,

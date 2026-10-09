@@ -1,7 +1,7 @@
-//! When SecureVibe is not connected, the AI coding tool builds without it and nothing says so
+//! When StackVet is not connected, the AI coding tool builds without it and nothing says so
 //! (`docs/GAP-ANALYSIS.md`, 5.3). The guide gives a check that works in any tool, the prompt it gives
 //! tells the tool to stop, and so do the rules `sv rules` writes into `AGENTS.md`, which a tool reads
-//! whether or not SecureVibe is connected. Held here to the tools the server really has.
+//! whether or not StackVet is connected. Held here to the tools the server really has.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -91,10 +91,10 @@ fn the_guide_says_how_to_tell_and_how_many_tools_there_are() {
     let guide = guide();
     let start = guide
         .find("\n### Did it connect?\n")
-        .expect("the guide has a step to check SecureVibe connected");
+        .expect("the guide has a step to check StackVet connected");
     let step = &guide[start..start + guide[start..].find("\n### A tool").unwrap()];
     assert!(
-        step.contains("Which `securevibe_` tools can you call?"),
+        step.contains("Which `stackvet_` tools can you call?"),
         "{step}"
     );
     let says = format!("It should list {}, among them", in_words(names.len()));
@@ -103,13 +103,13 @@ fn the_guide_says_how_to_tell_and_how_many_tools_there_are() {
         "the count is not the server's {}: {step}",
         names.len()
     );
-    for named in ["securevibe_spec", "securevibe_check"] {
+    for named in ["stackvet_spec", "stackvet_check"] {
         assert!(names.iter().any(|n| n == named), "{named} is not a tool");
         assert!(step.contains(&format!("`{named}`")), "{step}");
     }
     // Every other place the guide counts the tools agrees, such as VS Code's "the thirteen".
     let mut counted = 0;
-    for (at, _) in guide.match_indices(" `securevibe_` tools") {
+    for (at, _) in guide.match_indices(" `stackvet_` tools") {
         let word = guide[..at].split_whitespace().last().unwrap_or_default();
         if (0..=20).any(|n| in_words(n) == word) {
             counted += 1;
@@ -140,7 +140,7 @@ fn the_prompt_tells_the_tool_to_stop_when_the_tools_are_missing() {
         .join(" ");
     assert!(
         joined.contains(
-            "If you cannot call the `securevibe_` tools, stop and tell me before writing any code"
+            "If you cannot call the `stackvet_` tools, stop and tell me before writing any code"
         ),
         "{prompt}"
     );
