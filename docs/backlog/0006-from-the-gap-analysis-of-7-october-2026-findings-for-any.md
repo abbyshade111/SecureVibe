@@ -513,6 +513,15 @@ listed apart, below this item.
    other session had claimed (e).
    **(e) done the same day** (`docs/design/0331-instruction-files-that-name-sv-s-own-marks-9-october-2026.md`; ADR-049, Later, accepted): a note in the AI tool's
    section for each instruction file naming one of the marks, with its line.
+   **(a) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
+   you merge"), in branch `claude/securevibe-e2-passphrase`: when `sv review` makes the signing key, a passphrase is
+   what pressing Enter chooses, and having none takes typing `none`; still offered, never required (ADR-043's third
+   choice). And each entry a signed seal counts for says, where the key that made it is on this computer, whether
+   that key has a passphrase: without one, anything that can run as the owner, the AI coding tool included, could
+   have signed it, and the entry says so. Where the key is not on this computer (CI, with `SV_TRUSTED_SEALS`), the
+   entry says that cannot be told there. What counts as sealed is unchanged. **`Status: proposed`: ADR-043, Later,
+   9 October 2026** (the default answer, and what a seal's entry says about its key). Read on `main` and the open
+   pull requests just before this claim: no other session had claimed (a).
 
 
 23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no
