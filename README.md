@@ -440,7 +440,8 @@ work are also given in full at the end of `sv init`, `stackvet_spec`, and the se
 a prompt given where the tool starts did better than the same prompt fetched mid-build),
 `stackvet_check` (what
 applies, what was found, and first of all what was not examined), `stackvet_explain` (a requirement in
-its framework's own words), `stackvet_write_report` (the full reports, into the app's folder),
+its framework's own words; at a terminal, `sv explain V7.4.1` adds the checks that speak to it and the kind of run
+each needs, what to do about it, and, with `--app DIR`, what that app's last report said), `stackvet_write_report` (the full reports, into the app's folder),
 `stackvet_questions` (the questions only you can answer, for the tool to ask you one at a time), and
 `stackvet_notes_file` (the `security-notes.md` your written decisions go in), `stackvet_record_answer`
 (an answer written under one of those questions, always marked as the tool's own: once you have read it and agree,

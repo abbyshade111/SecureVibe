@@ -114,6 +114,7 @@ fn run() -> Result<i32> {
         "notes" => finished(cmd_notes(rest.first().map(PathBuf::from))),
         "questions" => finished(cmd_questions(rest.first().map(PathBuf::from))),
         "rules" => finished(cmd_rules(rest)),
+        "explain" => finished(cmd_explain(rest)),
         "prompts" => finished(cmd_prompts(rest)),
         "probe" => finished(cmd_probe(rest)),
         "run" => cmd_run(rest),
@@ -204,6 +205,13 @@ const COMMANDS: &[Command] = &[
         flags: &["--print"],
         valued: &[],
         help: "  sv rules [PATH] [--print]\n                     write the security rules your AI coding tool follows while it\n                     codes into AGENTS.md (--print shows them instead)\n",
+    },
+    Command {
+        name: "explain",
+        word: Some("ID"),
+        flags: &[],
+        valued: &["--app"],
+        help: "  sv explain ID [--app DIR]\n                     one requirement, such as V7.4.1: what it asks, the checks that speak\n                     to it and the kind of run each needs, and what to do; --app adds what\n                     the app's last report said about it\n",
     },
     Command {
         name: "prompts",
@@ -913,6 +921,23 @@ fn cmd_notes(path: Option<PathBuf>) -> Result<()> {
 
 /// Prints the prompts for the AI coding tool: for one requirement, for what an app's last report
 /// shows unproven, or all of them.
+/// `sv explain ID [--app DIR]`: one requirement explained (`explain.rs`).
+fn cmd_explain(args: &[String]) -> Result<()> {
+    let mut id = None;
+    let mut app = None;
+    let mut words = args.iter();
+    while let Some(arg) = words.next() {
+        match arg.as_str() {
+            "--app" => app = words.next().map(PathBuf::from),
+            other if other.starts_with("--") => bail!("unknown option: {other}"),
+            other => id = Some(other.to_owned()),
+        }
+    }
+    let id = id.context("give the requirement's id, such as `sv explain V7.4.1`")?;
+    print!("{}", sv_cli::explain::command(&id, app.as_deref())?);
+    Ok(())
+}
+
 fn cmd_prompts(args: &[String]) -> Result<()> {
     let value = |flag: &str| {
         args.iter()

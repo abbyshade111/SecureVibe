@@ -14,6 +14,7 @@ const COMMANDS: &[&str] = &[
     "notes",
     "questions",
     "rules",
+    "explain",
     "prompts",
     "probe",
     "run",
