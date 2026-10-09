@@ -442,6 +442,9 @@ listed apart, below this item.
    verdict file, and held to it by a test. Which prompts are shown, and so which `sv` gives (ADR-044), is unchanged, so
    no record is proposed. Read on `main` and the open pull requests just before this claim: no other session had
    claimed it.
+   **That half done the same day**
+   (`docs/design/0328-and-whether-it-worked-when-sv-gave-it-9-october-2026.md`): `delivered` in each prompt's trial
+   record, said in every copy of its status, held to `start-verdicts.json` and `delivery-verdicts.json`. (g) is done.
 
 23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no
    warning and exit 0. Read it when present and exit 2 on a parse error; say plainly in its help and in the coding
