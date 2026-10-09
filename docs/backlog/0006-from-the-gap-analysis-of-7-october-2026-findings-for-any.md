@@ -477,6 +477,10 @@ listed apart, below this item.
    `report.json` and `findings.sarif`, which programs parse, are handed over as written, with the description saying
    why. **`Status: proposed`: ADR-066, Later, 9 October 2026** (how the MCP server holds the app's text). Read on
    `main` and the open pull requests just before this claim: no other session had claimed (b).
+   **(b) done the same day**
+   (`docs/design/0328-a-report-read-back-is-fenced-as-a-tool-s-result-is-9-october.md`; ADR-066, Later, accepted):
+   `report.html`, `compliance.md`, and `security.md` come back fenced whole; `report.json` and `findings.sarif` as
+   written. Found on the way: two runs making the report key at once (backlog 0220, fixed on its own).
 
 
 23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no

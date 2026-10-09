@@ -50,6 +50,8 @@ mod marker_tests;
 mod old_names_tests;
 mod protocol;
 mod report_writing;
+#[cfg(test)]
+mod resource_fence_tests;
 mod resources;
 #[cfg(test)]
 mod tests;
