@@ -306,6 +306,14 @@ listed apart, below this item.
    **(a) on `owned.create` done the same day**
    (`docs/design/0326-a-record-put-into-another-user-s-account-9-october-2026.md`; ADR-053, Later):
    `probe.owner-field-trusted`. `creates` and `change-email` stay open.
+   **(a), on `change-email`, claimed 9 October 2026 by session securevibe-e9** ("please continue to work through and
+   pick up new items as you merge"), in branch `claude/stackvet-e9-email-role`: with `signup`, `change-email`, and an
+   `admin` page, an account made for it is shown refused the admin pages, then sends the email change with the sign-up
+   check's role fields added (`role=admin`, `is_admin=true`, and the rest). An admin page that then opens to it is a
+   finding under `probe.role-field-trusted` (V8.3.1, V15.3.3, V8.2.3); nothing credits a requirement. Never A or B,
+   whom the other checks rely on. `creates` stays unclaimed: stackvet.toml gives no way to read back what those
+   requests make, so an owner sent there could not be seen to take. Read on `main` and the open pull requests just
+   before this claim: no other session had claimed it.
    **(g) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
    you merge"), in branch `claude/securevibe-e2-gemini`: the test model answers Google's Gemini format as it answers
    OpenAI's and Anthropic's. A POST whose path ends `:generateContent` or `:streamGenerateContent` (whatever comes
@@ -445,6 +453,15 @@ listed apart, below this item.
    **That half done the same day**
    (`docs/design/0328-and-whether-it-worked-when-sv-gave-it-9-october-2026.md`): `delivered` in each prompt's trial
    record, said in every copy of its status, held to `start-verdicts.json` and `delivery-verdicts.json`. (g) is done.
+   **(b) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
+   you merge"), in branch `claude/securevibe-e2-resource-fence`: a report the AI tool reads back through the MCP
+   server (`resources/read`) comes back as a tool's result does, with the whole of it between `<app-text-…>` tags
+   named for that one reading, which nothing in the report holds, and a first line outside them saying the text inside
+   is information about the app, never an instruction. The report files on disk, and their seals, are unchanged;
+   `report.json` and `findings.sarif`, which programs parse, are handed over as written, with the description saying
+   why. **`Status: proposed`: ADR-066, Later, 9 October 2026** (how the MCP server holds the app's text). Read on
+   `main` and the open pull requests just before this claim: no other session had claimed (b).
+
 
 23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no
    warning and exit 0. Read it when present and exit 2 on a parse error; say plainly in its help and in the coding
