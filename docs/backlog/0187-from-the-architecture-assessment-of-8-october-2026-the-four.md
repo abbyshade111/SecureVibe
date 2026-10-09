@@ -126,6 +126,14 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    real script. One `stand_in` module of constants shared by clients and fakes, and a contract test for
    `oidc-provider.mjs` as there is for the model. The browser driver has the same split (`browser.rs:139-150`
    against `browser-driver.mjs:262-287`).
+   **Claimed 9 October 2026 by session securevibe-e9**, from the roadmap (Phase 2, next after item 8; Phase 1's open
+   parts each need Docker, a run against a live site the owner has not agreed to, or a new compressor), in branch
+   `claude/stackvet-e9-stand-in`: one `stand_in` module in `sv-check` holding the protocol's paths and markers, used by
+   the Rust clients, the Docker runner, and the fakes in place of their own strings; and a contract test that runs the
+   real `oidc-provider.mjs` under Node and holds it to those constants, as `model_provider.rs` does for the model's
+   script. The browser driver's split goes in the same way if it is as small; otherwise it stays open, and the done
+   note says so. Nothing a run asks or concludes changes. Confirmed on `main` just before this claim: the strings are
+   still repeated, only the model's script is run by a test, and no other session holds this part.
 10. **The MCP server.** Fold `securevibe_questions` into `securevibe_check {section: "questions"}` and
    `securevibe_notes_file` into `securevibe_record_answer` (fewer ways to do one thing, two fewer full check runs
    per loop; an ADR Later entry, the docs' "thirteen", `image_smoke.py`; the owner's VS Code flow used
