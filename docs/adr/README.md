@@ -113,7 +113,7 @@ evidence-tier rule without its number), and ADR-012 is also cited by number in `
 | [ADR-067](ADR-067.md) | A session that is one fixed key, found from repeated sign-ins (V7.2.2) |
 | [ADR-068](ADR-068.md) | An MCP link to a remote server over plain HTTP, found in the app's code (C10.3.1) |
 | [ADR-069](ADR-069.md) | A line break and a Bcc header in the address a reset is mailed to (V1.3.11) |
-| [ADR-070](ADR-070.md) | Client-side technology that is no longer supported, found in the app's code (V3.7.1) (proposed) |
+| [ADR-070](ADR-070.md) | Client-side technology that is no longer supported, found in the app's code (V3.7.1) |
 | [ADR-071](ADR-071.md) | The AI service's failure found in the app's own output (V16.3.4, in part) (proposed) |
 
 ## Where v1's records disagree with what v1 built

@@ -319,7 +319,18 @@ listed apart, below this item.
    into its code is still not reached, and says so as now. **`Status: proposed`: ADR-019, Later, 9 October 2026**
    (what the app is given inside the fence) **and ADR-042, Later, 9 October 2026** (the shape read from a Gemini
    request). Read on `main` and the open pull requests just before this claim: no other session had claimed (g).
+   **(g) done the same day** (`docs/design/0327-the-test-model-speaks-gemini-9-october-2026.md`; ADR-019 and ADR-042,
+   Later, accepted). `GOOGLE_GEMINI_BASE_URL` was confirmed in the source of Google's own libraries for Python
+   (`google-genai` 2.29.0) and JavaScript (`@google/genai` 2.28.0), since their documentation names only the key.
+   Vertex AI's addresses and sign-in stay outside it.
 
+   **(b), the stored record's half, claimed 9 October 2026 by session securevibe-e9** ("please continue to work
+   through and pick up new items as you merge"), in branch `claude/stackvet-e9-stored-markup`: the first user saves a
+   second `owned` record whose text carries `<"'` between the marks the reflection probes use, then opens the record
+   and the pages that list it. An HTML page that writes the `<` back as it is, is a finding citing V1.2.1, as the
+   reflected check's is; only ever a finding, since one page escaping it says nothing of the others. A JSON answer is
+   not judged. The test model's reply carrying HTML stays unclaimed. Read on `main` and the open pull requests just
+   before this claim: no other session had claimed (b).
 14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
    `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
    `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
