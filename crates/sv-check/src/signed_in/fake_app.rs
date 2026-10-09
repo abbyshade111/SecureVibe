@@ -242,6 +242,14 @@ pub(super) struct Flaws {
     pub(super) other_cookie_at_login: bool,
     pub(super) logout_keeps_session: bool,
     pub(super) no_httponly: bool,
+    /// `/account` sets the session cookie again, to the same value, with its attributes, as an app
+    /// whose sessions slide does on every page.
+    pub(super) private_page_sets_session: bool,
+    /// `/account` sets the session cookie again with nothing but a path: no HttpOnly, no SameSite.
+    pub(super) private_page_sets_session_bare: bool,
+    /// `/account` clears the session cookie (an empty value, nothing else), as a page that signs
+    /// the user out would. Only for a check called on its own: in a run it ends the session.
+    pub(super) private_page_clears_session: bool,
     pub(super) broken_login: bool,
     /// Sign-up takes a password shorter than 8 characters.
     pub(super) short_password_ok: bool,
@@ -1916,6 +1924,16 @@ impl FakeApp {
                             ("X-Content-Type-Options", "nosniff".to_string()),
                             ("Referrer-Policy", "no-referrer".to_string()),
                         ]);
+                    }
+                    if let Some(id) = sid.as_ref().filter(|_| user.is_some()) {
+                        if self.flaws.private_page_clears_session {
+                            headers.push(("Set-Cookie", "sid=; Max-Age=0".to_string()));
+                        } else if self.flaws.private_page_sets_session_bare {
+                            headers.push(("Set-Cookie", format!("sid={id}; Path=/")));
+                        } else if self.flaws.private_page_sets_session {
+                            headers
+                                .push(("Set-Cookie", format!("sid={id}; {}", self.cookie_attrs())));
+                        }
                     }
                     let body = if self.flaws.no_sign_out_link {
                         "your account<script>const OUT = '/logout';</script>".to_string()

@@ -72,6 +72,10 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    ask for" gets a done note rather than a build: a page nobody asks for cannot be judged, and the credit already
    names the pages it covers. Confirmed on `main` just before this claim: only the sign-in answer's cookies are
    judged (`sessions.rs`, `session_checks`), and no other session had claimed this part.
+   **Done the same day** (`docs/design/0316-a-signed-in-page-that-sets-the-session-cookie-again-9.md`): a private
+   page that sets the session cookie again is held to HttpOnly and SameSite as sign-in is, and found when it drops
+   either; pages the run does not ask for cannot be judged, which the credit already says by naming its pages. With
+   it, part 3 is done.
 4. **Sign-in tokens the app issues itself (V9.1.1, V9.1.2, V9.2.1, V9.1.3; all level 1).** When the token the
    app hands the test user is a JWT, send it back altered with the same signature, with `alg: none`, past its
    expiry, and naming a key the probe controls (`jku`, `kid`). The real token opening the page is the control, so
