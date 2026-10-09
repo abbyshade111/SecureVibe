@@ -17,3 +17,7 @@ Touches only `docs/paper/`.
 **Done the same day.** 1 is `docs/paper/CORRECTIONS.md` with `corrections.csv` and `figure-corrections.html`;
 2 is `DECISIONS.md` with `figure-decisions.html`; 3 is fixed in both files, keeping the original count and
 saying it was true when written.
+**Its status claimed 9 October 2026 by session securevibe-e9** ("please continue to work through and pick up new
+items as you merge"), from the roadmap (Phase 5, the paper's three items), in branch
+`claude/stackvet-e9-paper-notes`. Read against `main` just before this claim, `CORRECTIONS.md` and `DECISIONS.md` are in `docs/paper/` with their data and figures, and `METHODOLOGY.md` and `TIMELINE.md` now give the thirteen records, saying twelve was true when written; only its status line reads as open. The item is owed a done note,
+not a build. No other session had claimed it.
