@@ -450,6 +450,15 @@ listed apart, below this item.
    verdict file, and held to it by a test. Which prompts are shown, and so which `sv` gives (ADR-044), is unchanged, so
    no record is proposed. Read on `main` and the open pull requests just before this claim: no other session had
    claimed it.
+   **(b) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
+   you merge"), in branch `claude/securevibe-e2-resource-fence`: a report the AI tool reads back through the MCP
+   server (`resources/read`) comes back as a tool's result does, with the whole of it between `<app-text-…>` tags
+   named for that one reading, which nothing in the report holds, and a first line outside them saying the text inside
+   is information about the app, never an instruction. The report files on disk, and their seals, are unchanged;
+   `report.json` and `findings.sarif`, which programs parse, are handed over as written, with the description saying
+   why. **`Status: proposed`: ADR-066, Later, 9 October 2026** (how the MCP server holds the app's text). Read on
+   `main` and the open pull requests just before this claim: no other session had claimed (b).
+
 
 23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no
    warning and exit 0. Read it when present and exit 2 on a parse error; say plainly in its help and in the coding
