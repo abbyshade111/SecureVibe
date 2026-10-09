@@ -339,6 +339,9 @@ listed apart, below this item.
    reflected check's is; only ever a finding, since one page escaping it says nothing of the others. A JSON answer is
    not judged. The test model's reply carrying HTML stays unclaimed. Read on `main` and the open pull requests just
    before this claim: no other session had claimed (b).
+   **(b), the stored record's half, done the same day**
+   (`docs/design/0328-saved-text-written-into-a-page-unencoded-9-october-2026.md`): `probe.stored-unencoded`. The
+   test model's half stays open.
 14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
    `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
    `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
@@ -450,6 +453,9 @@ listed apart, below this item.
    verdict file, and held to it by a test. Which prompts are shown, and so which `sv` gives (ADR-044), is unchanged, so
    no record is proposed. Read on `main` and the open pull requests just before this claim: no other session had
    claimed it.
+   **That half done the same day**
+   (`docs/design/0328-and-whether-it-worked-when-sv-gave-it-9-october-2026.md`): `delivered` in each prompt's trial
+   record, said in every copy of its status, held to `start-verdicts.json` and `delivery-verdicts.json`. (g) is done.
    **(b) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
    you merge"), in branch `claude/securevibe-e2-resource-fence`: a report the AI tool reads back through the MCP
    server (`resources/read`) comes back as a tool's result does, with the whole of it between `<app-text-…>` tags

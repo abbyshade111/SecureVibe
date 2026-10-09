@@ -417,6 +417,8 @@ pub(super) struct Flaws {
     pub(super) record_names_owner: bool,
     /// A new note's owner is the `user_id` the request sends, when it sends one (mass assignment).
     pub(super) owner_from_request: bool,
+    /// A note's text is written into its page and the list of notes as it is, not HTML-escaped.
+    pub(super) notes_unescaped: bool,
     /// The JSON API reads a JSON body whatever its Content-Type says.
     pub(super) api_parses_any_type: bool,
     /// The JSON API also takes its fields as a form or as multipart.
@@ -955,6 +957,18 @@ impl FakeApp {
         } else {
             "Path=/; HttpOnly; SameSite=Lax"
         }
+    }
+
+    /// A note's text as a page shows it: HTML-escaped, or as it is under `notes_unescaped`.
+    fn shown(&self, text: &str) -> String {
+        if self.flaws.notes_unescaped {
+            return text.to_owned();
+        }
+        text.replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;")
+            .replace('\'', "&#39;")
     }
 
     fn respond(status: u16, headers: Vec<(&str, String)>, body: &str) -> ProbeResponse {
@@ -2410,9 +2424,13 @@ impl FakeApp {
                         !self.deleted_notes.contains(&(i + 1))
                             && (*owner == who || self.flaws.list_shows_others)
                     })
-                    .map(|(_, (_, text))| format!("<li>{text}</li>"))
+                    .map(|(_, (_, text))| format!("<li>{}</li>", self.shown(text)))
                     .collect();
-                Self::respond(200, vec![], &format!("<ul>{}</ul>", items.concat()))
+                Self::respond(
+                    200,
+                    vec![("Content-Type", "text/html; charset=utf-8".into())],
+                    &format!("<ul>{}</ul>", items.concat()),
+                )
             }
             // Changing or deleting a note: its owner only, anybody signed in under the flaws.
             ("POST", p)
@@ -2469,11 +2487,14 @@ impl FakeApp {
                     let now = self.clock;
                     let times = self.note_times.entry(owner.clone()).or_default();
                     times.retain(|t| now.saturating_sub(*t) < 60);
-                    let leaks = self.notes_limit_leaks && {
+                    // Past the limit only: a note within it says nothing of what lets one
+                    // through, so it does not move the turn.
+                    let over = times.len() >= limit as usize;
+                    let leaks = over && self.notes_limit_leaks && {
                         self.leak_next = !self.leak_next;
                         !self.leak_next
                     };
-                    if times.len() >= limit as usize && !leaks {
+                    if over && !leaks {
                         let (status, retry_after) = self.notes_limit_answer.unwrap_or((429, true));
                         return Some(Self::respond(
                             status,
@@ -2596,10 +2617,11 @@ impl FakeApp {
                     // correct-app tests catch that mistake.
                     Self::respond(
                         200,
-                        vec![],
+                        vec![("Content-Type", "text/html; charset=utf-8".into())],
                         &format!(
-                            "<p>{text}</p><footer>Change your password in Account</footer>\
-                             {extra}"
+                            "<p>{}</p><footer>Change your password in Account</footer>\
+                             {extra}",
+                            self.shown(text)
                         ),
                     )
                 } else {
