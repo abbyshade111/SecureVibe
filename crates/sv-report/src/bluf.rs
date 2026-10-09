@@ -387,6 +387,7 @@ mod tests {
         Report {
             level_why: None,
             baseline: None,
+            build_loop: None,
             app_name: "Test".into(),
             target_level: 1,
             generated: None,

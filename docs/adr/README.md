@@ -119,7 +119,7 @@ evidence-tier rule without its number), and ADR-012 is also cited by number in `
 | [ADR-073](ADR-073.md) | Token use recorded for each user, found in the record of one model call (C12.2.5, in part) |
 | [ADR-074](ADR-074.md) | Why a caught prompt injection was stopped, written down with it (C12.1.2, in part) |
 | [ADR-075](ADR-075.md) | A tool action the AI took, written down with its argument (C12.4.2, in part) (proposed) |
-| [ADR-076](ADR-076.md) | The build loop written down as it happens, and the report saying what it shows (proposed) |
+| [ADR-076](ADR-076.md) | The build loop written down as it happens, and the report saying what it shows |
 
 ## Where v1's records disagree with what v1 built
 

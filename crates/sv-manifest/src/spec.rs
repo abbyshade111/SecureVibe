@@ -13,6 +13,7 @@ name = ""
 description = ""          # plain language, one or two sentences
 audience = "customers"    # just-me | my-team | customers | public
 deployment = "internet"   # local-only | local-network | internet
+# build-loop-record = false  # the person's choice only: stops sv writing down each check made while building
 
 [stack]
 languages = []            # e.g. ["python", "typescript"]

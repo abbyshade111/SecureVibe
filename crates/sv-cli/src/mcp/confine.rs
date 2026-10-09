@@ -85,7 +85,7 @@ pub(super) fn too_wide(root: &Path, home: Option<&Path>) -> Option<&'static str>
 /// folder before anything below it is made. `relative` holds only plain names and `.`, which the
 /// caller has already checked. Gives the folder, and the ones it made, topmost first; refused part
 /// way, it takes away the ones it made.
-pub(super) fn create_below(base: &Path, relative: &Path) -> Result<(PathBuf, Vec<PathBuf>)> {
+pub(crate) fn create_below(base: &Path, relative: &Path) -> Result<(PathBuf, Vec<PathBuf>)> {
     let mut made = Vec::new();
     let made_here = create_each(base, relative, &mut made);
     if made_here.is_err() {
