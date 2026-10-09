@@ -1,6 +1,6 @@
 # The backlog at a glance: a page of what is done, being worked on, and still to come
 
-**Status:** claimed by securevibe-review, 9 October 2026
+**Status:** done, 9 October 2026
 
 Asked for by the owner on 9 October 2026 ("Just want an easy way to get a general overview of what's done, being
 worked on, still to come"), choosing this over a mirror of the items into a GitHub project, which sessions could

@@ -319,6 +319,76 @@ box.addEventListener('input', () => {
 """
 
 
+BOARD = "backlog-board.html"
+
+
+def backlog_tool():
+    """`tools/backlog.py`, imported by path: this script runs with `-I`, which keeps its own folder off the import
+    path, and the items are read by the one reader that defines what a status line is."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("backlog", ROOT / "tools" / "backlog.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def roadmap_phases(text):
+    """Which paragraph of the roadmap in docs/BACKLOG.md names each item, by its exact title in quotes:
+    {title: "Phase 1"}. An item the roadmap does not name has no phase."""
+    out = {}
+    for m in re.finditer(r"\*\*(?P<head>Phase \d[^*]*|After the roadmap[^*]*|Process, any time[^*]*)\*\*(?P<body>.*?)(?=\n\*\*|\Z)",
+                         text, re.S):
+        label = re.split(r"[:,]", m.group("head"))[0].strip()
+        for title in re.findall(r'"([^"]+)"', m.group("body")):
+            out.setdefault(title, label)
+    return out
+
+
+def counts_line(found):
+    """The same sentence `tools/backlog.py summary` prints, so a test can hold the two together."""
+    by = {}
+    for i in found:
+        by[i.kind or "?"] = by.get(i.kind or "?", 0) + 1
+    return f"{len(found)} items: " + ", ".join(f"{by.get(k, 0)} {k}" for k in ("open", "claimed", "partly done", "done"))
+
+
+def board(docs):
+    """The backlog at a glance: the counts, then every item under still to come, being worked on, or done."""
+    tool = backlog_tool()
+    found = tool.items(ROOT / "docs" / "backlog")
+    phases = roadmap_phases((ROOT / "docs" / "BACKLOG.md").read_text(encoding="utf-8", errors="replace"))
+    groups = [
+        ("Being worked on", "Claimed by a session, or partly done with parts still open.",
+         [i for i in found if i.kind in ("claimed", "partly done")]),
+        ("Still to come", "Open, and nobody's yet. The roadmap at the top of the backlog says the order.",
+         [i for i in found if i.kind == "open"]),
+        ("Done", "Newest first.", sorted([i for i in found if i.kind == "done"], key=lambda i: -(i.number or 0))),
+    ]
+    body = ["<h1>The backlog at a glance</h1>",
+            f"<p class=\"note\">{html.escape(counts_line(found))}. Read from each item's own status line in "
+            "<code>docs/backlog/</code> when these pages were written; run the tool again after a pull.</p>"]
+    for name, note, mine in groups:
+        body.append(f"<h2>{html.escape(name)} <span class=\"note\">({len(mine)})</span></h2><p class=\"note\">{html.escape(note)}</p>")
+        if not mine:
+            body.append("<p>None.</p>")
+            continue
+        rows = []
+        for i in mine:
+            rel = i.path.relative_to(ROOT).as_posix()
+            href = rel[:-3] + ".html" if rel in docs else None
+            title = html.escape(i.title or i.path.name)
+            cell = f'<a href="{html.escape(href)}">{title}</a>' if href else title
+            phase = phases.get(i.title or "", "")
+            c = i.counts
+            parts = f"{c['done']} of {sum(c.values())} parts done" if sum(c.values()) else ""
+            rows.append("<tr>" + "".join(f"<td>{x}</td>" for x in (
+                f"{i.number:04d}" if i.number is not None else "", cell, html.escape(i.status_text or ""),
+                html.escape(phase), html.escape(parts))) + "</tr>")
+        body.append("<table><thead><tr><th>#</th><th>Item</th><th>Status</th><th>Roadmap</th><th>Parts</th></tr></thead><tbody>"
+                    + "".join(rows) + "</tbody></table>")
+    return "\n".join(body), counts_line(found)
+
+
 def build(out):
     out = Path(out).expanduser()
     if out.is_symlink():
@@ -364,7 +434,13 @@ def build(out):
             index.append({"d": titles[d], "h": heading.replace("`", ""), "u": d[:-3] + ".html" + (f"#{ident}" if ident else ""),
                           "t": text[:3000], "l": text.lower()[:3000] + " " + heading.lower()})
 
-    listing = []
+    board_body, counts = board(docs)
+    (out / BOARD).write_text(page("The backlog at a glance", nav_for(docs, titles, "index.md"), board_body, 0),
+                             encoding="utf-8")
+    written.add((out / BOARD).resolve())
+
+    listing = [f'<h2>The backlog at a glance</h2><p><a href="{BOARD}">What is done, being worked on, and still to come</a> '
+               f'<span class="note">{html.escape(counts)}</span></p>']
     for name, _ in SECTIONS:
         mine = [d for d in docs if section(d) == name]
         if mine:
