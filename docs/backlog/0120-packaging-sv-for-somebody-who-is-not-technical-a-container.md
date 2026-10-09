@@ -301,3 +301,9 @@ advisory, so a second run could not read who held a folder from the locked file;
 file was still this run's compared only sizes, so a run stopped with Ctrl-C could have removed another run's lock.
 The holder's record now also goes into `.stackvet-report.holder`, which is never locked, and outside Unix a run knows
 its own lock by that record (ADR-041, Later).
+Tenth Windows finding, the same day: with the tools reading UTF-8, three census tests still failed on Windows, now
+saying every credit log "holds no credit". The log names each place in the code as Rust writes it there, with `\`,
+and `tools/coverage.py` keyed the files that ship by `str(path)`, also with `\` there, while the tests write `/`; so no
+logged place matched a file. Both sides are now compared with `/` (`shipping_lines`, `logged_place`), and
+`crates/sv-check/tests/census_windows_paths.rs` holds a place written with `\` to read exactly as the same place with
+`/`, for the credit check and the withheld count.
