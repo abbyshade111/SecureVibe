@@ -233,3 +233,23 @@ installed when a job fails). The guide offers it in "Installing StackVet on your
 Later). Not yet tried by hand on the owner's Mac. Step 2, Windows in CI, is next; a stable version and bottles wait for
 the signed releases (0191 part 4).
 
+
+**Step 2 begun 9 October 2026 by session securevibe-e2:** `.github/workflows/windows.yml` builds `sv` on Windows,
+checks an example app with it, and runs the whole suite, reporting each failing test as an annotation (ADR-051,
+Later). Not required; what it finds is written here as it is fixed or explained.
+
+First Windows finding, 9 October 2026: `sv` did not compile there, and every error was in one place, `sv review`'s
+reading of a passphrase without showing it, which used the Unix terminal's own calls. Those are now kept to Unix; on
+Windows `sv review` says before the passphrase is typed that it will show on the screen, rather than not building at
+all. Hiding it on Windows needs the console's own call (a Windows-only dependency, a decision of its own), and is open.
+Second Windows finding, the same day: with `sv` building, the test suite did not compile there, in four places that
+make symbolic links or a Unix shell script. Checked for Windows from Linux with the MinGW cross-compiler (`cargo
+check --workspace --tests --target x86_64-pc-windows-gnu`), these were the only errors. Each is now marked Unix
+only, with the reason beside it: the link test in `crates/sv-scan/src/files.rs`, one test in
+`crates/sv-check/tests/codeql.rs`, and the whole of `crates/sv-check/tests/brakeman_links.rs` and
+`crates/sv-check/tests/gosec_fence.rs`. They still run on Mac and Linux, unchanged. What links mean for `sv` on
+Windows (whether it follows them, and whether that needs a test of its own there) is open.
+Third Windows finding, the same day: with everything compiling, the whole suite ran there for the first time, and
+2,517 tests passed and 158 failed. GitHub keeps ten error annotations per step, so only the first ten failing names
+came back (all in `notes`, `git`, and `confirm`); the workflow now reports every failing name, twenty to a line, and
+what the first failures said, so they can be grouped by cause and fixed or explained.

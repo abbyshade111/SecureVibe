@@ -1,0 +1,2498 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "CodeQL",
+          "organization": "GitHub",
+          "semanticVersion": "2.27.2",
+          "notifications": [
+            {
+              "id": "rb/diagnostics/extraction-warnings",
+              "name": "rb/diagnostics/extraction-warnings",
+              "shortDescription": {
+                "text": "Extraction warnings"
+              },
+              "fullDescription": {
+                "text": "List all extraction warnings for files in the source code directory."
+              },
+              "defaultConfiguration": {
+                "enabled": true
+              },
+              "properties": {
+                "description": "List all extraction warnings for files in the source code directory.",
+                "id": "rb/diagnostics/extraction-warnings",
+                "kind": "diagnostic",
+                "name": "Extraction warnings"
+              }
+            },
+            {
+              "id": "rb/diagnostics/extraction-errors",
+              "name": "rb/diagnostics/extraction-errors",
+              "shortDescription": {
+                "text": "Extraction errors"
+              },
+              "fullDescription": {
+                "text": "List all extraction errors for files in the source code directory."
+              },
+              "defaultConfiguration": {
+                "enabled": true
+              },
+              "properties": {
+                "description": "List all extraction errors for files in the source code directory.",
+                "id": "rb/diagnostics/extraction-errors",
+                "kind": "diagnostic",
+                "name": "Extraction errors"
+              }
+            },
+            {
+              "id": "rb/diagnostics/successfully-extracted-files",
+              "name": "rb/diagnostics/successfully-extracted-files",
+              "shortDescription": {
+                "text": "Extracted files"
+              },
+              "fullDescription": {
+                "text": "Lists all files in the source code directory that were extracted."
+              },
+              "defaultConfiguration": {
+                "enabled": true
+              },
+              "properties": {
+                "tags": [
+                  "successfully-extracted-files"
+                ],
+                "description": "Lists all files in the source code directory that were extracted.",
+                "id": "rb/diagnostics/successfully-extracted-files",
+                "kind": "diagnostic",
+                "name": "Extracted files"
+              }
+            },
+            {
+              "id": "rb/baseline/expected-extracted-files",
+              "name": "rb/baseline/expected-extracted-files",
+              "shortDescription": {
+                "text": "Expected extracted files"
+              },
+              "fullDescription": {
+                "text": "Files appearing in the source archive that are expected to be extracted."
+              },
+              "defaultConfiguration": {
+                "enabled": true
+              },
+              "properties": {
+                "tags": [
+                  "expected-extracted-files",
+                  "telemetry"
+                ]
+              }
+            },
+            {
+              "id": "cli/file-coverage-baseline",
+              "name": "cli/file-coverage-baseline",
+              "shortDescription": {
+                "text": "File coverage baseline telemetry"
+              },
+              "fullDescription": {
+                "text": "File coverage baseline telemetry"
+              },
+              "defaultConfiguration": {
+                "enabled": true
+              }
+            },
+            {
+              "id": "cli/platform",
+              "name": "cli/platform",
+              "shortDescription": {
+                "text": "Platform"
+              },
+              "fullDescription": {
+                "text": "Platform"
+              },
+              "defaultConfiguration": {
+                "enabled": true
+              }
+            }
+          ],
+          "rules": [
+            {
+              "id": "rb/unsafe-deserialization",
+              "name": "rb/unsafe-deserialization",
+              "shortDescription": {
+                "text": "Deserialization of user-controlled data"
+              },
+              "fullDescription": {
+                "text": "Deserializing user-controlled data may allow attackers to execute arbitrary code."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-502"
+                ],
+                "description": "Deserializing user-controlled data may allow attackers to\n              execute arbitrary code.",
+                "id": "rb/unsafe-deserialization",
+                "kind": "path-problem",
+                "name": "Deserialization of user-controlled data",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "9.8"
+              }
+            },
+            {
+              "id": "rb/code-injection",
+              "name": "rb/code-injection",
+              "shortDescription": {
+                "text": "Code injection"
+              },
+              "fullDescription": {
+                "text": "Interpreting unsanitized user input as code allows a malicious user to perform arbitrary code execution."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-094",
+                  "external/cwe/cwe-095",
+                  "external/cwe/cwe-116"
+                ],
+                "description": "Interpreting unsanitized user input as code allows a malicious user to perform arbitrary\n              code execution.",
+                "id": "rb/code-injection",
+                "kind": "path-problem",
+                "name": "Code injection",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "9.3",
+                "sub-severity": "high"
+              }
+            },
+            {
+              "id": "rb/path-injection",
+              "name": "rb/path-injection",
+              "shortDescription": {
+                "text": "Uncontrolled data used in path expression"
+              },
+              "fullDescription": {
+                "text": "Accessing paths influenced by users can allow an attacker to access unexpected resources."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-022",
+                  "external/cwe/cwe-023",
+                  "external/cwe/cwe-036",
+                  "external/cwe/cwe-073",
+                  "external/cwe/cwe-099"
+                ],
+                "description": "Accessing paths influenced by users can allow an attacker to access\n              unexpected resources.",
+                "id": "rb/path-injection",
+                "kind": "path-problem",
+                "name": "Uncontrolled data used in path expression",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "rb/bad-tag-filter",
+              "name": "rb/bad-tag-filter",
+              "shortDescription": {
+                "text": "Bad HTML filtering regexp"
+              },
+              "fullDescription": {
+                "text": "Matching HTML tags using regular expressions is hard to do right, and can easily lead to security issues."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "correctness",
+                  "security",
+                  "external/cwe/cwe-116",
+                  "external/cwe/cwe-020",
+                  "external/cwe/cwe-185",
+                  "external/cwe/cwe-186"
+                ],
+                "description": "Matching HTML tags using regular expressions is hard to do right, and can easily lead to security issues.",
+                "id": "rb/bad-tag-filter",
+                "kind": "problem",
+                "name": "Bad HTML filtering regexp",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "7.8"
+              }
+            },
+            {
+              "id": "rb/incomplete-multi-character-sanitization",
+              "name": "rb/incomplete-multi-character-sanitization",
+              "shortDescription": {
+                "text": "Incomplete multi-character sanitization"
+              },
+              "fullDescription": {
+                "text": "A sanitizer that removes a sequence of characters may reintroduce the dangerous sequence."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "correctness",
+                  "security",
+                  "external/cwe/cwe-020",
+                  "external/cwe/cwe-080",
+                  "external/cwe/cwe-116"
+                ],
+                "description": "A sanitizer that removes a sequence of characters may reintroduce the dangerous sequence.",
+                "id": "rb/incomplete-multi-character-sanitization",
+                "kind": "problem",
+                "name": "Incomplete multi-character sanitization",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "7.8"
+              }
+            },
+            {
+              "id": "rb/incomplete-sanitization",
+              "name": "rb/incomplete-sanitization",
+              "shortDescription": {
+                "text": "Incomplete string escaping or encoding"
+              },
+              "fullDescription": {
+                "text": "A string transformer that does not replace or escape all occurrences of a meta-character may be ineffective."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "correctness",
+                  "security",
+                  "external/cwe/cwe-020",
+                  "external/cwe/cwe-080",
+                  "external/cwe/cwe-116"
+                ],
+                "description": "A string transformer that does not replace or escape all occurrences of a\n              meta-character may be ineffective.",
+                "id": "rb/incomplete-sanitization",
+                "kind": "problem",
+                "name": "Incomplete string escaping or encoding",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "7.8"
+              }
+            },
+            {
+              "id": "rb/url-redirection",
+              "name": "rb/url-redirection",
+              "shortDescription": {
+                "text": "URL redirection from remote source"
+              },
+              "fullDescription": {
+                "text": "URL redirection based on unvalidated user input may cause redirection to malicious web sites."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-601"
+                ],
+                "description": "URL redirection based on unvalidated user input\n              may cause redirection to malicious web sites.",
+                "id": "rb/url-redirection",
+                "kind": "path-problem",
+                "name": "URL redirection from remote source",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "6.1",
+                "sub-severity": "low"
+              }
+            },
+            {
+              "id": "rb/tainted-format-string",
+              "name": "rb/tainted-format-string",
+              "shortDescription": {
+                "text": "Use of externally-controlled format string"
+              },
+              "fullDescription": {
+                "text": "Using external input in format strings can lead to garbled output."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-134"
+                ],
+                "description": "Using external input in format strings can lead to garbled output.",
+                "id": "rb/tainted-format-string",
+                "kind": "path-problem",
+                "name": "Use of externally-controlled format string",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "7.3"
+              }
+            },
+            {
+              "id": "rb/sensitive-get-query",
+              "name": "rb/sensitive-get-query",
+              "shortDescription": {
+                "text": "Sensitive data read from GET request"
+              },
+              "fullDescription": {
+                "text": "Placing sensitive data in a GET request increases the risk of the data being exposed to an attacker."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-598"
+                ],
+                "description": "Placing sensitive data in a GET request increases the risk of\n              the data being exposed to an attacker.",
+                "id": "rb/sensitive-get-query",
+                "kind": "problem",
+                "name": "Sensitive data read from GET request",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "6.5"
+              }
+            },
+            {
+              "id": "rb/stack-trace-exposure",
+              "name": "rb/stack-trace-exposure",
+              "shortDescription": {
+                "text": "Information exposure through an exception"
+              },
+              "fullDescription": {
+                "text": "Leaking information about an exception, such as messages and stack traces, to an external user can expose implementation details that are useful to an attacker for developing a subsequent exploit."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-209",
+                  "external/cwe/cwe-497"
+                ],
+                "description": "Leaking information about an exception, such as messages and stack traces, to an\n              external user can expose implementation details that are useful to an attacker for\n              developing a subsequent exploit.",
+                "id": "rb/stack-trace-exposure",
+                "kind": "path-problem",
+                "name": "Information exposure through an exception",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "5.4"
+              }
+            },
+            {
+              "id": "rb/weak-cookie-configuration",
+              "name": "rb/weak-cookie-configuration",
+              "shortDescription": {
+                "text": "Weak cookie configuration"
+              },
+              "fullDescription": {
+                "text": "Misconfiguring how cookies are encrypted or sent can expose a user to various attacks."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "external/cwe/cwe-732",
+                  "external/cwe/cwe-1275",
+                  "security"
+                ],
+                "description": "Misconfiguring how cookies are encrypted or sent can expose a user to various attacks.",
+                "id": "rb/weak-cookie-configuration",
+                "kind": "problem",
+                "name": "Weak cookie configuration",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "7.8"
+              }
+            },
+            {
+              "id": "rb/csrf-protection-not-enabled",
+              "name": "rb/csrf-protection-not-enabled",
+              "shortDescription": {
+                "text": "CSRF protection not enabled"
+              },
+              "fullDescription": {
+                "text": "Not enabling CSRF protection may make the application vulnerable to a Cross-Site Request Forgery (CSRF) attack."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-352"
+                ],
+                "description": "Not enabling CSRF protection may make the application\n              vulnerable to a Cross-Site Request Forgery (CSRF) attack.",
+                "id": "rb/csrf-protection-not-enabled",
+                "kind": "problem",
+                "name": "CSRF protection not enabled",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "8.8"
+              }
+            },
+            {
+              "id": "rb/csrf-protection-disabled",
+              "name": "rb/csrf-protection-disabled",
+              "shortDescription": {
+                "text": "CSRF protection weakened or disabled"
+              },
+              "fullDescription": {
+                "text": "Disabling or weakening CSRF protection may make the application vulnerable to a Cross-Site Request Forgery (CSRF) attack."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-352"
+                ],
+                "description": "Disabling or weakening CSRF protection may make the application\n              vulnerable to a Cross-Site Request Forgery (CSRF) attack.",
+                "id": "rb/csrf-protection-disabled",
+                "kind": "problem",
+                "name": "CSRF protection weakened or disabled",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "8.8"
+              }
+            },
+            {
+              "id": "rb/shell-command-constructed-from-input",
+              "name": "rb/shell-command-constructed-from-input",
+              "shortDescription": {
+                "text": "Unsafe shell command constructed from library input"
+              },
+              "fullDescription": {
+                "text": "Using externally controlled strings in a command line may allow a malicious user to change the meaning of the command."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "correctness",
+                  "security",
+                  "external/cwe/cwe-078",
+                  "external/cwe/cwe-088",
+                  "external/cwe/cwe-073"
+                ],
+                "description": "Using externally controlled strings in a command line may allow a malicious\n              user to change the meaning of the command.",
+                "id": "rb/shell-command-constructed-from-input",
+                "kind": "path-problem",
+                "name": "Unsafe shell command constructed from library input",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "6.3"
+              }
+            },
+            {
+              "id": "rb/non-constant-kernel-open",
+              "name": "rb/non-constant-kernel-open",
+              "shortDescription": {
+                "text": "Use of `Kernel.open` or `IO.read` or similar sinks with a non-constant value"
+              },
+              "fullDescription": {
+                "text": "Using `Kernel.open`, `IO.read`, `IO.write`, `IO.binread`, `IO.binwrite`, `IO.foreach`, `IO.readlines`, or `URI.open` may allow a malicious user to execute arbitrary system commands."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "correctness",
+                  "security",
+                  "external/cwe/cwe-078",
+                  "external/cwe/cwe-088",
+                  "external/cwe/cwe-073"
+                ],
+                "description": "Using `Kernel.open`, `IO.read`, `IO.write`, `IO.binread`, `IO.binwrite`,\n              `IO.foreach`, `IO.readlines`, or `URI.open` may allow a malicious\n              user to execute arbitrary system commands.",
+                "id": "rb/non-constant-kernel-open",
+                "kind": "problem",
+                "name": "Use of `Kernel.open` or `IO.read` or similar sinks with a non-constant value",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "9.8"
+              }
+            },
+            {
+              "id": "rb/command-line-injection",
+              "name": "rb/command-line-injection",
+              "shortDescription": {
+                "text": "Uncontrolled command line"
+              },
+              "fullDescription": {
+                "text": "Using externally controlled strings in a command line may allow a malicious user to change the meaning of the command."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "correctness",
+                  "security",
+                  "external/cwe/cwe-078",
+                  "external/cwe/cwe-088"
+                ],
+                "description": "Using externally controlled strings in a command line may allow a malicious\n              user to change the meaning of the command.",
+                "id": "rb/command-line-injection",
+                "kind": "path-problem",
+                "name": "Uncontrolled command line",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "9.8"
+              }
+            },
+            {
+              "id": "rb/kernel-open",
+              "name": "rb/kernel-open",
+              "shortDescription": {
+                "text": "Use of `Kernel.open`, `IO.read` or similar sinks with user-controlled input"
+              },
+              "fullDescription": {
+                "text": "Using `Kernel.open`, `IO.read`, `IO.write`, `IO.binread`, `IO.binwrite`, `IO.foreach`, `IO.readlines`, or `URI.open` may allow a malicious user to execute arbitrary system commands."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "correctness",
+                  "security",
+                  "external/cwe/cwe-078",
+                  "external/cwe/cwe-088",
+                  "external/cwe/cwe-073"
+                ],
+                "description": "Using `Kernel.open`, `IO.read`, `IO.write`, `IO.binread`, `IO.binwrite`,\n              `IO.foreach`, `IO.readlines`, or `URI.open` may allow a malicious\n              user to execute arbitrary system commands.",
+                "id": "rb/kernel-open",
+                "kind": "path-problem",
+                "name": "Use of `Kernel.open`, `IO.read` or similar sinks with user-controlled input",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "9.8"
+              }
+            },
+            {
+              "id": "rb/regex/badly-anchored-regexp",
+              "name": "rb/regex/badly-anchored-regexp",
+              "shortDescription": {
+                "text": "Badly anchored regular expression"
+              },
+              "fullDescription": {
+                "text": "Regular expressions anchored using `^` or `$` are vulnerable to bypassing."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "correctness",
+                  "security",
+                  "external/cwe/cwe-020"
+                ],
+                "description": "Regular expressions anchored using `^` or `$` are vulnerable to bypassing.",
+                "id": "rb/regex/badly-anchored-regexp",
+                "kind": "path-problem",
+                "name": "Badly anchored regular expression",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "7.8"
+              }
+            },
+            {
+              "id": "rb/overly-large-range",
+              "name": "rb/overly-large-range",
+              "shortDescription": {
+                "text": "Overly permissive regular expression range"
+              },
+              "fullDescription": {
+                "text": "Overly permissive regular expression ranges match a wider range of characters than intended. This may allow an attacker to bypass a filter or sanitizer."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "correctness",
+                  "security",
+                  "external/cwe/cwe-020"
+                ],
+                "description": "Overly permissive regular expression ranges match a wider range of characters than intended.\n              This may allow an attacker to bypass a filter or sanitizer.",
+                "id": "rb/overly-large-range",
+                "kind": "problem",
+                "name": "Overly permissive regular expression range",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "4.0"
+              }
+            },
+            {
+              "id": "rb/incomplete-url-substring-sanitization",
+              "name": "rb/incomplete-url-substring-sanitization",
+              "shortDescription": {
+                "text": "Incomplete URL substring sanitization"
+              },
+              "fullDescription": {
+                "text": "Security checks on the substrings of an unparsed URL are often vulnerable to bypassing."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "correctness",
+                  "security",
+                  "external/cwe/cwe-020"
+                ],
+                "description": "Security checks on the substrings of an unparsed URL are often vulnerable to bypassing.",
+                "id": "rb/incomplete-url-substring-sanitization",
+                "kind": "problem",
+                "name": "Incomplete URL substring sanitization",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "7.8"
+              }
+            },
+            {
+              "id": "rb/incomplete-hostname-regexp",
+              "name": "rb/incomplete-hostname-regexp",
+              "shortDescription": {
+                "text": "Incomplete regular expression for hostnames"
+              },
+              "fullDescription": {
+                "text": "Matching a URL or hostname against a regular expression that contains an unescaped dot as part of the hostname might match more hostnames than expected."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "correctness",
+                  "security",
+                  "external/cwe/cwe-020"
+                ],
+                "description": "Matching a URL or hostname against a regular expression that contains an unescaped dot as part of the hostname might match more hostnames than expected.",
+                "id": "rb/incomplete-hostname-regexp",
+                "kind": "problem",
+                "name": "Incomplete regular expression for hostnames",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "7.8"
+              }
+            },
+            {
+              "id": "rb/insecure-download",
+              "name": "rb/insecure-download",
+              "shortDescription": {
+                "text": "Download of sensitive file through insecure connection"
+              },
+              "fullDescription": {
+                "text": "Downloading executables and other sensitive files over an insecure connection may allow man-in-the-middle attacks."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-829"
+                ],
+                "description": "Downloading executables and other sensitive files over an insecure connection\n              may allow man-in-the-middle attacks.",
+                "id": "rb/insecure-download",
+                "kind": "path-problem",
+                "name": "Download of sensitive file through insecure connection",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "8.1"
+              }
+            },
+            {
+              "id": "rb/insecure-mass-assignment",
+              "name": "rb/insecure-mass-assignment",
+              "shortDescription": {
+                "text": "Insecure Mass Assignment"
+              },
+              "fullDescription": {
+                "text": "Using mass assignment with user-controlled attributes allows unintended parameters to be set."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-915"
+                ],
+                "description": "Using mass assignment with user-controlled attributes allows unintended parameters to be set.",
+                "id": "rb/insecure-mass-assignment",
+                "kind": "path-problem",
+                "name": "Insecure Mass Assignment",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "9.8"
+              }
+            },
+            {
+              "id": "rb/weak-sensitive-data-hashing",
+              "name": "rb/weak-sensitive-data-hashing",
+              "shortDescription": {
+                "text": "Use of a broken or weak cryptographic hashing algorithm on sensitive data"
+              },
+              "fullDescription": {
+                "text": "Using broken or weak cryptographic hashing algorithms can compromise security."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-327",
+                  "external/cwe/cwe-328",
+                  "external/cwe/cwe-916"
+                ],
+                "description": "Using broken or weak cryptographic hashing algorithms can compromise security.",
+                "id": "rb/weak-sensitive-data-hashing",
+                "kind": "path-problem",
+                "name": "Use of a broken or weak cryptographic hashing algorithm on sensitive data",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "rb/weak-cryptographic-algorithm",
+              "name": "rb/weak-cryptographic-algorithm",
+              "shortDescription": {
+                "text": "Use of a broken or weak cryptographic algorithm"
+              },
+              "fullDescription": {
+                "text": "Using broken or weak cryptographic algorithms can compromise security."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-327"
+                ],
+                "description": "Using broken or weak cryptographic algorithms can compromise security.",
+                "id": "rb/weak-cryptographic-algorithm",
+                "kind": "problem",
+                "name": "Use of a broken or weak cryptographic algorithm",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "rb/html-constructed-from-input",
+              "name": "rb/html-constructed-from-input",
+              "shortDescription": {
+                "text": "Unsafe HTML constructed from library input"
+              },
+              "fullDescription": {
+                "text": "Using externally controlled strings to construct HTML might allow a malicious user to perform a cross-site scripting attack."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-079",
+                  "external/cwe/cwe-116"
+                ],
+                "description": "Using externally controlled strings to construct HTML might allow a malicious\n              user to perform a cross-site scripting attack.",
+                "id": "rb/html-constructed-from-input",
+                "kind": "path-problem",
+                "name": "Unsafe HTML constructed from library input",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "7.8"
+              }
+            },
+            {
+              "id": "rb/reflected-xss",
+              "name": "rb/reflected-xss",
+              "shortDescription": {
+                "text": "Reflected server-side cross-site scripting"
+              },
+              "fullDescription": {
+                "text": "Writing user input directly to a web page allows for a cross-site scripting vulnerability."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-079",
+                  "external/cwe/cwe-116"
+                ],
+                "description": "Writing user input directly to a web page\n              allows for a cross-site scripting vulnerability.",
+                "id": "rb/reflected-xss",
+                "kind": "path-problem",
+                "name": "Reflected server-side cross-site scripting",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "7.8",
+                "sub-severity": "high"
+              }
+            },
+            {
+              "id": "rb/stored-xss",
+              "name": "rb/stored-xss",
+              "shortDescription": {
+                "text": "Stored cross-site scripting"
+              },
+              "fullDescription": {
+                "text": "Using uncontrolled stored values in HTML allows for a stored cross-site scripting vulnerability."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-079",
+                  "external/cwe/cwe-116"
+                ],
+                "description": "Using uncontrolled stored values in HTML allows for\n              a stored cross-site scripting vulnerability.",
+                "id": "rb/stored-xss",
+                "kind": "path-problem",
+                "name": "Stored cross-site scripting",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "7.8"
+              }
+            },
+            {
+              "id": "rb/redos",
+              "name": "rb/redos",
+              "shortDescription": {
+                "text": "Inefficient regular expression"
+              },
+              "fullDescription": {
+                "text": "A regular expression that requires exponential time to match certain inputs can be a performance bottleneck, and may be vulnerable to denial-of-service attacks."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1333",
+                  "external/cwe/cwe-730",
+                  "external/cwe/cwe-400"
+                ],
+                "description": "A regular expression that requires exponential time to match certain inputs\n              can be a performance bottleneck, and may be vulnerable to denial-of-service\n              attacks.",
+                "id": "rb/redos",
+                "kind": "problem",
+                "name": "Inefficient regular expression",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "rb/regexp-injection",
+              "name": "rb/regexp-injection",
+              "shortDescription": {
+                "text": "Regular expression injection"
+              },
+              "fullDescription": {
+                "text": "User input should not be used in regular expressions without first being escaped. Otherwise, a malicious user may be able to inject an expression that could require exponential time on certain inputs."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1333",
+                  "external/cwe/cwe-730",
+                  "external/cwe/cwe-400"
+                ],
+                "description": "User input should not be used in regular expressions without\n              first being escaped. Otherwise, a malicious user may be able to\n              inject an expression that could require exponential time on\n              certain inputs.",
+                "id": "rb/regexp-injection",
+                "kind": "path-problem",
+                "name": "Regular expression injection",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "rb/polynomial-redos",
+              "name": "rb/polynomial-redos",
+              "shortDescription": {
+                "text": "Polynomial regular expression used on uncontrolled data"
+              },
+              "fullDescription": {
+                "text": "A regular expression that can require polynomial time to match may be vulnerable to denial-of-service attacks."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1333",
+                  "external/cwe/cwe-730",
+                  "external/cwe/cwe-400"
+                ],
+                "description": "A regular expression that can require polynomial time\n              to match may be vulnerable to denial-of-service attacks.",
+                "id": "rb/polynomial-redos",
+                "kind": "path-problem",
+                "name": "Polynomial regular expression used on uncontrolled data",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "rb/xxe",
+              "name": "rb/xxe",
+              "shortDescription": {
+                "text": "XML external entity expansion"
+              },
+              "fullDescription": {
+                "text": "Parsing user input as an XML document with external entity expansion is vulnerable to XXE attacks."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-611",
+                  "external/cwe/cwe-776",
+                  "external/cwe/cwe-827"
+                ],
+                "description": "Parsing user input as an XML document with external\n              entity expansion is vulnerable to XXE attacks.",
+                "id": "rb/xxe",
+                "kind": "path-problem",
+                "name": "XML external entity expansion",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "9.1"
+              }
+            },
+            {
+              "id": "rb/clear-text-logging-sensitive-data",
+              "name": "rb/clear-text-logging-sensitive-data",
+              "shortDescription": {
+                "text": "Clear-text logging of sensitive information"
+              },
+              "fullDescription": {
+                "text": "Logging sensitive information without encryption or hashing can expose it to an attacker."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-312",
+                  "external/cwe/cwe-359",
+                  "external/cwe/cwe-532"
+                ],
+                "description": "Logging sensitive information without encryption or hashing can\n              expose it to an attacker.",
+                "id": "rb/clear-text-logging-sensitive-data",
+                "kind": "path-problem",
+                "name": "Clear-text logging of sensitive information",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "rb/clear-text-storage-sensitive-data",
+              "name": "rb/clear-text-storage-sensitive-data",
+              "shortDescription": {
+                "text": "Clear-text storage of sensitive information"
+              },
+              "fullDescription": {
+                "text": "Storing sensitive information without encryption or hashing can expose it to an attacker."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-312",
+                  "external/cwe/cwe-359",
+                  "external/cwe/cwe-532"
+                ],
+                "description": "Storing sensitive information without encryption or hashing can\n              expose it to an attacker.",
+                "id": "rb/clear-text-storage-sensitive-data",
+                "kind": "path-problem",
+                "name": "Clear-text storage of sensitive information",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "rb/sql-injection",
+              "name": "rb/sql-injection",
+              "shortDescription": {
+                "text": "SQL query built from user-controlled sources"
+              },
+              "fullDescription": {
+                "text": "Building a SQL query from user-controlled sources is vulnerable to insertion of malicious SQL code by the user."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-089"
+                ],
+                "description": "Building a SQL query from user-controlled sources is vulnerable to insertion of\n              malicious SQL code by the user.",
+                "id": "rb/sql-injection",
+                "kind": "path-problem",
+                "name": "SQL query built from user-controlled sources",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "8.8"
+              }
+            },
+            {
+              "id": "rb/request-forgery",
+              "name": "rb/request-forgery",
+              "shortDescription": {
+                "text": "Server-side request forgery"
+              },
+              "fullDescription": {
+                "text": "Making a network request with user-controlled data in the URL allows for request forgery attacks."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-918"
+                ],
+                "description": "Making a network request with user-controlled data in the URL allows for request forgery attacks.",
+                "id": "rb/request-forgery",
+                "kind": "path-problem",
+                "name": "Server-side request forgery",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "9.1"
+              }
+            },
+            {
+              "id": "rb/insecure-dependency",
+              "name": "rb/insecure-dependency",
+              "shortDescription": {
+                "text": "Dependency download using unencrypted communication channel"
+              },
+              "fullDescription": {
+                "text": "Using unencrypted protocols to fetch dependencies can leave an application open to man-in-the-middle attacks."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-300",
+                  "external/cwe/cwe-319",
+                  "external/cwe/cwe-494",
+                  "external/cwe/cwe-829"
+                ],
+                "description": "Using unencrypted protocols to fetch dependencies can leave an application\n              open to man-in-the-middle attacks.",
+                "id": "rb/insecure-dependency",
+                "kind": "problem",
+                "name": "Dependency download using unencrypted communication channel",
+                "precision": "high",
+                "problem.severity": "warning",
+                "security-severity": "8.1"
+              }
+            },
+            {
+              "id": "rb/unsafe-code-construction",
+              "name": "rb/unsafe-code-construction",
+              "shortDescription": {
+                "text": "Unsafe code constructed from library input"
+              },
+              "fullDescription": {
+                "text": "Using externally controlled strings to construct code may allow a malicious user to execute arbitrary code."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-094",
+                  "external/cwe/cwe-079",
+                  "external/cwe/cwe-116"
+                ],
+                "description": "Using externally controlled strings to construct code may allow a malicious\n              user to execute arbitrary code.",
+                "id": "rb/unsafe-code-construction",
+                "kind": "path-problem",
+                "name": "Unsafe code constructed from library input",
+                "precision": "medium",
+                "problem.severity": "warning",
+                "security-severity": "6.1"
+              }
+            },
+            {
+              "id": "rb/http-to-file-access",
+              "name": "rb/http-to-file-access",
+              "shortDescription": {
+                "text": "Network data written to file"
+              },
+              "fullDescription": {
+                "text": "Writing network data directly to the file system allows arbitrary file upload and might indicate a backdoor."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-912",
+                  "external/cwe/cwe-434"
+                ],
+                "description": "Writing network data directly to the file system allows arbitrary file upload and might indicate a backdoor.",
+                "id": "rb/http-to-file-access",
+                "kind": "path-problem",
+                "name": "Network data written to file",
+                "precision": "medium",
+                "problem.severity": "warning",
+                "security-severity": "6.3"
+              }
+            },
+            {
+              "id": "rb/regex/missing-regexp-anchor",
+              "name": "rb/regex/missing-regexp-anchor",
+              "shortDescription": {
+                "text": "Missing regular expression anchor"
+              },
+              "fullDescription": {
+                "text": "Regular expressions without anchors can be vulnerable to bypassing."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "correctness",
+                  "security",
+                  "external/cwe/cwe-020"
+                ],
+                "description": "Regular expressions without anchors can be vulnerable to bypassing.",
+                "id": "rb/regex/missing-regexp-anchor",
+                "kind": "problem",
+                "name": "Missing regular expression anchor",
+                "precision": "medium",
+                "problem.severity": "warning",
+                "security-severity": "7.8"
+              }
+            },
+            {
+              "id": "rb/request-without-cert-validation",
+              "name": "rb/request-without-cert-validation",
+              "shortDescription": {
+                "text": "Request without certificate validation"
+              },
+              "fullDescription": {
+                "text": "Making a request without certificate validation can allow man-in-the-middle attacks."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-295"
+                ],
+                "description": "Making a request without certificate validation can allow\n              man-in-the-middle attacks.",
+                "id": "rb/request-without-cert-validation",
+                "kind": "problem",
+                "name": "Request without certificate validation",
+                "precision": "medium",
+                "problem.severity": "warning",
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "rb/hardcoded-data-interpreted-as-code",
+              "name": "rb/hardcoded-data-interpreted-as-code",
+              "shortDescription": {
+                "text": "Hard-coded data interpreted as code"
+              },
+              "fullDescription": {
+                "text": "Transforming hard-coded data (such as hexadecimal constants) into code to be executed is a technique often associated with backdoors and should be avoided."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-506"
+                ],
+                "description": "Transforming hard-coded data (such as hexadecimal constants) into code\n              to be executed is a technique often associated with backdoors and should\n              be avoided.",
+                "id": "rb/hardcoded-data-interpreted-as-code",
+                "kind": "path-problem",
+                "name": "Hard-coded data interpreted as code",
+                "precision": "medium",
+                "problem.severity": "error",
+                "security-severity": "9.1"
+              }
+            },
+            {
+              "id": "rb/log-injection",
+              "name": "rb/log-injection",
+              "shortDescription": {
+                "text": "Log injection"
+              },
+              "fullDescription": {
+                "text": "Building log entries from user-controlled sources is vulnerable to insertion of forged log entries by a malicious user."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-117"
+                ],
+                "description": "Building log entries from user-controlled sources is vulnerable to\n              insertion of forged log entries by a malicious user.",
+                "id": "rb/log-injection",
+                "kind": "path-problem",
+                "name": "Log injection",
+                "precision": "medium",
+                "problem.severity": "error",
+                "security-severity": "6.1"
+              }
+            },
+            {
+              "id": "rb/summary/number-of-successfully-extracted-files",
+              "name": "rb/summary/number-of-successfully-extracted-files",
+              "shortDescription": {
+                "text": "Total number of Ruby files that were extracted without error"
+              },
+              "fullDescription": {
+                "text": "The total number of Ruby code files that we extracted without encountering any extraction errors (or warnings)."
+              },
+              "defaultConfiguration": {
+                "enabled": true
+              },
+              "properties": {
+                "tags": [
+                  "summary"
+                ],
+                "description": "The total number of Ruby code files that we extracted without\n   encountering any extraction errors (or warnings).",
+                "id": "rb/summary/number-of-successfully-extracted-files",
+                "kind": "metric",
+                "name": "Total number of Ruby files that were extracted without error"
+              }
+            },
+            {
+              "id": "rb/summary/lines-of-user-code",
+              "name": "rb/summary/lines-of-user-code",
+              "shortDescription": {
+                "text": "Total lines of user written Ruby code in the database"
+              },
+              "fullDescription": {
+                "text": "The total number of lines of Ruby code from the source code directory, excluding external library and auto-generated files. This query counts the lines of code, excluding whitespace or comments."
+              },
+              "defaultConfiguration": {
+                "enabled": true
+              },
+              "properties": {
+                "tags": [
+                  "summary",
+                  "debug"
+                ],
+                "description": "The total number of lines of Ruby code from the source code\n   directory, excluding external library and auto-generated files. This\n   query counts the lines of code, excluding whitespace or comments.",
+                "id": "rb/summary/lines-of-user-code",
+                "kind": "metric",
+                "name": "Total lines of user written Ruby code in the database"
+              }
+            },
+            {
+              "id": "rb/summary/number-of-files-extracted-with-errors",
+              "name": "rb/summary/number-of-files-extracted-with-errors",
+              "shortDescription": {
+                "text": "Total number of Ruby files that were extracted with errors"
+              },
+              "fullDescription": {
+                "text": "The total number of Ruby code files that we extracted, but where at least one extraction error (or warning) occurred in the process."
+              },
+              "defaultConfiguration": {
+                "enabled": true
+              },
+              "properties": {
+                "tags": [
+                  "summary"
+                ],
+                "description": "The total number of Ruby code files that we extracted, but where\n  at least one extraction error (or warning) occurred in the process.",
+                "id": "rb/summary/number-of-files-extracted-with-errors",
+                "kind": "metric",
+                "name": "Total number of Ruby files that were extracted with errors"
+              }
+            },
+            {
+              "id": "rb/summary/lines-of-code",
+              "name": "rb/summary/lines-of-code",
+              "shortDescription": {
+                "text": "Total lines of Ruby code in the database"
+              },
+              "fullDescription": {
+                "text": "The total number of lines of Ruby code from the source code directory, including external libraries and auto-generated files. This is a useful metric of the size of a database. This query counts the lines of code, excluding whitespace or comments."
+              },
+              "defaultConfiguration": {
+                "enabled": true
+              },
+              "properties": {
+                "tags": [
+                  "summary",
+                  "lines-of-code",
+                  "debug"
+                ],
+                "description": "The total number of lines of Ruby code from the source code\n   directory, including external libraries and auto-generated files. This is a\n   useful metric of the size of a database. This query counts the lines of\n   code, excluding whitespace or comments.",
+                "id": "rb/summary/lines-of-code",
+                "kind": "metric",
+                "name": "Total lines of Ruby code in the database"
+              }
+            }
+          ]
+        },
+        "extensions": [
+          {
+            "name": "codeql/ruby-queries",
+            "semanticVersion": "1.6.12+a7057b836bf29767461026718b14d20790b9085f"
+          },
+          {
+            "name": "codeql/ruby-all",
+            "semanticVersion": "7.0.2+a7057b836bf29767461026718b14d20790b9085f"
+          }
+        ]
+      },
+      "results": [
+        {
+          "ruleId": "rb/unsafe-deserialization",
+          "ruleIndex": 0,
+          "rule": {
+            "id": "rb/unsafe-deserialization",
+            "index": 0
+          },
+          "message": {
+            "text": "Unsafe deserialization depends on a [user-provided value](1)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 15,
+                  "endColumn": 28
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "b20d7f461baf462f:1",
+            "primaryLocationStartColumnFingerprint": "10"
+          },
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 9,
+                            "startColumn": 15,
+                            "endColumn": 21
+                          }
+                        },
+                        "message": {
+                          "text": "call to params"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 9,
+                            "startColumn": 15,
+                            "endColumn": 28
+                          }
+                        },
+                        "message": {
+                          "text": "...[...]"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "relatedLocations": [
+            {
+              "id": 1,
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 15,
+                  "endColumn": 21
+                }
+              },
+              "message": {
+                "text": "user-provided value"
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 15,
+                  "endColumn": 21
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "rb/code-injection",
+          "ruleIndex": 1,
+          "rule": {
+            "id": "rb/code-injection",
+            "index": 1
+          },
+          "message": {
+            "text": "This code execution depends on a [user-provided value](1)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 5,
+                  "startColumn": 10,
+                  "endColumn": 23
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "3483c6e829831544:1",
+            "primaryLocationStartColumnFingerprint": "5"
+          },
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 5,
+                            "startColumn": 10,
+                            "endColumn": 16
+                          }
+                        },
+                        "message": {
+                          "text": "call to params"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 5,
+                            "startColumn": 10,
+                            "endColumn": 23
+                          }
+                        },
+                        "message": {
+                          "text": "...[...]"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "relatedLocations": [
+            {
+              "id": 1,
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 5,
+                  "startColumn": 10,
+                  "endColumn": 16
+                }
+              },
+              "message": {
+                "text": "user-provided value"
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 5,
+                  "startColumn": 10,
+                  "endColumn": 16
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "rb/path-injection",
+          "ruleIndex": 2,
+          "rule": {
+            "id": "rb/path-injection",
+            "index": 2
+          },
+          "message": {
+            "text": "This path depends on a [user-provided value](1)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 8,
+                  "startColumn": 15,
+                  "endColumn": 28
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "3c3f6c3731b332b9:1",
+            "primaryLocationStartColumnFingerprint": "10"
+          },
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 8,
+                            "startColumn": 15,
+                            "endColumn": 21
+                          }
+                        },
+                        "message": {
+                          "text": "call to params"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 8,
+                            "startColumn": 15,
+                            "endColumn": 28
+                          }
+                        },
+                        "message": {
+                          "text": "...[...]"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "relatedLocations": [
+            {
+              "id": 1,
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 8,
+                  "startColumn": 15,
+                  "endColumn": 21
+                }
+              },
+              "message": {
+                "text": "user-provided value"
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 8,
+                  "startColumn": 15,
+                  "endColumn": 21
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "rb/url-redirection",
+          "ruleIndex": 6,
+          "rule": {
+            "id": "rb/url-redirection",
+            "index": 6
+          },
+          "message": {
+            "text": "Untrusted URL redirection depends on a [user-provided value](1)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 6,
+                  "startColumn": 17,
+                  "endColumn": 30
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "badefb8e014425be:1",
+            "primaryLocationStartColumnFingerprint": "12"
+          },
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 6,
+                            "startColumn": 17,
+                            "endColumn": 23
+                          }
+                        },
+                        "message": {
+                          "text": "call to params"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 6,
+                            "startColumn": 17,
+                            "endColumn": 30
+                          }
+                        },
+                        "message": {
+                          "text": "...[...]"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "relatedLocations": [
+            {
+              "id": 1,
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 6,
+                  "startColumn": 17,
+                  "endColumn": 23
+                }
+              },
+              "message": {
+                "text": "user-provided value"
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 6,
+                  "startColumn": 17,
+                  "endColumn": 23
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "rb/csrf-protection-not-enabled",
+          "ruleIndex": 11,
+          "rule": {
+            "id": "rb/csrf-protection-not-enabled",
+            "index": 11
+          },
+          "message": {
+            "text": "Potential CSRF vulnerability due to forgery protection not being enabled."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/application_controller.rb",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1,
+                  "endLine": 2,
+                  "endColumn": 4
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "5c761e87bab78479:1",
+            "primaryLocationStartColumnFingerprint": "0"
+          }
+        },
+        {
+          "ruleId": "rb/command-line-injection",
+          "ruleIndex": 15,
+          "rule": {
+            "id": "rb/command-line-injection",
+            "index": 15
+          },
+          "message": {
+            "text": "This command depends on a [user-provided value](1)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 4,
+                  "startColumn": 12,
+                  "endColumn": 46
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "166792c0e5b58321:1",
+            "primaryLocationStartColumnFingerprint": "7"
+          },
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 4,
+                            "startColumn": 23,
+                            "endColumn": 29
+                          }
+                        },
+                        "message": {
+                          "text": "call to params"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 4,
+                            "startColumn": 23,
+                            "endColumn": 36
+                          }
+                        },
+                        "message": {
+                          "text": "...[...]"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 4,
+                            "startColumn": 12,
+                            "endColumn": 46
+                          }
+                        },
+                        "message": {
+                          "text": "\"convert #{...} out.png\""
+                        }
+                      },
+                      "taxa": [
+                        {
+                          "id": "AdditionalTaintStep",
+                          "properties": {
+                            "CodeQL/DataflowRole": "step"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "relatedLocations": [
+            {
+              "id": 1,
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 4,
+                  "startColumn": 23,
+                  "endColumn": 29
+                }
+              },
+              "message": {
+                "text": "user-provided value"
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 4,
+                  "startColumn": 23,
+                  "endColumn": 29
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "rb/reflected-xss",
+          "ruleIndex": 26,
+          "rule": {
+            "id": "rb/reflected-xss",
+            "index": 26
+          },
+          "message": {
+            "text": "Cross-site scripting vulnerability due to a [user-provided value](1)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 7,
+                  "startColumn": 18,
+                  "endColumn": 42
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "80b7792365dd714d:1",
+            "primaryLocationStartColumnFingerprint": "13"
+          },
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 7,
+                            "startColumn": 24,
+                            "endColumn": 30
+                          }
+                        },
+                        "message": {
+                          "text": "call to params"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 7,
+                            "startColumn": 24,
+                            "endColumn": 36
+                          }
+                        },
+                        "message": {
+                          "text": "...[...]"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 7,
+                            "startColumn": 18,
+                            "endColumn": 42
+                          }
+                        },
+                        "message": {
+                          "text": "\"<p>#{...}</p>\""
+                        }
+                      },
+                      "taxa": [
+                        {
+                          "id": "AdditionalTaintStep",
+                          "properties": {
+                            "CodeQL/DataflowRole": "step"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "relatedLocations": [
+            {
+              "id": 1,
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 7,
+                  "startColumn": 24,
+                  "endColumn": 30
+                }
+              },
+              "message": {
+                "text": "user-provided value"
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 7,
+                  "startColumn": 24,
+                  "endColumn": 30
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "rb/regexp-injection",
+          "ruleIndex": 29,
+          "rule": {
+            "id": "rb/regexp-injection",
+            "index": 29
+          },
+          "message": {
+            "text": "This regular expression depends on a [user-provided value](1)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 16,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "733d8312497fcfc7:1",
+            "primaryLocationStartColumnFingerprint": "11"
+          },
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 10,
+                            "startColumn": 16,
+                            "endColumn": 22
+                          }
+                        },
+                        "message": {
+                          "text": "call to params"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 10,
+                            "startColumn": 16,
+                            "endColumn": 32
+                          }
+                        },
+                        "message": {
+                          "text": "...[...]"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "relatedLocations": [
+            {
+              "id": 1,
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 16,
+                  "endColumn": 22
+                }
+              },
+              "message": {
+                "text": "user-provided value"
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 16,
+                  "endColumn": 22
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "rb/sql-injection",
+          "ruleIndex": 34,
+          "rule": {
+            "id": "rb/sql-injection",
+            "index": 34
+          },
+          "message": {
+            "text": "This SQL query depends on a [user-provided value](1)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 3,
+                  "startColumn": 24,
+                  "endColumn": 51
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "e1be64765280c870:1",
+            "primaryLocationStartColumnFingerprint": "19"
+          },
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 3,
+                            "startColumn": 35,
+                            "endColumn": 41
+                          }
+                        },
+                        "message": {
+                          "text": "call to params"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 3,
+                            "startColumn": 35,
+                            "endColumn": 48
+                          }
+                        },
+                        "message": {
+                          "text": "...[...]"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "app/controllers/users_controller.rb",
+                            "uriBaseId": "%SRCROOT%",
+                            "index": 0
+                          },
+                          "region": {
+                            "startLine": 3,
+                            "startColumn": 24,
+                            "endColumn": 51
+                          }
+                        },
+                        "message": {
+                          "text": "\"name = '#{...}'\""
+                        }
+                      },
+                      "taxa": [
+                        {
+                          "id": "AdditionalTaintStep",
+                          "properties": {
+                            "CodeQL/DataflowRole": "step"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "relatedLocations": [
+            {
+              "id": 1,
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 3,
+                  "startColumn": 35,
+                  "endColumn": 41
+                }
+              },
+              "message": {
+                "text": "user-provided value"
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/controllers/users_controller.rb",
+                  "uriBaseId": "%SRCROOT%",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 3,
+                  "startColumn": 35,
+                  "endColumn": 41
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "columnKind": "utf16CodeUnits",
+      "properties": {
+        "semmle.formatSpecifier": "sarif-latest",
+        "metricResults": [
+          {
+            "rule": {
+              "id": "rb/summary/number-of-successfully-extracted-files",
+              "index": 43
+            },
+            "ruleId": "rb/summary/number-of-successfully-extracted-files",
+            "ruleIndex": 43,
+            "value": 4
+          },
+          {
+            "rule": {
+              "id": "rb/summary/lines-of-user-code",
+              "index": 44
+            },
+            "ruleId": "rb/summary/lines-of-user-code",
+            "ruleIndex": 44,
+            "value": 18
+          },
+          {
+            "rule": {
+              "id": "rb/summary/number-of-files-extracted-with-errors",
+              "index": 45
+            },
+            "ruleId": "rb/summary/number-of-files-extracted-with-errors",
+            "ruleIndex": 45,
+            "value": 0
+          },
+          {
+            "rule": {
+              "id": "rb/summary/lines-of-code",
+              "index": 46
+            },
+            "ruleId": "rb/summary/lines-of-code",
+            "ruleIndex": 46,
+            "value": 18,
+            "baseline": 16
+          }
+        ]
+      }
+    }
+  ]
+}

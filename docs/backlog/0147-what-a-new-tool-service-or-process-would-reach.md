@@ -152,6 +152,10 @@ claimed.
    CodeQL's build mode "none", only after a run here shows it opens no connection. **`Status: proposed`: ADR-078.**
    Reading a report from the owner's own CI stays unbuilt, as the owner agreed. Read on `main` and the open pull
    requests just before this claim: no other session had claimed this part.
+   **Ruby done the same day; Java not added** (`docs/design/0340-codeql-for-ruby-and-why-not-java-9-october-2026.md`, ADR-078 accepted): `codeql-ruby` runs offline and ran
+   nothing the app planted; on a Rails controller it found nine problems, and 24 of its suite's 50 queries cite
+   requirements. Java's build-less mode ran Maven, which reached for Maven Central, and ran a `gradlew` planted in the
+   app, so there is no Java entry. Go stays out, as the owner decided. Nothing of item 7 is left to build.
 8. **The live site, with a TLS scanner (~5, mostly Level 3).** Beside `sv probe`: testssl.sh or
    sslyze for OCSP stapling and Encrypted Client Hello (V12.1.4, V12.1.5), the HSTS preload list
    (V3.7.4), a spoofed `X-Forwarded-For` to see whether rate limiting trusts it (V15.3.4), and,
