@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 1 items 4 to 6, and 8 to 11; part 2 (9); part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 1 items 4 to 6 and 9 to 11; part 2 (9); part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -238,6 +238,11 @@ backlog", in branch `claude/stackvet-e9-history-honest`: `#[serde(default)]` on 
 added later does not hide every older run, and the page saying how many runs it could not read, each with a test
 that fails without it. Open pull requests (#1302, #1304, #1305) and the branches of the last few hours read first:
 none touches `crates/sv-cli/src/history.rs` or `crates/sv-report/src/dashboard.rs`.
+
+**Part 1, item 8 done the same day** (`docs/design/0344-the-dashboard-s-history-counts-a-run-it-cannot-read-9.md`): `Run` has defaults, so a field added later does not hide the runs
+kept before it, and a kept file that does not read as a run is counted and said on the page ("could not be read as a
+run, and is not shown") rather than passed over. Breaks: without the defaults the older run vanished from the test;
+without the count, or without the sentence, its test failed.
 
 **Part 1, items 3 and 7 done the same day** (`docs/design/0344-the-build-loop-record-read-a-line-at-a-time-and-said-when.md`):
 the record is read as bytes and decoded a line at a time, so a byte that is not UTF-8 costs its line, counted as
