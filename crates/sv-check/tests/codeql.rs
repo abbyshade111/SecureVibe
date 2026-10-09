@@ -466,7 +466,11 @@ fn the_real_codeql_for_ruby_runs_nothing_the_app_plants_and_follows_no_link() {
         ),
     )
     .unwrap();
-    std::fs::write(app.join("Rakefile"), format!("system(\"touch {}\")\n", mark("rakefile"))).unwrap();
+    std::fs::write(
+        app.join("Rakefile"),
+        format!("system(\"touch {}\")\n", mark("rakefile")),
+    )
+    .unwrap();
     for stub in ["bundle", "setup"] {
         let path = app.join("bin").join(stub);
         std::fs::write(&path, format!("#!/bin/sh\ntouch {}\n", mark(stub))).unwrap();
