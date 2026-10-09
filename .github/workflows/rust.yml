@@ -53,6 +53,20 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Fetch Docker Hub's images through Google's mirror
+        # Docker Hub refuses downloads past its limits, signed in or not (ADR-051, Later, 9 October
+        # 2026). Docker's own setting sends a Docker Hub image to mirror.gcr.io, Google's copy of
+        # Docker Hub, and falls back to Docker Hub when the mirror cannot answer. Every image here is
+        # asked for by fingerprint or checked against one, so the mirror can only hand over the same
+        # bytes. The Dockerfile keeps Docker Hub's names, so Dependabot and a build by hand are as
+        # they were.
+        run: |
+          (sudo cat /etc/docker/daemon.json 2>/dev/null || echo '{}') \
+            | jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' > "$RUNNER_TEMP/daemon.json"
+          sudo cp "$RUNNER_TEMP/daemon.json" /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker info --format 'Registry mirrors: {{.RegistryConfig.Mirrors}}'
+
       # No cache step. Caching would mean pinning another third-party action, and this workspace builds from
       # scratch in well under a minute — a smaller supply-chain surface is worth more here than the seconds.
       - name: Use the toolchain this workspace needs
@@ -98,6 +112,15 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Fetch Docker Hub's images through Google's mirror
+        # As in the test job above (ADR-051, Later, 9 October 2026).
+        run: |
+          (sudo cat /etc/docker/daemon.json 2>/dev/null || echo '{}') \
+            | jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' > "$RUNNER_TEMP/daemon.json"
+          sudo cp "$RUNNER_TEMP/daemon.json" /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker info --format 'Registry mirrors: {{.RegistryConfig.Mirrors}}'
+
       - name: Sign in to Docker Hub, when this run has the repository's token
         # The base images come from Docker Hub, which limits anonymous downloads: from 20:48 UTC on
         # 9 October 2026 every image build failed in seconds, refused with "too many requests"
@@ -117,6 +140,14 @@ jobs:
           else
             echo "No Docker Hub token in this run: the base images are downloaded anonymously."
           fi
+
+      - name: Fetch the Dockerfile's base images before the build
+        # Through the mirror, by their pinned fingerprints, so the build finds them here and does not
+        # ask Docker Hub at all.
+        run: |
+          for image in $(awk '/^FROM/ {print $2}' Dockerfile); do
+            docker pull "$image"
+          done
 
       - name: Build the image
         run: docker build --build-arg SV_GIT_COMMIT=${{ github.sha }} -t stackvet/sv .
@@ -201,6 +232,15 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Fetch Docker Hub's images through Google's mirror
+        # As in the test job above (ADR-051, Later, 9 October 2026).
+        run: |
+          (sudo cat /etc/docker/daemon.json 2>/dev/null || echo '{}') \
+            | jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' > "$RUNNER_TEMP/daemon.json"
+          sudo cp "$RUNNER_TEMP/daemon.json" /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker info --format 'Registry mirrors: {{.RegistryConfig.Mirrors}}'
+
       - name: Sign in to Docker Hub, when this run has the repository's token
         # As in the image job above (ADR-051, Later, 9 October 2026).
         env:
@@ -215,6 +255,14 @@ jobs:
           else
             echo "No Docker Hub token in this run: the base images are downloaded anonymously."
           fi
+
+      - name: Fetch the Dockerfile's base images before the build
+        # Through the mirror, by their pinned fingerprints, so the build finds them here and does not
+        # ask Docker Hub at all.
+        run: |
+          for image in $(awk '/^FROM/ {print $2}' Dockerfile); do
+            docker pull "$image"
+          done
 
       - name: Build the image
         # The source label ties the package to this repository on GitHub, so it is listed there and
