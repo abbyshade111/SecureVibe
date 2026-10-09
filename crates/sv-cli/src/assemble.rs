@@ -1394,23 +1394,11 @@ fn requirements_for_tests(
             .collect()
     };
 
-    // What an application's own tests cannot show, so it is not listed as a test to write: a
-    // requirement classed as documentation or deployment, the AISVS appendix on the development
-    // process, and any whose own words ask for documentation.
+    // What an application's own tests cannot show, so it is not listed as a test to write.
     let not_for_tests: std::collections::BTreeSet<String> = buckets
         .applicable
         .iter()
-        .filter(|id| {
-            matches!(
-                config_rules.verification_class_for(id),
-                sv_frameworks::applicability::VerificationClass::DocGenerated
-                    | sv_frameworks::applicability::VerificationClass::DeploymentTime
-            ) || id.starts_with("AC.")
-                || frameworks.requirements.get(id.as_str()).is_some_and(|r| {
-                    let text = r.description.to_lowercase();
-                    text.contains("documentation") || text.contains("documented")
-                })
-        })
+        .filter(|id| config_rules.not_for_tests(frameworks, id))
         .cloned()
         .collect();
 
