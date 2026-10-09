@@ -414,6 +414,15 @@ listed apart, below this item.
    (`audience`, `[data]`); until sealed, show the level 2 count beside it; compare `audience = "just-me"` with a
    public sign-up page, and a health-like app with `categories = []`. Changes what a report concludes: a record
    (ADR-024, Later, or a new one).
+   **Its first part claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up
+   new items as you merge"), in branch `claude/securevibe-e2-level-why`: under the level line, every report says why
+   the app is held to that level (the audience, or the sensitive data named, or the data list left unanswered), and
+   on whose word: answers in `stackvet.toml` that the AI coding tool usually writes and nobody has confirmed. At level
+   1, it also says how many more requirements level 2 would bring, so a level 1 resting on an unconfirmed
+   `audience = "just-me"` does not read as settled. Sealing the scope through `sv review`, and comparing the answers
+   with what the code shows (a public sign-up page, health-like fields), stay open. **`Status: proposed`: ADR-024,
+   Later, 9 October 2026** (what the report says about the level and on whose word). Read on `main` and the open pull
+   requests just before this claim: no other session had claimed any part of finding 17.
 18. **The AI tool's "when to bring in a person" text is shown as the owner's.** (`docs/GAP-ANALYSIS.md`, 4.2.) A
    `design-decisions.md` section the AI tool wrote saying no outside review is needed comes out as "Your
    design-decisions.md says …" in every report file (`main.rs`, near the escalation text). Name who wrote it, and
