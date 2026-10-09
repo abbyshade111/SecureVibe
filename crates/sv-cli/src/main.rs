@@ -1726,7 +1726,7 @@ fn cmd_dashboard(args: &[String]) -> Result<()> {
         if !folder.is_dir() {
             bail!("{} is not a folder", folder.display());
         }
-        let folder = std::fs::canonicalize(folder)
+        let folder = sv_frameworks::paths::canonical(folder)
             .with_context(|| format!("finding the folder {}", folder.display()))?;
         let reports = sv_scan::ecosystems::default_report_dir_in(&folder);
         let summary = match std::fs::read_to_string(reports.join("report.json")) {
@@ -1750,7 +1750,7 @@ fn cmd_dashboard(args: &[String]) -> Result<()> {
         Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
         _ => PathBuf::from("."),
     };
-    let parent = std::fs::canonicalize(&parent)
+    let parent = sv_frameworks::paths::canonical(&parent)
         .with_context(|| format!("finding the folder {} to write into", parent.display()))?;
     let name = out
         .file_name()
@@ -2261,7 +2261,7 @@ fn cmd_bundle(args: &[String]) -> Result<()> {
     if !app_dir.is_dir() {
         bail!("{} is not a folder", app_dir.display());
     }
-    let app_abs = std::fs::canonicalize(&app_dir)
+    let app_abs = sv_frameworks::paths::canonical(&app_dir)
         .with_context(|| format!("opening {}", app_dir.display()))?;
     let name = app_abs
         .file_name()

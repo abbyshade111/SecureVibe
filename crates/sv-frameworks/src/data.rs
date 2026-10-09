@@ -11,6 +11,7 @@
 //!
 //! A folder counts only when it holds the OWASP frameworks.
 
+use crate::paths::Canonical;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
@@ -73,7 +74,7 @@ fn find(env: Option<PathBuf>, program: Option<&Path>, built: &Path) -> Result<Pa
 /// `~/.local/share/securevibe/sv`, whose data is beside the second. Linux already gives the real
 /// place for the running program; macOS can give the link.
 fn real_place(program: PathBuf) -> Option<PathBuf> {
-    program.canonicalize().ok()
+    program.canonical().ok()
 }
 
 /// The data folder for this run, found once.
@@ -121,7 +122,7 @@ mod tests {
         std::os::unix::fs::symlink(root.join("elsewhere/sv"), root.join("bin/sv")).unwrap();
         let real = real_place(root.join("bin/sv"));
         let found = find(None, real.as_deref(), &root.join("built"));
-        let expected = root.join("elsewhere/data").canonicalize().unwrap();
+        let expected = root.join("elsewhere/data").canonical().unwrap();
         std::fs::remove_dir_all(&root).ok();
         assert_eq!(found, Ok(expected));
     }

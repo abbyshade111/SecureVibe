@@ -75,10 +75,16 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           if [ -n "$DOCKERHUB_TOKEN" ]; then
-            # A sign-in Docker Hub refuses is said and passed over: the pulls then go unsigned, as
-            # before. Its first run met Docker Hub answering 500 to the sign-in itself.
-            printf '%s' "$DOCKERHUB_TOKEN" | docker login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin \
-              || echo "::warning::Docker Hub refused the sign-in; pulling unsigned, as before."
+            # Three tries, then on without it: Docker Hub itself can fail a sign-in (a 500 on 9 October
+            # 2026, #1293), and that is no reason to stop the run; the pulls then go unsigned, as before.
+            for wait in 5 15 0; do
+              printf '%s' "$DOCKERHUB_TOKEN" | docker login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin \
+                && break
+              if [ "$wait" = 0 ]; then
+                echo "::warning::Docker Hub refused the sign-in three times; pulling unsigned, as before."
+              fi
+              sleep "$wait"
+            done
           else
             echo "No Docker Hub sign-in here (a pull request from a fork is given no secrets): pulling as before."
           fi
@@ -137,10 +143,16 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           if [ -n "$DOCKERHUB_TOKEN" ]; then
-            # A sign-in Docker Hub refuses is said and passed over: the pulls then go unsigned, as
-            # before. Its first run met Docker Hub answering 500 to the sign-in itself.
-            printf '%s' "$DOCKERHUB_TOKEN" | docker login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin \
-              || echo "::warning::Docker Hub refused the sign-in; pulling unsigned, as before."
+            # Three tries, then on without it: Docker Hub itself can fail a sign-in (a 500 on 9 October
+            # 2026, #1293), and that is no reason to stop the run; the pulls then go unsigned, as before.
+            for wait in 5 15 0; do
+              printf '%s' "$DOCKERHUB_TOKEN" | docker login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin \
+                && break
+              if [ "$wait" = 0 ]; then
+                echo "::warning::Docker Hub refused the sign-in three times; pulling unsigned, as before."
+              fi
+              sleep "$wait"
+            done
           else
             echo "No Docker Hub sign-in here (a pull request from a fork is given no secrets): pulling as before."
           fi
@@ -240,10 +252,16 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           if [ -n "$DOCKERHUB_TOKEN" ]; then
-            # A sign-in Docker Hub refuses is said and passed over: the pulls then go unsigned, as
-            # before. Its first run met Docker Hub answering 500 to the sign-in itself.
-            printf '%s' "$DOCKERHUB_TOKEN" | docker login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin \
-              || echo "::warning::Docker Hub refused the sign-in; pulling unsigned, as before."
+            # Three tries, then on without it: Docker Hub itself can fail a sign-in (a 500 on 9 October
+            # 2026, #1293), and that is no reason to stop the run; the pulls then go unsigned, as before.
+            for wait in 5 15 0; do
+              printf '%s' "$DOCKERHUB_TOKEN" | docker login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin \
+                && break
+              if [ "$wait" = 0 ]; then
+                echo "::warning::Docker Hub refused the sign-in three times; pulling unsigned, as before."
+              fi
+              sleep "$wait"
+            done
           else
             echo "No Docker Hub sign-in here (a pull request from a fork is given no secrets): pulling as before."
           fi

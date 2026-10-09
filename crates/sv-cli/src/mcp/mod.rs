@@ -34,6 +34,7 @@ use anyhow::{Context, Result};
 use serde_json::{Value, json};
 use std::io::{BufRead, Write};
 use std::path::{Component, Path, PathBuf};
+use sv_frameworks::paths::Canonical;
 
 /// Protocol versions a client that opens with `initialize` can have, newest first. A client asking
 /// for one of these gets it; any other gets the newest, and decides for itself whether it can go on.
@@ -163,7 +164,7 @@ pub(crate) fn at_a_terminal(app: &str, flags: &str) -> String {
         app,
         flags,
         std::env::var_os(IN_CONTAINER).is_some(),
-        std::env::current_exe().and_then(|p| p.canonicalize()).ok(),
+        std::env::current_exe().and_then(|p| p.canonical()).ok(),
     )
 }
 
@@ -193,7 +194,7 @@ fn terminal_command(
 /// `sv <subcommand> <app>` as the person types it: this program by its full path, as for
 /// `at_a_terminal`, or plain `sv` in the container, where this program's path means nothing outside.
 fn this_sv_running(subcommand: &str, app: &str) -> String {
-    let program = match std::env::current_exe().and_then(|p| p.canonicalize()) {
+    let program = match std::env::current_exe().and_then(|p| p.canonical()) {
         Ok(p) if std::env::var_os(IN_CONTAINER).is_none() => p.to_string_lossy().into_owned(),
         _ => "sv".to_owned(),
     };
@@ -295,12 +296,12 @@ pub fn cmd_mcp(args: &[String]) -> Result<()> {
 impl Server {
     pub fn new(root: &Path) -> Result<Self> {
         let root = root
-            .canonicalize()
+            .canonical()
             .with_context(|| format!("the folder {} cannot be opened", root.display()))?;
         anyhow::ensure!(root.is_dir(), "{} is not a folder", root.display());
         let home = std::env::var_os("HOME")
             .or_else(|| std::env::var_os("USERPROFILE"))
-            .and_then(|h| PathBuf::from(h).canonicalize().ok());
+            .and_then(|h| PathBuf::from(h).canonical().ok());
         if let Some(why) = too_wide(&root, home.as_deref()) {
             anyhow::bail!(
                 "sv mcp will not serve {}: {why}. Start it for the folder that holds your apps, \

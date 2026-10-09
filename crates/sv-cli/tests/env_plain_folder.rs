@@ -27,7 +27,7 @@ fn plain_app(name: &str) -> (PathBuf, PathBuf) {
     std::fs::write(dir.join("app.py"), "print('hi')\n").unwrap();
     std::fs::write(dir.join(".env"), "SESSION_SECRET=x\n").unwrap();
     // The setup: no folder from here up is a git repository, so this is the case the pilot met.
-    let full = std::fs::canonicalize(&dir).unwrap();
+    let full = sv_frameworks::paths::canonical(&dir).unwrap();
     assert!(
         full.ancestors().all(|f| !f.join(".git").exists()),
         "{} is inside a repository",

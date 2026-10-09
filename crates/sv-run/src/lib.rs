@@ -39,6 +39,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
+use sv_frameworks::paths::Canonical;
 use sv_manifest::Manifest;
 
 pub mod cleanup;
@@ -460,7 +461,7 @@ impl RunPlan {
             // refuses it, which turns "sv was run from the wrong directory" into an error message
             // about invalid characters in a volume name.
             app_dir: app_dir
-                .canonicalize()
+                .canonical()
                 .unwrap_or_else(|_| app_dir.to_path_buf()),
             port: APP_PORT,
             users: run.users.clone(),
