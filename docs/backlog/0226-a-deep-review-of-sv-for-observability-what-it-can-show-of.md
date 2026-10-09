@@ -214,3 +214,10 @@ every reason the app could not be run passes through one function that cuts cred
 alike, and a failed seed's line is cut the same way; without `sv`'s rules the app's words are left out. Breaks: the
 redaction removed failed two tests, a call site that skipped it failed the test that reads the source, and the seed's
 redaction removed failed its own test.
+
+**Part 1, items 3 and 7 claimed on 9 October 2026 by session stackvet-e9**, with no word from the owner beyond
+"continue to work off the backlog", in branch `claude/stackvet-e9-loop-record-honest`: the build-loop record read as
+bytes and decoded a line at a time, a line that is not UTF-8 counted as unreadable (item 3), and a `full` flag with a
+sentence when the record stopped at its size limit (item 7), each with a test that fails without it. No open pull
+request or branch of the last few hours touches `crates/sv-cli/src/build_loop.rs`; item 2 is session paper-facts's,
+in #1300.
