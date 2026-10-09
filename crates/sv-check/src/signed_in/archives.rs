@@ -139,34 +139,6 @@ fn zeros_header(b: &mut Bits) {
     b.code("10");
 }
 
-/// How many zero bytes a stream written by [`deflate_zeros`] unpacks to, read back the way it was
-/// written, or `None` for any other stream. The fake app's way of counting what such an archive
-/// really holds, as an app that counts while it unpacks does, without a deflate library.
-#[cfg(test)]
-pub(super) fn zeros_in(deflated: &[u8]) -> Option<u64> {
-    let mut header = Bits::new();
-    zeros_header(&mut header);
-    let header_bits = header.out.len() * 8 + header.count as usize;
-    let header = header.finish();
-    let bit = |i: usize| Some((deflated.get(i / 8)? >> (i % 8)) & 1);
-    for i in 0..header_bits {
-        if bit(i)? != (header[i / 8] >> (i % 8)) & 1 {
-            return None;
-        }
-    }
-    let (mut at, mut total) = (header_bits, 0u64);
-    loop {
-        match (bit(at)?, bit(at + 1)?) {
-            // A copy of 258 bytes, one back: there must be a byte before it to copy.
-            (0, 0) if total > 0 => total += 258,
-            (1, 0) => total += 1,
-            (1, 1) => return Some(total),
-            _ => return None,
-        }
-        at += 2;
-    }
-}
-
 /// A raw deflate stream that holds `data` as it is, in stored blocks.
 fn deflate_stored(data: &[u8]) -> Vec<u8> {
     let mut out = Vec::new();
@@ -624,6 +596,34 @@ fn lower_first(s: &str) -> String {
     c.next()
         .map(|first| first.to_lowercase().chain(c).collect())
         .unwrap_or_default()
+}
+
+/// How many zero bytes a stream written by [`deflate_zeros`] unpacks to, read back the way it was
+/// written, or `None` for any other stream. The fake app's way of counting what such an archive
+/// really holds, as an app that counts while it unpacks does, without a deflate library.
+#[cfg(test)]
+pub(super) fn zeros_in(deflated: &[u8]) -> Option<u64> {
+    let mut header = Bits::new();
+    zeros_header(&mut header);
+    let header_bits = header.out.len() * 8 + header.count as usize;
+    let header = header.finish();
+    let bit = |i: usize| Some((deflated.get(i / 8)? >> (i % 8)) & 1);
+    for i in 0..header_bits {
+        if bit(i)? != (header[i / 8] >> (i % 8)) & 1 {
+            return None;
+        }
+    }
+    let (mut at, mut total) = (header_bits, 0u64);
+    loop {
+        match (bit(at)?, bit(at + 1)?) {
+            // A copy of 258 bytes, one back: there must be a byte before it to copy.
+            (0, 0) if total > 0 => total += 258,
+            (1, 0) => total += 1,
+            (1, 1) => return Some(total),
+            _ => return None,
+        }
+        at += 2;
+    }
 }
 
 #[cfg(test)]
