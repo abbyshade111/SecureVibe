@@ -1299,6 +1299,11 @@ pub struct BuildLoop {
     pub last_counts: Option<LoopCounts>,
     /// Lines of the record that could not be read, said rather than skipped quietly.
     pub unreadable: usize,
+    /// The record reached its size limit, so calls after it were not written down and "the last
+    /// check" is the last one written. Left out of a report when false, so a report written before
+    /// it reads and seals the same.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub full: bool,
 }
 
 /// The counts one check came to, as the record keeps them: no finding's text, only how many.
@@ -1385,6 +1390,12 @@ pub fn build_loop_line(report: &Report) -> Option<String> {
         _ => {}
     }
     text.push_str(&unreadable);
+    if b.full {
+        text.push_str(
+            " The record reached its size limit, so later calls were not written down: the last \
+             check here is the last one written, not necessarily the last one made.",
+        );
+    }
     text.push_str(caveat);
     Some(text)
 }

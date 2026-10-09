@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: the findings of the review below, each claimable: part 1 (11, wrong or unsafe today), part 2 (9, cheap visibility), part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 1 items 2, 4 to 6, and 8 to 11; part 2 (9); part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -221,3 +221,9 @@ bytes and decoded a line at a time, a line that is not UTF-8 counted as unreadab
 sentence when the record stopped at its size limit (item 7), each with a test that fails without it. No open pull
 request or branch of the last few hours touches `crates/sv-cli/src/build_loop.rs`; item 2 is session paper-facts's,
 in #1300.
+
+**Part 1, items 3 and 7 done the same day** (`docs/design/0344-the-build-loop-record-read-a-line-at-a-time-and-said-when.md`):
+the record is read as bytes and decoded a line at a time, so a byte that is not UTF-8 costs its line, counted as
+unreadable, and not the whole record; and `BuildLoop::full` says when the record reached its 4 MB limit, which the
+report turns into a sentence that the last check named is the last one written. Breaks: with the old reading put back
+and `full` never set, four of the five new tests fail.

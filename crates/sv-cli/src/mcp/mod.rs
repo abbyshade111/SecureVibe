@@ -36,6 +36,8 @@ use std::io::{BufRead, Write};
 use std::path::{Component, Path, PathBuf};
 use sv_frameworks::paths::Canonical;
 
+#[cfg(test)]
+mod build_loop_limit_tests;
 /// Protocol versions a client that opens with `initialize` can have, newest first. A client asking
 /// for one of these gets it; any other gets the newest, and decides for itself whether it can go on.
 #[cfg(test)]
