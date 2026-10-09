@@ -35,8 +35,9 @@ const ENDED: &[(&str, u64, &str, &str)] = &[
 
 /// A library loaded from a CDN with its version in the address: `code.jquery.com/jquery-1.12.4.js`,
 /// `cdnjs…/ajax/libs/angular.js/1.8.2/…`, `cdn.jsdelivr.net/npm/vue@2.7.16`,
-/// `…bootstrapcdn.com/bootstrap/3.4.1/…`. `@angular/` (Angular, still supported) never matches,
-/// since the name must follow `/`, `@` or `-` directly.
+/// `…bootstrapcdn.com/bootstrap/3.4.1/…`. The name must follow `/`, `@` or `-` directly, so
+/// `myvue@2` is not Vue, and be followed by its version, so `@angular/core@18` (Angular, still
+/// supported) is not AngularJS.
 static FROM_CDN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r#"(?i)https?://[^\s"'<>()]*?[/@-](angularjs|angular\.js|angular|vue|bootstrap|jquery)[@/-]v?(\d+)\.\d+"#,
@@ -361,6 +362,26 @@ mod tests {
     }
 
     #[test]
+    fn angularjs_is_found_under_each_name_a_cdn_gives_it() {
+        for (n, address) in [
+            "https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.8.2/angular.min.js",
+            "https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js",
+            "https://cdn.jsdelivr.net/npm/angular@1.8.3/angular.min.js",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let dir = scratch(&format!("ng{n}"));
+            fs::write(dir.join("index.html"), format!("<script src=\"{address}\"></script>\n")).unwrap();
+            let found = hits(&run(&dir));
+            assert!(
+                found.len() == 1 && found[0].2.contains("AngularJS"),
+                "{address}: {found:#?}"
+            );
+        }
+    }
+
+    #[test]
     fn supported_versions_and_look_alikes_are_left_alone_and_nothing_is_credited() {
         let dir = scratch("current");
         fs::write(
@@ -374,7 +395,9 @@ mod tests {
              <script src=\"https://unpkg.com/vue-router@3.6.5/dist/vue-router.js\"></script>\n\
              <script src=\"https://code.jquery.com/jquery-3.7.1.min.js\"></script>\n\
              <link href=\"https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css\">\n\
-             <script>try { new ActiveXObject('Msxml2.XMLHTTP') } catch (e) {}</script>\n",
+             <script>try { new ActiveXObject('Msxml2.XMLHTTP') } catch (e) {}</script>\n\
+             <script src=\"https://cdn.example.com/npm/myvue@2.1.0/x.js\"></script>\n\
+             <script src=\"https://cdn.example.com/superjquery-1.0.2.js\"></script>\n",
         )
         .unwrap();
         let report = run(&dir);
