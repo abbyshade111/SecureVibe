@@ -71,6 +71,9 @@ listed apart, below this item.
    function written in the code is not reported. Mongoose, the MongoDB drivers for npm and Go, and PyMongo come off its
    unread list. Supabase's filter text stays on the list, and stays open. Read on `main` and the open pull requests
    just before this claim: no other session had claimed it.
+   **That part done the same day** (DESIGN, "The SQL rule reads MongoDB's $where"): `$where` read in JavaScript,
+   TypeScript, Python, and Go (`crates/sv-check/src/ast/orm_mongo_tests.rs`), and the MongoDB packages off the list.
+   Left: Supabase's filter text, on npm and in Python; the first half stays open for it.
    **The first half's last part, Supabase's filter text, claimed 9 October 2026 by session securevibe-e9** ("please
    continue to work through and pick up new items as you merge"), in branch `claude/stackvet-e9-supabase-filter`,
    beside the open build for `$where`. The SQL rule will also read the filter text that Supabase's clients pass

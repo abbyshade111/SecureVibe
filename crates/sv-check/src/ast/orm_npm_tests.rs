@@ -115,10 +115,7 @@ fn typeorm_sequelize_and_drizzle_are_off_the_unread_list() {
             .get("npm")
             .is_some_and(|p| p.contains_key(package))
     };
-    assert!(
-        listed("mongoose") && listed("@supabase/supabase-js"),
-        "the rest stays"
-    );
+    assert!(listed("@supabase/supabase-js"), "the rest stays");
     for package in ["typeorm", "sequelize", "drizzle-orm"] {
         assert!(
             !listed(package),

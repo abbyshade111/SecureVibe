@@ -1899,6 +1899,8 @@ fn names_only(pattern: &str) -> bool {
         && words_only(rest)
         && words_only(names)
     {
+        // A name may begin with an escaped `$` (Mongoose's `.$where`), which is not an anchor.
+        let (rest, names) = (rest.replace("\\$", "_"), names.replace("\\$", "_"));
         let listed: Vec<&str> = rest
             .split(|c: char| "|()^$".contains(c))
             .filter(|w| !w.is_empty())
@@ -2196,3 +2198,6 @@ mod orm_npm_tests;
 
 #[cfg(test)]
 mod orm_django_laravel_tests;
+
+#[cfg(test)]
+mod orm_mongo_tests;
