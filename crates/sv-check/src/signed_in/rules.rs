@@ -91,6 +91,21 @@ pub(super) const ROLE_FIELD: Rule = Rule {
           the rest; set a new account's role on the server, never from the request.",
 };
 
+pub(super) const EMAIL_ROLE_FIELD: Rule = Rule {
+    rule_id: "probe.email-change-role-trusted",
+    // The sign-up check's requirements, for the same fields sent with an email change: V8.3.1 an
+    // authorization decision resting on what the client sent, V15.3.3 mass assignment, V8.2.3 a
+    // user writing a field they have no permission to. Only ever a finding, as at sign-up.
+    requirement_ids: &["V8.3.1", "V15.3.3", "V8.2.3"],
+    cwe: &["CWE-915", "CWE-269"],
+    impact: "Anybody with an account can make themselves an administrator by adding one field to \
+             the request that changes their email address, which takes a browser's developer \
+             tools and no skill.",
+    fix: "Take only the fields an email change is meant to set (the new address and the password) \
+          and ignore or refuse the rest; change a role only through an admin's own action, never \
+          from the account's own request.",
+};
+
 pub(super) const OWNER_FIELD: Rule = Rule {
     rule_id: "probe.owner-field-trusted",
     // V15.3.3 is mass assignment: a field the create action was never meant to take. V8.2.3 is

@@ -251,7 +251,7 @@ pub(super) fn admin_checks(
 /// Fields a sign-up request might carry to make its account an admin. Values are sent as text,
 /// in a form and in JSON alike, because a template's values are text; most frameworks read `"true"`
 /// as true.
-const ROLE_FIELDS: &[(&str, &str)] = &[
+pub(super) const ROLE_FIELDS: &[(&str, &str)] = &[
     ("role", "admin"),
     ("roles", "admin"),
     ("is_admin", "true"),

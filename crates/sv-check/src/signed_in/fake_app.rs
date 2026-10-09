@@ -228,6 +228,9 @@ pub(super) struct Flaws {
     pub(super) admin_action_broken: bool,
     /// Sign-up makes an admin of anybody who asks for it with `role=admin` or `is_admin=true`.
     pub(super) signup_trusts_role: bool,
+    /// An email change makes an admin of the account that asks for it with `role=admin` or
+    /// `is_admin=true`.
+    pub(super) email_change_trusts_role: bool,
     /// Any signed-in user can read any record.
     pub(super) idor: bool,
     /// Anybody at all can read any record.
@@ -1572,7 +1575,13 @@ impl FakeApp {
                 }
                 let f = form(r);
                 let (password, to) = (f.get("password")?.clone(), f.get("email")?.clone());
-                let stored = self.users.get(&who)?.clone();
+                let mut stored = self.users.get(&who)?.clone();
+                if self.flaws.email_change_trusts_role
+                    && (f.get("role").is_some_and(|v| v == "admin")
+                        || f.get("is_admin").is_some_and(|v| v == "true"))
+                {
+                    stored.1 = true;
+                }
                 if !self.flaws.email_change_without_password
                     && !self.password_matches(&stored.0, &password)
                 {
