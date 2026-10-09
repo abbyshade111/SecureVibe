@@ -52,6 +52,13 @@ ENV SV_IN_CONTAINER=1
 # refuses root images can tell. On Linux, `--user "$(id -u):$(id -g)"` in the `docker run` line
 # replaces it with the owner's own, so what it writes is theirs; Docker Desktop on a Mac makes what
 # any user writes the owner's.
+# What GitHub's package page and other registries show for the image, and the repository it was built
+# from, which is how the published package links back to it (backlog 0219, part 4).
+LABEL org.opencontainers.image.title="StackVet" \
+      org.opencontainers.image.description="A security check for apps built with AI. It says plainly what it checked, and what it didn't." \
+      org.opencontainers.image.url="https://github.com/abbyshade111/StackVet" \
+      org.opencontainers.image.source="https://github.com/abbyshade111/StackVet" \
+      org.opencontainers.image.licenses="MIT"
 RUN useradd --system --uid 10001 --user-group --no-create-home --shell /usr/sbin/nologin sv
 USER 10001:10001
 ENTRYPOINT ["sv"]
