@@ -306,6 +306,7 @@ mod tests {
 
     fn empty_report(gaps: Vec<crate::Gap>) -> Report {
         Report {
+            level_why: None,
             app_name: "test".into(),
             target_level: 1,
             generated: None,

@@ -432,6 +432,9 @@ listed apart, below this item.
    with what the code shows (a public sign-up page, health-like fields), stay open. **`Status: proposed`: ADR-024,
    Later, 9 October 2026** (what the report says about the level and on whose word). Read on `main` and the open pull
    requests just before this claim: no other session had claimed any part of finding 17.
+   **The first part done the same day** (`docs/design/0330-why-the-level-and-on-whose-word-9-october-2026.md`; ADR-024, Later, accepted): `level_why` in
+   `report.json`, and the sentence under the level line in every report. Still open: sealing the scope through
+   `sv review`, and comparing the answers with what the code shows.
 18. **The AI tool's "when to bring in a person" text is shown as the owner's.** (`docs/GAP-ANALYSIS.md`, 4.2.) A
    `design-decisions.md` section the AI tool wrote saying no outside review is needed comes out as "Your
    design-decisions.md says …" in every report file (`main.rs`, near the escalation text). Name who wrote it, and

@@ -1380,6 +1380,57 @@ impl Manifest {
         if sensitive || exposed { 2 } else { 1 }
     }
 
+    /// Why the app is held to its level, from the two answers that decide it, in words for the
+    /// owner (the gap analysis of 7 October 2026, finding 17): "stackvet.toml says customers use
+    /// it". Both answers are in `stackvet.toml`, which the AI coding tool usually writes, and
+    /// nothing confirms them, so the report says so beside it.
+    pub fn level_because(&self) -> String {
+        let audience = match self.app.audience {
+            Audience::JustMe => "only you use it",
+            Audience::MyTeam => "only your own team uses it",
+            Audience::Customers => "customers use it",
+            Audience::Public => "anyone on the internet can use it",
+        };
+        let listed: Vec<String> = self
+            .data
+            .categories
+            .iter()
+            .flatten()
+            .map(|c| category_name(c))
+            .collect();
+        let sensitive: Vec<&str> = listed
+            .iter()
+            .map(String::as_str)
+            .filter(|c| SENSITIVE_DATA_CATEGORIES.contains(c))
+            .collect();
+        let unknown = listed
+            .iter()
+            .any(|c| !DATA_CATEGORIES.contains(&c.as_str()));
+        let mut reasons = Vec::new();
+        if matches!(self.app.audience, Audience::Customers | Audience::Public) {
+            reasons.push(format!("stackvet.toml says {audience}"));
+        }
+        if self.data.categories.is_none() {
+            reasons.push("it does not say what information the app holds about people".to_owned());
+        }
+        if !sensitive.is_empty() {
+            reasons.push(format!(
+                "it lists {} information among what the app holds",
+                sensitive.join(" and ")
+            ));
+        }
+        if unknown {
+            reasons.push("it lists information under names `sv` does not know".to_owned());
+        }
+        match reasons.as_slice() {
+            [] => format!(
+                "stackvet.toml says {audience}, and that the app holds nothing sensitive about people"
+            ),
+            [one] => one.clone(),
+            [rest @ .., last] => format!("{}, and {last}", rest.join(", ")),
+        }
+    }
+
     /// Why the level is 2 when only the unanswered data list made it so, in words for the owner;
     /// `None` when the level rests on an answer.
     pub fn level_from_unanswered_data(&self) -> Option<&'static str> {

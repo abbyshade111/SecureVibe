@@ -938,6 +938,7 @@ mod tests {
         // The review of 6 October, item 4: both were written into security.md as they were.
         let live = "![x](https://t.example/p.png) <img src=x> [click](https://e.example)";
         let report = crate::Report {
+            level_why: None,
             app_name: "test".into(),
             target_level: 1,
             generated: None,
