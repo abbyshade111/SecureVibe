@@ -176,3 +176,32 @@ only the old "not yet something this guide can make easy" sentence.
   after that.
 
 **The owner's decision, 9 October 2026**, asked by session securevibe-e2 with a recommendation for each open choice: **look at both ways to the download on a Mac, Homebrew and Apple's notarization, and bring the findings back before anything is built or paid for.** Apple's developer program charges a yearly fee, so nothing there is bought without asking again.
+
+**What was found, 9 October 2026, by session securevibe-e2** (read from the web that day, not tried on a Mac):
+- **Homebrew has two kinds of package, and only one is held to Apple's checks.** Since 1 September 2026 Homebrew
+  disables *casks* (apps) that fail Gatekeeper, that is, that are not signed and notarized by Apple, and it removed
+  `--no-quarantine`. Its project leader said the change affects casks only, not *formulae* (command-line programs).
+  `sv` is a command-line program, so it would be a formula.
+- **A formula in a tap of `sv`'s own needs no Apple membership.** A tap is a repository named `homebrew-<name>`
+  (here, for example, `abbyshade111/homebrew-stackvet`) holding a `Formula/sv.rb` that says where the source is.
+  By default Homebrew builds it from source on the person's Mac and fetches Rust for that build itself, so the
+  person never installs Rust; the cost is a few minutes the first time. Prebuilt copies ("bottles") remove that
+  wait, but in a tap of one's own they are built by the tap's CI and attached to a release, which fits with the
+  signed releases (0191 part 4). The formula has to install `data/` beside the program, as `tools/install.sh` does
+  (ADR-036). Not checked: whether a formula's prebuilt copy on Apple Silicon needs anything beyond the ad-hoc
+  signature Rust's linker gives every program; it should be tried on the owner's Mac before the guide says so.
+- **Apple's notarization is needed only for a program downloaded straight from a web page**, which the browser
+  marks so that Gatekeeper checks it. It needs the Apple Developer Program, about US$99 a year (notarizing is then
+  free), a Developer ID certificate kept as a CI secret, and `xcrun notarytool`; a bare command-line program
+  cannot have its approval "stapled" to it, so the first run checks with Apple over the network. If the
+  membership lapses, notarizing stops.
+- **Recommendation:** a tap of `sv`'s own with a formula that builds from source first, then bottles from CI once
+  releases are signed; no Apple membership unless a plain download from stackvet.dev is wanted later. **For the
+  owner:** creating the `homebrew-stackvet` repository (a new public repository under the owner's account) is
+  asked first.
+
+Sources: [Homebrew discussion 6482](https://github.com/orgs/Homebrew/discussions/6482),
+[Hacker News, "Homebrew no longer allows bypassing Gatekeeper"](https://news.ycombinator.com/item?id=45907259),
+[sioyek issue 1666](https://github.com/ahrm/sioyek/issues/1666),
+[Apple developer forums thread 746992](https://developer.apple.com/forums/thread/746992),
+[Simon Willison, Homebrew formulas with GitHub Actions](https://til.simonwillison.net/homebrew/auto-formulas-github-actions).
