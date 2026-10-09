@@ -32,6 +32,14 @@ import sys
 import tempfile
 from pathlib import Path
 
+
+def write_text(path, text):
+    """Writes `text` as UTF-8 with Unix line endings on every system. Path.write_text uses the
+    system's own encoding and, on Windows, CRLF, which would make a generated file differ from the
+    one committed (backlog 0120)."""
+    with open(path, "w", encoding="utf-8", newline="\n") as out:
+        out.write(text)
+
 ROOT = Path(__file__).resolve().parent.parent
 NAME = re.compile(r"^(\d{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
 
@@ -84,7 +92,7 @@ def text_of(title, body):
 
 def write(folder, number, title, body):
     path = folder / f"{number:04d}-{slug(title)}.md"
-    path.write_text(text_of(title, body), encoding="utf-8")
+    write_text(path, text_of(title, body))
     return path
 
 
@@ -131,8 +139,8 @@ def self_test():
         tmp = Path(tmp)
         folder = tmp / "design"
         old = tmp / "OLD.md"
-        old.write_text("# Intro\n\nopening\n\n## First (1 Oct)\n\none\n\n```\n## not a heading\n```\n\n"
-                       "## Second\n\ntwo\n", encoding="utf-8")
+        write_text(old, "# Intro\n\nopening\n\n## First (1 Oct)\n\none\n\n```\n## not a heading\n```\n\n"
+                       "## Second\n\ntwo\n")
         written, differing = move(old, folder)
         names = [p.name for p in written]
         assert names == ["0001-first-1-oct.md", "0002-second.md"], names
@@ -141,22 +149,22 @@ def self_test():
         assert first.startswith("# First (1 Oct)\n") and "## not a heading" in first, first
         # Moving the same file again writes nothing; a section edited since is named, not overwritten.
         assert move(old, folder) == ([], [])
-        old.write_text(old.read_text(encoding="utf-8").replace("two", "two, and a later note")
-                       + "\n## Third\n\nthree\n", encoding="utf-8")
+        write_text(old, old.read_text(encoding="utf-8").replace("two", "two, and a later note")
+                       + "\n## Third\n\nthree\n")
         written, differing = move(old, folder)
         assert [p.name for p in written] == ["0003-third.md"], written
         assert [t for t, _ in differing] == ["Second"], differing
         assert "later note" not in (folder / "0002-second.md").read_text(encoding="utf-8")
         # The checks: an introduction with no section and well-named entries pass; each fault is named.
         design = tmp / "DESIGN.md"
-        design.write_text("# Intro\n\nno sections here\n```\n## inside a fence\n```\n", encoding="utf-8")
+        write_text(design, "# Intro\n\nno sections here\n```\n## inside a fence\n```\n")
         assert problems(design, folder) == [], problems(design, folder)
-        design.write_text("# Intro\n\n## Appended\n\ntext\n", encoding="utf-8")
+        write_text(design, "# Intro\n\n## Appended\n\ntext\n")
         assert any("Appended" in p for p in problems(design, folder))
-        design.write_text("# Intro\n", encoding="utf-8")
-        (folder / "notes.md").write_text("# Notes\n", encoding="utf-8")
-        (folder / "0004-untitled.md").write_text("no heading\n", encoding="utf-8")
-        (folder / "0005-second-again.md").write_text("# Second\n", encoding="utf-8")
+        write_text(design, "# Intro\n")
+        write_text((folder / "notes.md"), "# Notes\n")
+        write_text((folder / "0004-untitled.md"), "no heading\n")
+        write_text((folder / "0005-second-again.md"), "# Second\n")
         found = problems(design, folder)
         assert any("notes.md is not named" in p for p in found), found
         assert any("0004-untitled.md does not open" in p for p in found), found
