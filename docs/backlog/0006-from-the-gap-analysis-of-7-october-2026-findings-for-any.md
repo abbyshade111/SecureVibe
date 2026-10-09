@@ -28,6 +28,13 @@ listed apart, below this item.
    app's lockfiles list and its manifests declare, and a gap naming the package and its calls. The knex app now reads
    V1.2.4 *not verified*. Held by `crates/sv-cli/tests/orm_held_back.rs`, broken four ways. Not done: the first half,
    teaching the rule each ORM's raw calls, which takes that ORM off the list.
+   **The first half's first part, knex and GORM, claimed 9 October 2026 by session securevibe-e2**, from the roadmap
+   (Phase 4, item 4, this finding's open half), in branch `claude/securevibe-e2-orm-raw`: `ast.sql-built-by-hand`
+   taught knex's `...Raw` calls (`whereRaw`, `orderByRaw`, and the rest) in JavaScript and TypeScript, and GORM's
+   `Raw`, its clause methods (`Where`, `Or`, `Not`, `Order`, `Group`, `Having`, `Joins`, `Select`) when given text
+   built in the call, and its inline conditions (`Find(&users, "id = " + id)`); each comes off `unreadPackages` only
+   once every one of its calls named here is read, with a test of each, and stays on otherwise. Confirmed on `main`
+   just before this claim: knex and `gorm.io/gorm` are on the list, and no other session holds this part.
 2. **Dependencies in .NET, Dart, Swift, Elixir, and Deno are invisible, and V15.2.1 is credited anyway.**
    (`docs/GAP-ANALYSIS.md`, 1.5.) Detect `*.csproj`, `packages.lock.json`, `pubspec.yaml`/`.lock`,
    `Package.swift`/`.resolved`, `mix.exs`, and `deno.json`/`.lock` as ecosystems `sv` does not read, so they hold
