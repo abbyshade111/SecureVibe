@@ -238,3 +238,7 @@ the signed releases (0191 part 4).
 checks an example app with it, and runs the whole suite, reporting each failing test as an annotation (ADR-051,
 Later). Not required; what it finds is written here as it is fixed or explained.
 
+First Windows finding, 9 October 2026: `sv` did not compile there, and every error was in one place, `sv review`'s
+reading of a passphrase without showing it, which used the Unix terminal's own calls. Those are now kept to Unix; on
+Windows `sv review` says before the passphrase is typed that it will show on the screen, rather than not building at
+all. Hiding it on Windows needs the console's own call (a Windows-only dependency, a decision of its own), and is open.
