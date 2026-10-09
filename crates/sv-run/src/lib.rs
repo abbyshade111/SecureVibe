@@ -602,7 +602,7 @@ pub fn new_accounts(with_admin: bool, with_totp: bool) -> sv_check::signed_in::A
 pub(crate) fn random_hex(bytes: usize) -> String {
     let mut buf = vec![0u8; bytes];
     // The operating system's own source on every system, Windows included (backlog 0120).
-    let filled = getrandom::getrandom(&mut buf).is_ok();
+    let filled = getrandom::fill(&mut buf).is_ok();
     assert!(filled, "no source of randomness for test passwords");
     buf.iter().map(|b| format!("{b:02x}")).collect()
 }

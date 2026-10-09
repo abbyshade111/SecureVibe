@@ -131,6 +131,18 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   same reason a new test goes in a sibling test file (`src/<module>/tests.rs`, or one of its own) rather than at the
   end of a module's `mod tests`. A branch from before the split mends its `docs/BACKLOG.md` conflict with the steps
   at the top of `tools/backlog.py`.
+- **Urgent work with no backlog item still gets a claim others can see, before the first line is written.** A red
+  `main`, a check every pull request fails at once, or an outside service breaking CI is where two sessions most often
+  start the same fix together, because each skips the claim to save time. Before starting, look at what the others are
+  doing: `gh pr list --state open`, and the branches pushed in the last few hours with the files each changes
+  (`git fetch --prune origin`, then `git for-each-ref --sort=-committerdate --count=15 --format='%(committerdate:relative)
+  %(refname:short)' refs/remotes/origin`, and `git diff --name-only origin/main...<branch>` for each recent one). If one
+  touches the same files or names the same failure, join it or leave it to them. If none does, open a draft pull
+  request at once from one empty commit (`git commit --allow-empty -m "Working on: <the failure>"`, push,
+  `gh pr create --draft`), so the next session sees it within a minute, and turn it into the real pull request
+  (`gh pr ready`, then auto-merge) when the fix is in. On 9 October 2026 this happened twice in one evening: two
+  sessions each built CI's Docker Hub sign-in, and then two each built the fence check saying what Docker said; each
+  second one was closed unused. The owner asked for this rule the same evening.
 - **The roadmap at the top of `docs/BACKLOG.md` says what comes next.** With no word from the owner, take the first
   unclaimed sub-item there in its phase order, claim it, and land it before taking the next. `python3 tools/backlog.py
   list --open` prints every open item from the status line each carries, `summary` the counts, and `show <number>`

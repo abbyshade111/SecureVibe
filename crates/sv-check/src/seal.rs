@@ -78,7 +78,7 @@ impl Key {
     pub fn random() -> Result<Key, String> {
         // The operating system's own source on every system (see `signed::random`).
         let mut bytes = [0u8; 32];
-        getrandom::getrandom(&mut bytes)
+        getrandom::fill(&mut bytes)
             .map_err(|e| format!("the system's randomness could not be read ({e})"))?;
         if bytes.iter().all(|b| *b == 0) {
             return Err("the system's randomness gave only zeros".to_owned());
