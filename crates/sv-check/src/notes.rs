@@ -39,6 +39,11 @@
 //! are *stated by the AI coding tool*, as its design answers are, and are asked again in the
 //! interview. A `Written by:` naming anyone else is unreadable and named, not guessed at.
 //!
+//! A section the tool wrote can be confirmed by a person through `sv review` instead (ADR-022, Later,
+//! 9 October 2026): sealed over its own fields, so it still says the tool wrote it, it then counts as
+//! documented and is shown as confirmed, never as the owner's own. Marked `Written by: owner` after
+//! that, its seal no longer holds.
+//!
 //! Since 4 October 2026 (deep review R1, the owner's decision), `Written by: owner` is not enough on
 //! its own: the AI coding tool can write that line as easily as the owner. A section counts as the
 //! owner's only when `sv review` recorded it, which puts a line `Sealed by sv review: …` under it
@@ -62,6 +67,11 @@ pub const PLACEHOLDER: &str = "_Nobody has written this yet._";
 
 /// The italic line `sv` writes above the facts it found.
 const FACTS_LINE: &str = "*What `sv` found:*";
+
+/// The check id a section the AI coding tool wrote is credited under once a person confirmed it
+/// through `sv review` (ADR-022, Later): the documented tier, shown as confirmed, never as the
+/// owner's own.
+pub const CONFIRMED: &str = "notes.confirmed";
 
 /// The line a section says who wrote it on, and the two things it may say.
 pub const WRITTEN_BY: &str = "Written by:";
@@ -729,6 +739,18 @@ impl Answers {
         crate::seal::owner_recorded(seals, self.seal_of(id).as_deref(), &fields)
     }
 
+    /// Whether a section the AI coding tool wrote was confirmed by a person through `sv review`
+    /// where this runs: its seal over the confirmed fields, or why not.
+    pub fn confirmed(
+        &self,
+        id: &str,
+        seals: &crate::seal::Checker,
+    ) -> Result<crate::seal::Sealed, String> {
+        let fields =
+            crate::seal::notes_confirmed_fields(id, &self.prose_of(id).unwrap_or_default());
+        crate::seal::owner_recorded(seals, self.seal_of(id).as_deref(), &fields)
+    }
+
     /// Whether the AI coding tool may put its answer under `id` (`file` is the notes file's name,
     /// for the reason given when not): only where nothing is written, or where the section is
     /// marked `Written by: AI coding tool`, the mark `sv` writes on what the tool records.
@@ -1183,13 +1205,29 @@ pub fn evidence(
                     ),
                 ).resting_on(Tier::Stated)),
             },
+            Writer::AiTool if answers.seal_of(&id).is_some() && answers.confirmed(&id, seals).is_ok() => {
+                let sealed = answers
+                    .confirmed(&id, seals)
+                    .expect("checked just above");
+                out.documented.push(
+                    Verified::new(
+                        CONFIRMED,
+                        &[id.as_str()],
+                        format!(
+                            "{place}: written by your AI coding tool and confirmed by a person{}{not_covered}",
+                            crate::seal::recorded_where(&sealed)
+                        ),
+                    )
+                    .resting_on(Tier::Documented),
+                );
+            }
             Writer::AiTool | Writer::Unmarked => out.stated.push(Verified::new(
                 "notes.stated-by-ai",
                 &[id.as_str()],
                 format!(
                     "{place}: {}. This is the word of the tool that wrote the code, not a decision \
-                     you made; read it, and if you agree, mark it `{WRITTEN_BY} {BY_OWNER}` and \
-                     run `sv review` in your own terminal to record it as yours{not_covered}.",
+                     you made; read it against the app, and if you agree, run `sv review` in your \
+                     own terminal to confirm it{not_covered}.",
                     if who == Writer::AiTool {
                         "your AI coding tool wrote it"
                     } else {
@@ -1207,6 +1245,9 @@ pub fn evidence(
         .collect();
     out
 }
+
+#[cfg(test)]
+mod confirmed_tests;
 
 #[cfg(test)]
 mod tests {

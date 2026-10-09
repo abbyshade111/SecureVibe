@@ -36,6 +36,9 @@ enum Waiting {
     /// A section marked `Written by: owner`, in the security notes (0) or design-decisions.md (1):
     /// the index into the files `review` reads sections from.
     Notes(usize, String),
+    /// A section marked `Written by: AI coding tool`, offered for a person to confirm (ADR-022,
+    /// Later): the same index, and the requirement.
+    NotesConfirm(usize, String),
 }
 
 pub fn cmd_review(path: Option<PathBuf>) -> Result<()> {
@@ -359,6 +362,11 @@ fn review(
                         answers.recorded(&id, &checker).map_err(drop),
                         Waiting::Notes(which, id),
                     );
+                } else if who == sv_check::notes::Writer::AiTool {
+                    sort(
+                        answers.confirmed(&id, &checker).map_err(drop),
+                        Waiting::NotesConfirm(which, id),
+                    );
                 }
             }
         }
@@ -515,6 +523,37 @@ fn review(
                 }
                 None
             }
+            Waiting::NotesConfirm(which, id) => {
+                let (catalog, path) = &files[which];
+                let text =
+                    notes_text(path)?.with_context(|| format!("{} is gone", catalog.file))?;
+                let answers = sv_check::notes::read_answers(catalog, &text);
+                let prose = answers.prose_of(&id).unwrap_or_default();
+                let what = format!(
+                    "Your AI coding tool's answer to requirement {id} in {}, marked `Written by: AI \
+                     coding tool`:\n\n{}\n",
+                    catalog.file,
+                    prose
+                        .lines()
+                        .map(|l| format!("    {l}"))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                );
+                let fields = sv_check::seal::notes_confirmed_fields(&id, &prose);
+                if let Some(seal) = record_notes_confirmation(&what, &fields, &key, input, out)? {
+                    let sealed = sv_check::notes::with_seal_in(catalog, &text, &id, &seal)
+                        .context("the section is not where it was")?;
+                    save_text(path, &sealed, &|| {
+                        notes_text(path).ok().flatten().is_some_and(|t| {
+                            sv_check::notes::read_answers(catalog, &t)
+                                .confirmed(&id, &checker)
+                                .is_ok()
+                        })
+                    })?;
+                    recorded += 1;
+                }
+                None
+            }
         };
         if let Some(which) = done {
             save(&manifest_path, &doc, &|m| counts(m, &which, &checker))?;
@@ -646,6 +685,26 @@ fn sign_again(
                     notes_text(path).ok().flatten().is_some_and(|t| {
                         matches!(
                             sv_check::notes::read_answers(catalog, &t).recorded(id, checker),
+                            Ok(Sealed::Signed { .. })
+                        )
+                    })
+                })?;
+                signed += 1;
+            }
+            Waiting::NotesConfirm(file, id) => {
+                let (catalog, path) = &files[*file];
+                let text =
+                    notes_text(path)?.with_context(|| format!("{} is gone", catalog.file))?;
+                let prose = sv_check::notes::read_answers(catalog, &text)
+                    .prose_of(id)
+                    .unwrap_or_default();
+                let seal = sign(&sv_check::seal::notes_confirmed_fields(id, &prose))?;
+                let resealed = sv_check::notes::with_seal_in(catalog, &text, id, &seal)
+                    .context("the section is not where it was")?;
+                save_text(path, &resealed, &|| {
+                    notes_text(path).ok().flatten().is_some_and(|t| {
+                        matches!(
+                            sv_check::notes::read_answers(catalog, &t).confirmed(id, checker),
                             Ok(Sealed::Signed { .. })
                         )
                     })
@@ -1024,6 +1083,52 @@ fn record_own(
     }
 }
 
+/// Asks a person whether they confirm a security notes section the AI coding tool wrote (ADR-022,
+/// Later). The seal to write when they do: over the confirmed fields, so the section still says the
+/// tool wrote it and is shown as confirmed, never as the owner's own answer.
+fn record_notes_confirmation(
+    what: &str,
+    fields: &[String],
+    key: &Signer,
+    input: &mut dyn BufRead,
+    out: &mut dyn Write,
+) -> Result<Option<String>> {
+    writeln!(
+        out,
+        "{what}\n  For now it counts as your AI coding tool's word. If you have read it against the \
+         app and agree, confirm it: it then counts as answered in the security notes and is shown \
+         as written by the tool and confirmed by a person, never as your own answer. If it is \
+         wrong, change it in the file first."
+    )?;
+    loop {
+        let Some(answer) = ask(
+            input,
+            out,
+            "Type your name, or `owner` if this is your app, to confirm it; or press Enter to leave \
+             it as the tool's word.\n> ",
+        )?
+        else {
+            return Ok(None);
+        };
+        if answer.is_empty() {
+            writeln!(out, "  Left as the tool's word.")?;
+            return Ok(None);
+        }
+        if is_tool(&answer) {
+            writeln!(
+                out,
+                "  The AI coding tool cannot confirm its own answer. Type your own name, or `owner`."
+            )?;
+            continue;
+        }
+        writeln!(out, "  Recorded as confirmed by {answer}.")?;
+        return Ok(Some(
+            key.seal(&sv_check::seal::as_strs(fields))
+                .map_err(anyhow::Error::msg)?,
+        ));
+    }
+}
+
 /// Puts `seal` on the answer to `id` in `section` of stackvet.toml, changing nothing else.
 fn set_seal(doc: &mut toml_edit::DocumentMut, section: &str, id: &str, seal: &str) -> Result<()> {
     doc.get_mut(section)
@@ -1090,7 +1195,7 @@ fn counts(manifest: &sv_manifest::Manifest, which: &Waiting, checker: &Checker) 
             )
             .is_ok()
         }),
-        Waiting::Notes(..) => false,
+        Waiting::Notes(..) | Waiting::NotesConfirm(..) => false,
         Waiting::Confirmation { section, id } => {
             let c = match *section {
                 "design" => manifest.design.get(id).and_then(|a| a.confirmed.as_ref()),
@@ -1180,19 +1285,22 @@ fn save_text(path: &Path, text: &str, counts: &dyn Fn() -> bool) -> Result<()> {
 }
 
 #[cfg(test)]
+mod confirm_notes_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
-    struct Scratch(PathBuf);
+    pub(super) struct Scratch(pub(super) PathBuf);
 
     impl Scratch {
-        fn new(name: &str) -> Scratch {
+        pub(super) fn new(name: &str) -> Scratch {
             let dir = std::env::temp_dir().join(format!("sv-review-{name}-{}", std::process::id()));
             std::fs::remove_dir_all(&dir).ok();
             std::fs::create_dir_all(dir.join("app")).unwrap();
             Scratch(dir)
         }
-        fn app(&self) -> PathBuf {
+        pub(super) fn app(&self) -> PathBuf {
             self.0.join("app")
         }
         fn keys(&self) -> PathBuf {
@@ -1203,7 +1311,7 @@ mod tests {
         }
         /// `sv review`, with `typed` as what the person types. The first run is asked whether the
         /// signing key it makes should have a passphrase, and the answer is no.
-        fn run(&self, typed: &str) -> (Result<()>, String) {
+        pub(super) fn run(&self, typed: &str) -> (Result<()>, String) {
             let first = !self
                 .keys()
                 .join(sv_check::signed::SIGNING_KEY_FILE)
@@ -1221,7 +1329,7 @@ mod tests {
             );
             (result, String::from_utf8(out).unwrap())
         }
-        fn checker(&self) -> Checker {
+        pub(super) fn checker(&self) -> Checker {
             Checker::in_folder(Some(&self.keys()), &self.app())
         }
     }
@@ -1232,7 +1340,7 @@ mod tests {
         }
     }
 
-    const HEAD: &str =
+    pub(super) const HEAD: &str =
         "manifest-version = 1\n[app]\nname = \"R\"\n[stack]\nlanguages = [\"python\"]\n";
     const LINE: &str = "return redirect(request.args.get(\"next\"))";
     const WHY: &str = "The next= value is looked up in a fixed list of our own paths first.";
@@ -1246,7 +1354,7 @@ mod tests {
         )
     }
 
-    fn with_app(s: &Scratch, manifest: &str) {
+    pub(super) fn with_app(s: &Scratch, manifest: &str) {
         std::fs::write(s.app().join("app.py"), format!("def go():\n    {LINE}\n")).unwrap();
         std::fs::write(s.app().join("stackvet.toml"), manifest).unwrap();
     }
@@ -1719,16 +1827,23 @@ mod tests {
                      0000000000000000000000000000000000000000000000000000000000000000\n\nNames are at \
                      most eighty letters, and dates are never in the future.\n";
         std::fs::write(s.app().join("security-notes.md"), notes).unwrap();
-        let (result, out) = s.run("owner\nSam Lee\nowner\nowner\nowner\n");
+        // The owner's four, and the tool's notes section between them left as the tool's word.
+        let (result, out) = s.run("owner\nSam Lee\nowner\nowner\n\nowner\n");
         result.unwrap();
-        // The tool's own answers are not offered as the owner's.
-        assert!(!out.contains("V2.2.2") && !out.contains("V8.1.1"), "{out}");
+        // The tool's own answers are not offered as the owner's; its notes section is offered only
+        // for a person to confirm (ADR-022, Later).
+        assert!(!out.contains("V2.2.2"), "{out}");
+        assert!(
+            out.contains("Your AI coding tool's answer to requirement V8.1.1"),
+            "{out}"
+        );
+        assert!(out.contains("Left as the tool's word."), "{out}");
         assert!(
             out.contains("Only the app's owner gives these answers"),
             "{out}"
         );
         assert!(out.contains("Five failed sign-ins"), "{out}");
-        assert!(out.contains("Recorded 4 of 4"), "{out}");
+        assert!(out.contains("Recorded 4 of 5"), "{out}");
         let m = sv_manifest::Manifest::load(&s.app().join("stackvet.toml")).unwrap();
         for which in [
             Waiting::DesignAnswer("V8.3.1".into()),
@@ -1761,17 +1876,19 @@ mod tests {
                 .iter()
                 .all(|l| l.starts_with(sv_check::notes::SEALED_BY))
         );
-        // Nothing waits the second time.
+        // The second time, only the tool's section waits, for confirming.
         let (result, out) = s.run("");
         result.unwrap();
-        assert!(out.contains("Nothing in"), "{out}");
+        assert!(out.contains("1 entry is not recorded"), "{out}");
+        assert!(out.contains("requirement V8.1.1"), "{out}");
+        assert!(!out.contains("requirement V6.1.1"), "{out}");
     }
 
     #[test]
     fn an_owners_section_of_the_decisions_file_is_recorded_under_its_own_heading() {
         // design-decisions.md's sections go by headings with no id (`sv_check::decisions`); the one
-        // marked as the owner's is offered and sealed, the tool's is not, and a section that counts
-        // toward nothing is never offered.
+        // marked as the owner's is offered and sealed, the tool's is offered only for confirming
+        // (ADR-022, Later), and a section that counts toward nothing is never offered.
         let s = Scratch::new("decisions");
         with_app(&s, HEAD);
         let decisions = "# Design decisions\n\n## When to bring in a person\n\nWritten by: owner\n\n\
@@ -1782,17 +1899,18 @@ mod tests {
                          Written by: AI coding tool\n\nHealth data of people in Europe: the GDPR may \
                          apply, so ask someone qualified.\n";
         std::fs::write(s.app().join(sv_check::decisions::FILE), decisions).unwrap();
-        let (result, out) = s.run("owner\n");
+        let (result, out) = s.run("owner\n\n");
         result.unwrap();
         assert!(
             out.contains("SBD-MT-06") && out.contains("Take the app"),
             "{out}"
         );
+        assert!(!out.contains("health data, so a person"), "{out}");
         assert!(
-            !out.contains("SBD-AC-06") && !out.contains("health data, so a person"),
+            out.contains("Your AI coding tool's answer to requirement SBD-AC-06"),
             "{out}"
         );
-        assert!(out.contains("Recorded 1 of 1"), "{out}");
+        assert!(out.contains("Recorded 1 of 2"), "{out}");
         let after = std::fs::read_to_string(s.app().join(sv_check::decisions::FILE)).unwrap();
         let catalog = sv_check::notes::Catalog::load(&crate::decisions_path()).unwrap();
         let answers = sv_check::notes::read_answers(&catalog, &after);
@@ -1815,7 +1933,8 @@ mod tests {
         );
         let (result, out) = s.run("");
         result.unwrap();
-        assert!(out.contains("Nothing in"), "{out}");
+        assert!(out.contains("1 entry is not recorded"), "{out}");
+        assert!(out.contains("requirement SBD-AC-06"), "{out}");
     }
 
     #[test]

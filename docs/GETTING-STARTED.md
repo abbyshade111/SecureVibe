@@ -207,7 +207,9 @@ counts it for less than your own answer.
 The answers to the questions about the app's rules go in `security-notes.md`. The tool writes them there, and
 every one it writes starts with `Written by: AI coding tool`, even when it is writing down what you told it:
 `sv` cannot tell your words from the tool's. Read what it wrote, and where it says what you decided, change
-that line to `Written by: owner` yourself. Then record it, in your own terminal:
+that line to `Written by: owner` yourself. Where the tool worked an answer out from the code and you have
+checked it and agree, leave its line as it is: `sv review` offers it for you to confirm, and the report then
+shows it as the tool's words a person confirmed, never as your own. Then record it, in your own terminal:
 
 ```bash
 sv review ~/code/my-app

@@ -528,6 +528,8 @@ listed apart, below this item.
    security notes section the tool wrote). (a), the passphrase on by default, is left for the owner: it reverses
    ADR-043's "offered, not required", which the owner chose. Read on `main` and the open pull requests just before
    this claim: no other session had claimed (c).
+   **(c) done the same day** (`docs/design/0332-a-notes-section-the-tool-wrote-confirmed-by-a-person-9.md`;
+   ADR-022, Later, accepted): `notes.confirmed`, shown as "written by the AI coding tool, confirmed through sv review".
    **(a) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
    you merge"), in branch `claude/securevibe-e2-passphrase`: when `sv review` makes the signing key, a passphrase is
    what pressing Enter chooses, and having none takes typing `none`; still offered, never required (ADR-043's third

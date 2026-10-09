@@ -140,8 +140,13 @@ fn status_cell(line: &crate::RequirementLine) -> String {
                 .join("; ")
         ),
         Status::Documented => format!(
-            "{} \u{2014} you answered this in {}",
-            line.status.label(),
+            "{} \u{2014} {} {}",
+            line.shown_label(),
+            if line.confirmed_only() {
+                "your AI coding tool wrote this, and a person confirmed it, in"
+            } else {
+                "you answered this in"
+            },
             line.documented_by
                 .iter()
                 .map(|c| c.scope.clone())

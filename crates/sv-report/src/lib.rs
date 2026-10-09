@@ -134,7 +134,9 @@ impl Status {
             Status::AppTested => {
                 "Applies, the app's own tests ran without failing: written by your AI coding tool, not a check of sv's"
             }
-            Status::Documented => "Applies, you answered it in the security notes",
+            Status::Documented => {
+                "Applies, answered in the security notes: by you, or written by your AI coding tool and confirmed by a person"
+            }
             Status::ByHand => "Applies, rests on your word: you checked it by hand",
             Status::Attested => {
                 "Applies, rests on your word: you answered yes about how it is built"
@@ -161,6 +163,10 @@ impl RequirementLine {
                 .by_hand
                 .iter()
                 .all(|c| c.check_id == sv_check::confirm::HAND_CONFIRMED),
+            Status::Documented => self
+                .documented_by
+                .iter()
+                .all(|c| c.check_id == sv_check::notes::CONFIRMED),
             _ => false,
         }
     }
@@ -170,6 +176,9 @@ impl RequirementLine {
         match (self.status, self.confirmed_only()) {
             (Status::Attested, true) => "stated by the AI coding tool, confirmed through sv review",
             (Status::ByHand, true) => "checked by the AI coding tool, confirmed through sv review",
+            (Status::Documented, true) => {
+                "written by the AI coding tool, confirmed through sv review"
+            }
             (status, _) => status.label(),
         }
     }
@@ -189,7 +198,7 @@ impl RequirementLine {
     /// Whose word the status rests on, for the line after the label.
     pub fn whose_word(&self) -> &'static str {
         match (self.status, self.confirmed_only()) {
-            (Status::Attested | Status::ByHand, true) => {
+            (Status::Attested | Status::ByHand | Status::Documented, true) => {
                 "the word of whoever confirmed it through sv review"
             }
             (Status::Attested, false) => "your word",
