@@ -86,6 +86,11 @@ against semgrep", whose title says it was done on 29 September while its parts r
 write its done notes or close it. "Research: could the Kaspa blockchain" is the owner's own question and waits for
 them.
 
+**After the roadmap, in this order, asked for by the owner on 9 October 2026:** "Test a build with Cursor, once the
+backlog is worked off" (0222), "Test the weekly decision-record review from end to end" (0223), and "Mock-ups of the
+website: what stackvet.dev could look like and say" (0224). None of the three is taken while a phase above has an
+open item.
+
 **Process, any time, each cheap:** "Process: shorter CI, a merge queue decision, and a nightly routine on `main`",
 and the owner's decision on "One file per backlog item, with a status line", which would make the status above a
 line in each item's file rather than a reading of its prose.
