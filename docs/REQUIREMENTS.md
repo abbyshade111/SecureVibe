@@ -631,7 +631,7 @@ decided per app, from its `stackvet.toml` and its code.
 
 ## OWASP AISVS 1.0
 
-191 requirements: 26 can be checked, 19 can only be found failing, 0 where a check helps but a person decides, and 146 with no check.
+191 requirements: 27 can be checked, 19 can only be found failing, 0 where a check helps but a person decides, and 145 with no check.
 
 ### Level 1 (51 requirements, 16 can be checked, 8 can only be found failing)
 
@@ -741,7 +741,7 @@ decided per app, from its `stackvet.toml` and its code.
 | **C12.5.1** Verify that dataset lineage records each dataset and its components, including all transformations, augmentations, and merges. | No check | – |
 | **C12.5.2** Verify that all labeling activities are recorded in logs. | No check | – |
 
-### Level 2 (95 requirements, 9 can be checked, 10 can only be found failing)
+### Level 2 (95 requirements, 10 can be checked, 10 can only be found failing)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -877,7 +877,7 @@ decided per app, from its `stackvet.toml` and its code.
 | **C11.2.4** Verify that training on sensitive datasets employs differentially-private optimization. | No check | – |
 | **C11.3.2** Verify that raw model outputs are not directly exposed beyond the application backend, and that externally visible responses are calibrated to the extraction risk level. | Can only be found failing | The running app: `probe.ai-raw-response-exposed`, if it fails: The model service's whole response reaches the browser, with its identifiers and whatever else the service sends, where only the reply's text was needed. That is more than the person needs, and it helps anyone studying the model. (found failing only) |
 | **C11.4.1** Verify that inputs from external or untrusted sources pass through anomaly detection before model inference. | No check | – |
-| **C11.4.2** Verify that inputs flagged as anomalous trigger gating actions. | No check | – |
+| **C11.4.2** Verify that inputs flagged as anomalous trigger gating actions. | Can be checked | The running app: `probe.ai-flag-not-gating`, if it fails: The app notices an attack and lets it through anyway: the record says it was caught, and the model was given it as it came, so the detector gives comfort and no protection. (only ever in part) |
 
 #### C12 Monitoring, Logging & Anomaly Detection
 

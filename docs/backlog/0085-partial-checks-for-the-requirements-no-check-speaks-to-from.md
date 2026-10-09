@@ -500,3 +500,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     attempts, which one message cannot show (as backlog 0140 says), and the second needs a handshake per message,
     which an app that connects once at start-up never makes. **Record, `Status: proposed`: ADR-079.** Checked just
     before this claim: not on `main`, in no open pull request, and in no recent branch.
+    **Done on 9 October 2026** (DESIGN, "An injection flagged as caught, and whether the flag stopped it (9 October
+    2026)"; ADR-079, accepted). `probe.ai-flag-not-gating` credits C11.4.2 in part when the textbook injection is
+    recorded as caught and kept from the model, and finds it when it is recorded as caught and passed on anyway. Not
+    done: other kinds of anomalous input.

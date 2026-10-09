@@ -36,7 +36,7 @@ What each kind of check needs before it can run:
 | Framework | Requirements | Can settle | Can be credited | Supporting only | Nothing |
 |---|---|---|---|---|---|
 | OWASP ASVS 5.0 | 345 | 174 (50%) | 122 (35%) | 10 | 161 |
-| OWASP AISVS 1.0 | 191 | 45 (24%) | 26 (14%) | 0 | 146 |
+| OWASP AISVS 1.0 | 191 | 46 (24%) | 27 (14%) | 0 | 145 |
 | AISVS Appendix C | 68 | 3 (4%) | 2 (3%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 0 (0%) | 12 | 24 |
 
@@ -332,10 +332,10 @@ does not reach.
 | C8 Memory, Embeddings & Vector Database Security | 11 | 1 | 0 | 0 | 10 |
 | C9 Orchestration & Agentic Security | 34 | 8 | 5 | 0 | 26 |
 | C10 Model Context Protocol (MCP) Security | 23 | 10 | 7 | 0 | 13 |
-| C11 Adversarial Robustness | 17 | 2 | 1 | 0 | 15 |
+| C11 Adversarial Robustness | 17 | 3 | 2 | 0 | 14 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 6 | 6 | 0 | 15 |
 
-20 of these 48 can only ever be marked *needs attention*: a check can
+20 of these 49 can only ever be marked *needs attention*: a check can
 show the control missing, and finding nothing does not show it present, so a clean run credits
 none of them. Most are `sv`'s own checks: rules that read the code, and questions asked of the
 running app (`--run`, with an `ai` section). The rest are semgrep's and CodeQL's, and need `--tools`.
@@ -379,6 +379,7 @@ running app (`--run`, with an `ai` section). The rest are semgrep's and CodeQL's
 - C10.4.5: found failing by sv's `probe.mcp-server-no-size-limit`.
 - C11.2.2: settled by `probe.ai-rate-unlimited`.
 - C11.3.2: found failing by sv's `probe.ai-raw-response-exposed`.
+- C11.4.2: checked in part only, by `probe.ai-flag-not-gating`.
 - AC.12.1: settled by `config.workflow-runs-fork-code`; and found failing by sv's `config.workflow-untrusted-text-in-run`.
 - C12.1.1: settled by `probe.ai-call-log-session`.
 - C12.1.2: checked in part only, by `probe.ai-safety-decision-detailed`.
