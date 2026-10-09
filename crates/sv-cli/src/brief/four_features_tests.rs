@@ -62,10 +62,14 @@ fn the_four_briefs_bring_what_each_feature_is_held_to_and_no_more() {
     }
     assert!(!owned.all.contains("V6.2.1"));
 
-    // API keys: nothing gated, since `public-api` gates nothing; a key made unguessable.
+    // API keys: nothing gated, since `public-api` gates nothing; a key made unguessable, and never
+    // sent in the address or its query string (V14.2.1, the one requirement that names API keys;
+    // the owner's decision of 9 October 2026).
     let keys = of("api-keys");
     assert!(keys.gated.is_empty());
-    assert!(keys.all.contains("V11.5.1"), "{:?}", keys.all);
+    for id in ["V11.5.1", "V14.2.1"] {
+        assert!(keys.all.contains(id), "{id}: {:?}", keys.all);
+    }
 
     // Background jobs: the three Secure by Design controls gated on `scheduler`.
     let jobs = of("background-jobs");

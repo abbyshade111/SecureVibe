@@ -622,6 +622,7 @@ listed apart, below this item.
    (level 1: an API key never in the address or its query string), which already applies to every app, so
    `public-api` still brings no requirement of its own. **Claimed the same day by session securevibe-e9**, in branch
    `claude/stackvet-e9-api-keys-brief`.
+   **Done the same day** (`docs/design/0340-v14-2-1-in-the-api-keys-brief-9-october-2026.md`): the `api-keys` brief names V14.2.1, and its test holds it there.
    **(a) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
    you merge"), in branch `claude/securevibe-e2-passphrase`: when `sv review` makes the signing key, a passphrase is
    what pressing Enter chooses, and having none takes typing `none`; still offered, never required (ADR-043's third
