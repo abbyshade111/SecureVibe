@@ -1,6 +1,6 @@
 # Eight places where the paper's earlier files disagree with the record
 
-**Status:** partly done: 0 of 8 parts done, 0 claimed, 7 open, as its markers read on 8 October 2026
+**Status:** done, 9 October 2026
 
 Found on 28 September 2026 by the
 coordination and fault analyses above. **Claimed on 28 September 2026 by session admiring-murdock-875699**, at
@@ -45,3 +45,9 @@ Also corrected while there: `COORDINATION.md` said review found fewer faults tha
 items as you merge"), from the roadmap (Phase 5, the paper's three items), in branch
 `claude/stackvet-e9-paper-notes`. Read against `main` just before this claim, all eight were checked and corrected on 28 September, and the `v1` patch that 7 led to merged as #396; only its status line reads as open. The item is owed a done note,
 not a build. No other session had claimed it.
+**Done 9 October 2026, by session securevibe-e9, with nothing built:** all eight were checked and settled on 28
+September, as the note above says, and the patch to `v1` that 7 led to merged as #396. Read again on `main` before
+this note: `figure-how-caught.html` gives 47 claims of work, 42 touching only the backlog; `TIMELINE.md` gives 226
+pull requests and says where its record stopped; `TOP10.md` names the two caught by a failing test (SV-10 and SV-49)
+and says the `claude/ci-hang` fix reached `v1` by #396; and `faults.csv` has V1-77. Only the status line, which
+counts markers rather than reading the note, still said seven were open.
