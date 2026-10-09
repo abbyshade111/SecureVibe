@@ -407,3 +407,14 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     ADR-069, accepted). `probe.mail-header-injected` asks for two more resets after the reset check, the address
     followed by a line break and a `Bcc` header: anything reaching the header's address is a finding, the account's
     email with nothing reaching it is credited in part, and no email is said. Not done: other fields and other mail.
+17. **V3.7.1: client-side technology that is no longer supported, from the code. Not verified.** From
+    `docs/PARTIAL-CHECKS.md`, the retired browser plug-ins it proposes (Flash, Shockwave, Silverlight, Java applets,
+    ActiveX, VBScript) in the app's pages and files; and front-end libraries past their end of life, which V3.7.1's
+    own words ("only uses client-side technologies which are still supported") reach too, from the bill of
+    materials and from addresses that load them from a CDN with a version.
+    **Claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please continue to work through and
+    pick up new items as you merge"), in branch `claude/client-tech`: `config.client-tech-unsupported`, only ever a
+    finding, since no list of what a page loads is complete. The libraries and their end-of-life dates read from
+    endoflife.date on 9 October 2026: AngularJS (every version, 31 December 2021), Vue 2 (31 December 2023),
+    Bootstrap 3 (24 July 2019) and 4 (1 January 2023), jQuery 1 and 2. **Record, `Status: proposed`: ADR-070.**
+    Checked just before this claim: not on `main`, in no open pull request, and in no recent branch.
