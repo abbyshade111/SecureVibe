@@ -433,6 +433,15 @@ listed apart, below this item.
    **That half done the same day** (DESIGN, "And on how many builds"): `builds` in each shown prompt's `tested`,
    said in every copy of its status. Breaks: the count left out of the words, a count changed, and a count
    removed each failed a test (`crates/sv-check/tests/prompts.rs` holds each count to its trial's account).
+   **(g), its second half, claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and
+   pick up new items as you merge"), in branch `claude/securevibe-e2-delivery`: each prompt's trial record says how
+   it did when `sv` gave it rather than the request (the two delivery trials, `docs/prompts/library-trial/delivery.md`
+   and `start.md`, by model), and every copy of its status says so: "shown to work with Sonnet at the start of a
+   build" for `secrets-in-the-environment`, "not shown" for `ai-feature-guard`, "no reading" where a trial could not
+   tell, and "not tried" for a prompt shown to work only when pasted into the request. Read from each trial's own
+   verdict file, and held to it by a test. Which prompts are shown, and so which `sv` gives (ADR-044), is unchanged, so
+   no record is proposed. Read on `main` and the open pull requests just before this claim: no other session had
+   claimed it.
 
 23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no
    warning and exit 0. Read it when present and exit 2 on a parse error; say plainly in its help and in the coding
