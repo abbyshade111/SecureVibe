@@ -1889,9 +1889,10 @@ fn run_checks(
         http,
         "private_page_checks",
         &[
-            "V3.4.3", "V3.4.4", "V3.4.5", "V3.4.6", "V7.4.4", "V14.2.2", "V14.3.2"
+            "V3.4.3", "V3.4.4", "V3.4.5", "V3.4.6", "V7.4.4", "V14.2.2", "V14.3.2", "V3.3.2",
+            "V3.3.4"
         ],
-        private_page_checks(http, users, &a, &mut out)
+        private_page_checks(http, users, &a, carried, &mut out)
     );
 
     // 5b. The same pages drawn in a real browser, when stackvet.toml asks for one, with A's
@@ -2308,6 +2309,8 @@ mod asked_tests;
 mod check_guard_tests;
 #[cfg(test)]
 mod fake_app;
+#[cfg(test)]
+mod page_cookie_tests;
 #[cfg(test)]
 mod resignup_tests;
 #[cfg(test)]
