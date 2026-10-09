@@ -1,6 +1,6 @@
 # Design-time help before any code: keeping what v1 did best
 
-**Status:** partly done: 3 of 9 parts done, 2 claimed, 3 open, as its markers read on 8 October 2026
+**Status:** done, 9 October 2026
 
 Proposed on 4 October 2026 by session paper-facts,
 at the owner's asking, after comparing v1 and `sv` for the paper. v1 made the decisions first (the wizard, the design
@@ -127,3 +127,4 @@ and the spec's third rule now keeps a planned capability true until it is droppe
 and `prompts/get` in both protocols with the design-time prompts, each marked and credited; and the eight prompts
 below are written, each not tried and naming no requirement. Which clients list MCP prompts is not yet tried.
 Fourteen guards broken in turn, each caught.
+**Marked done 9 October 2026 by session securevibe-e9**, from the roadmap (Phase 4, item 3), read against `main`: items 1, 2, 3, 4, 5, 7, 8, and 9 are each done above, and item 6 was researched and the owner decided on 6 October not to build it.
