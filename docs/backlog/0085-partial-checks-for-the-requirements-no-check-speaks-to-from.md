@@ -389,3 +389,17 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     The app's files only, as `config.mcp-server-unpinned` reads them; the AI coding tool's own are ADR-049's. The old
     SSE transport, and the running half, are not part of this. **Record, `Status: proposed`: ADR-068.** Checked just
     before this claim: not on `main`, in no open pull request, and in no recent branch.
+    **Done on 9 October 2026** (DESIGN, "An MCP link to another computer over plain HTTP (9 October 2026)"; ADR-068,
+    accepted). `config.mcp-transport-unencrypted` finds an `http://` address to another computer as an MCP client
+    transport's first argument or as an MCP server's `url` in the app's files, and never credits. Not done: the old
+    SSE transport over `https://`, and the running half.
+16. **V1.3.11: a line break and a `Bcc` header written into the address a reset is mailed to. Not verified.** From
+    `docs/PARTIAL-CHECKS.md`: the password-reset request sent with the account's address followed by a line break
+    and `Bcc: ` and an address of `sv`'s own, and the run's mail server read for that address.
+    **Claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please continue to work through and
+    pick up new items as you merge"), in branch `claude/mail-injection`: a finding when anything reaches `sv`'s
+    address; credited in part when the reset email reaches the account and nothing reaches `sv`'s address, since one
+    field and one kind of mail are tried; not assessed when no email is sent at all, which is what an app that finds
+    the account by its exact address does. Only after the reset check has shown its own email arriving. **Record,
+    `Status: proposed`: ADR-069.** Checked just before this claim: not on `main`, in no open pull request, and in no
+    recent branch.

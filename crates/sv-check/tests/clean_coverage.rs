@@ -1641,7 +1641,8 @@ fn languages_the_rule_reads_alike_share_one_phrase() {
         "a database query, sent through the usual database libraries' query calls, joined together \
          from text and values rather than sent with its values kept separate, in 1 go file (the \
          calls it reads: `Query`, `QueryRow`, `Exec`, `Prepare`, `QueryContext`, `QueryRowContext`, \
-         `ExecContext`, and `PrepareContext`), 2 python \
+         `ExecContext`, `PrepareContext`, `Raw`, `Where`, `Or`, `Not`, `Order`, `Group`, `Having`, \
+         `Joins`, `Select`, `Find`, `First`, `Last`, `Take`, `FirstOrInit`, and `FirstOrCreate`), 2 python \
          files (the calls it reads: `execute`, `executemany`, `executescript`, `raw`, `read_sql`, and \
          `read_sql_query`), and 1 ruby file (the calls it reads: `execute`, `exec_query`, \
          `find_by_sql`, `select_all`, `select_rows`, `select_values`, `where`, `rewhere`, `order`, \
