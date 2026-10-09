@@ -285,3 +285,7 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    library's, so the compiler holds the server to nothing of the command line; `main.rs` is 3,180 lines, from 5,039,
    the arguments, the commands, and the printing. Of item 12, only its third part (`Verified::new` logging the kind of
    run) is open, and it waits on a decision.
+   **Its third part, shrinking the mirror, not to be built**: the owner chose on 9 October 2026 to keep the mirror in
+   `tools/coverage.py`, held to the census as it is, rather than make `docs/COVERAGE.md` need a full test run ("agree,
+   keep the coverage mirror list held to the full test count"). The record is ADR-059, "Later, 9 October 2026". Recorded
+   by session securevibe-e2.
