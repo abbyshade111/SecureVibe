@@ -51,7 +51,7 @@ fn what_sv_says_to_do_next_is_outside_the_fence_and_names_its_own_tool() {
     let server = Server::new(&root).unwrap();
     for (tool, again) in [
         ("stackvet_check", "check again"),
-        ("stackvet_notes_file", "try again"),
+        ("stackvet_record_answer", "try again"),
         ("stackvet_preflight", "ask for the preflight again"),
     ] {
         let result = call(&server, tool, json!({ "path": "bare" }));
@@ -1410,7 +1410,7 @@ fn the_check_points_the_tool_at_the_questions_for_the_owner() {
     );
     assert!(
         text(&result).contains("QUESTIONS FOR THE OWNER")
-            && text(&result).contains("stackvet_questions"),
+            && text(&result).contains("stackvet_check again with section \"questions\""),
         "{}",
         text(&result)
     );
@@ -1438,8 +1438,8 @@ fn the_questions_are_asked_one_at_a_time_and_say_how_to_record_them() {
     let server = Server::new(&examples()).unwrap();
     let result = call(
         &server,
-        "stackvet_questions",
-        json!({ "path": "flask-booking" }),
+        "stackvet_check",
+        json!({ "path": "flask-booking", "section": "questions" }),
     );
     assert_eq!(result["isError"], false, "{}", text(&result));
     let t = text(&result);
@@ -1542,7 +1542,7 @@ fn the_guide_the_container_points_at_says_how_to_install_sv() {
 fn the_notes_file_is_made_in_the_app_and_keeps_what_is_written() {
     let root = scratch_app("notes", "tested-notes");
     let server = Server::new(&root).unwrap();
-    let first = call(&server, "stackvet_notes_file", json!({ "path": "app" }));
+    let first = call(&server, "stackvet_record_answer", json!({ "path": "app" }));
     let notes = root.join("app").join("security-notes.md");
     let made = std::fs::read_to_string(&notes).unwrap_or_default();
     // An answer written into it survives the next call.
@@ -1559,7 +1559,7 @@ fn the_notes_file_is_made_in_the_app_and_keeps_what_is_written() {
         let edited = made.replacen(sv_check::notes::PLACEHOLDER, answer, 1);
         std::fs::write(&notes, edited).unwrap();
     }
-    let second = call(&server, "stackvet_notes_file", json!({ "path": "app" }));
+    let second = call(&server, "stackvet_record_answer", json!({ "path": "app" }));
     let kept = std::fs::read_to_string(&notes).unwrap_or_default();
     std::fs::remove_dir_all(&root).ok();
     assert_eq!(first["isError"], false, "{}", text(&first));
@@ -1608,7 +1608,11 @@ fn a_check_made_by_hand_is_read_from_the_manifest_and_reported() {
     std::fs::write(&manifest, toml).unwrap();
     let server = Server::new(&root).unwrap();
     let result = call(&server, "stackvet_check", json!({ "path": "app" }));
-    let questions = call(&server, "stackvet_questions", json!({ "path": "app" }));
+    let questions = call(
+        &server,
+        "stackvet_check",
+        json!({ "path": "app", "section": "questions" }),
+    );
     std::fs::remove_dir_all(&root).ok();
     assert_eq!(result["isError"], false, "{}", text(&result));
     assert_eq!(
@@ -1638,7 +1642,7 @@ fn the_notes_file_is_not_written_through_a_link_out_of_the_app() {
     std::os::unix::fs::symlink(&outside, root.join("app").join("security-notes.md")).unwrap();
     // Served from the app folder, so the link's target is outside the root.
     let server = Server::new(&root.join("app")).unwrap();
-    let result = call(&server, "stackvet_notes_file", json!({}));
+    let result = call(&server, "stackvet_record_answer", json!({}));
     let after = std::fs::read_to_string(&outside).unwrap();
     std::fs::remove_dir_all(&root).ok();
     assert_eq!(result["isError"], true, "{}", text(&result));
@@ -1761,9 +1765,13 @@ fn every_structured_result_has_the_shape_its_tool_declares() {
     let question = first_question(&root.join("app"));
     let calls = [
         ("stackvet_check", json!({ "path": "app" })),
-        ("stackvet_questions", json!({ "path": "app" })),
+        // The questions, and the notes file, by the tools they were folded into (backlog 0187, part 10).
+        (
+            "stackvet_check",
+            json!({ "path": "app", "section": "questions" }),
+        ),
         ("stackvet_guidance", json!({ "path": "app" })),
-        ("stackvet_notes_file", json!({ "path": "app" })),
+        ("stackvet_record_answer", json!({ "path": "app" })),
         (
             "stackvet_record_answer",
             json!({ "path": "app", "id": question, "answer": TOOL_ANSWER }),
@@ -1787,9 +1795,10 @@ fn every_structured_result_has_the_shape_its_tool_declares() {
     // The bundle is written beside the app, inside the root, so this removes it too.
     std::fs::remove_dir_all(&root).ok();
     // Every tool is called above, so none is left unchecked.
+    let called: std::collections::BTreeSet<&str> = calls.iter().map(|(name, _)| *name).collect();
     assert_eq!(
         declared.len(),
-        calls.len(),
+        called.len(),
         "a tool is not called by this test"
     );
     for (name, result) in &results {
@@ -1823,7 +1832,6 @@ fn every_structured_result_has_the_shape_its_tool_declares() {
     for (name, list) in [
         ("stackvet_check", "notExamined"),
         ("stackvet_check", "claims"),
-        ("stackvet_questions", "questions"),
         ("stackvet_guidance", "rules"),
         ("stackvet_bundle", "leftOut"),
     ] {
@@ -1832,6 +1840,14 @@ fn every_structured_result_has_the_shape_its_tool_declares() {
             "{name}: {list} is empty"
         );
     }
+    // The questions, from the check asked for that section.
+    assert!(
+        results.iter().any(|(n, r)| *n == "stackvet_check"
+            && r["structuredContent"]["questions"]
+                .as_array()
+                .is_some_and(|q| !q.is_empty())),
+        "stackvet_check: no questions"
+    );
 }
 
 #[test]
@@ -1873,7 +1889,7 @@ fn each_declared_list_of_values_is_every_value_the_code_has() {
             .map(|c| serde_json::to_value(confidence(c)).unwrap())
             .to_vec())
     );
-    let questions = output_schema("stackvet_questions").unwrap();
+    let questions = output_schema("stackvet_check").unwrap();
     assert_eq!(
         questions["properties"]["questions"]["items"]["properties"]["route"]["enum"],
         all([
@@ -2679,7 +2695,10 @@ fn a_check_that_runs_out_of_time_says_nothing_was_assessed_and_the_server_goes_o
     // Every tool that checks the app goes through the limit.
     for (tool, args) in [
         ("stackvet_check", json!({ "path": "app" })),
-        ("stackvet_questions", json!({ "path": "app" })),
+        (
+            "stackvet_check",
+            json!({ "path": "app", "section": "questions" }),
+        ),
         ("stackvet_write_report", json!({ "path": "app" })),
         ("stackvet_bundle", json!({ "path": "app" })),
         ("stackvet_plan", json!({ "path": "app" })),
@@ -2965,7 +2984,7 @@ fn the_notes_tools_keep_the_owners_own_text_or_write_nothing() {
     );
     std::fs::write(&notes, &edited).unwrap();
 
-    let refreshed = call(&server, "stackvet_notes_file", json!({ "path": "app" }));
+    let refreshed = call(&server, "stackvet_record_answer", json!({ "path": "app" }));
     assert_eq!(refreshed["isError"], false, "{}", text(&refreshed));
     assert_eq!(refreshed["structuredContent"]["keptOutsideQuestions"], true);
     let after = std::fs::read_to_string(&notes).unwrap();
@@ -2994,7 +3013,7 @@ fn the_notes_tools_keep_the_owners_own_text_or_write_nothing() {
     bytes.extend_from_slice(b"\nOur caf\xE9 notes.\n");
     std::fs::write(&notes, &bytes).unwrap();
     for (tool, args) in [
-        ("stackvet_notes_file", json!({ "path": "app" })),
+        ("stackvet_record_answer", json!({ "path": "app" })),
         (
             "stackvet_record_answer",
             json!({ "path": "app", "id": other, "answer": "Another answer from the tool, long enough to count." }),
@@ -3027,7 +3046,11 @@ fn an_answer_the_tool_records_is_always_the_tools() {
     let answers = || sv_check::notes::read_answers(&catalog, &notes());
 
     // The questions tell the tool to record through this, and never to mark an answer the owner's.
-    let asked = call(&server, "stackvet_questions", json!({ "path": "app" }));
+    let asked = call(
+        &server,
+        "stackvet_check",
+        json!({ "path": "app", "section": "questions" }),
+    );
     let told = text(&asked)
         .split_whitespace()
         .collect::<Vec<_>>()
@@ -3323,9 +3346,7 @@ fn the_protocol_basics() {
             "stackvet_guidance",
             "stackvet_preflight",
             "stackvet_check",
-            "stackvet_questions",
             "stackvet_write_report",
-            "stackvet_notes_file",
             "stackvet_record_answer",
             "stackvet_explain",
             "stackvet_bundle",
@@ -3854,8 +3875,10 @@ fn the_apps_text_is_fenced_in_every_tools_result() {
     assert!(!text(&check).starts_with(INJECTION), "{}", text(&check));
     fenced_in(&check, INJECTION, "stackvet_check");
 
-    let questions = call(&server, "stackvet_questions", path.clone());
-    fenced_in(&questions, INJECTION, "stackvet_questions");
+    let mut asked = path.clone();
+    asked["section"] = json!("questions");
+    let questions = call(&server, "stackvet_check", asked);
+    fenced_in(&questions, INJECTION, "stackvet_check, section questions");
 
     let plan = call(&server, "stackvet_plan", path.clone());
     assert_eq!(plan["isError"], false, "{}", text(&plan));
@@ -3865,9 +3888,9 @@ fn the_apps_text_is_fenced_in_every_tools_result() {
     assert_eq!(report["isError"], false, "{}", text(&report));
     fenced_in(&report, INJECTION, "stackvet_write_report");
 
-    let notes = call(&server, "stackvet_notes_file", path.clone());
+    let notes = call(&server, "stackvet_record_answer", path.clone());
     assert_eq!(notes["isError"], false, "{}", text(&notes));
-    fenced_in(&notes, INJECTION, "stackvet_notes_file");
+    fenced_in(&notes, INJECTION, "stackvet_record_answer, the notes file");
 
     let id = first_question(&root.join(&app));
     let answer = call(
@@ -3936,8 +3959,14 @@ fn the_apps_text_cannot_close_its_fence_early() {
     assert!(toml.contains(&escape), "the name was not planted");
     std::fs::write(&manifest, toml).unwrap();
 
-    for tool in ["stackvet_check", "stackvet_questions"] {
-        let result = call(&server, tool, json!({ "path": app }));
+    for (tool, args) in [
+        ("stackvet_check", json!({ "path": app })),
+        (
+            "stackvet_check",
+            json!({ "path": app, "section": "questions" }),
+        ),
+    ] {
+        let result = call(&server, tool, args);
         assert_eq!(result["isError"], false, "{}", text(&result));
         let new = fence_tag(text(&result)).expect("a fenced result");
         assert_ne!(new, tag, "{tool}: the fence kept the tag the app holds");
@@ -4466,10 +4495,13 @@ fn a_long_check_comes_in_parts_under_the_budget_with_what_was_not_examined_first
 
     let first = text(&walked.first);
     let order: Vec<String> = pages_in(first).into_iter().map(|(s, _, _)| s).collect();
-    assert_eq!(
-        order[..3],
-        ["summary", "not-examined", "questions"],
-        "{first}"
+    assert_eq!(order[..2], ["summary", "not-examined"], "{first}");
+    // The questions only the person can answer come in full in their own section, after the findings
+    // in the first answer's order, and the list of parts names it with how many there are.
+    assert!(
+        first.contains("- `questions`: The ")
+            && first.contains("questions only the person can answer"),
+        "the list of parts names the questions: {first}"
     );
     assert!(
         order.contains(&"findings".to_owned()),
@@ -4619,7 +4651,7 @@ fn the_sections_offered_are_the_sections_answered() {
     let names = |sections: Vec<crate::parts::Section>| -> Vec<&'static str> {
         sections.iter().map(|s| s.name).collect()
     };
-    assert_eq!(names(check_sections(&report, &none)), CHECK_SECTIONS);
+    assert_eq!(names(check_sections(&report, &none, true)), CHECK_SECTIONS);
     let plan = crate::plan_for(&app, &report).unwrap();
     assert_eq!(
         names(crate::plan::sections_with(&plan, &none)),

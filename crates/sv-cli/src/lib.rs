@@ -1449,8 +1449,8 @@ pub fn write_notes(app_dir: &Path, record: Option<(&str, &str)>) -> Result<Notes
     };
     anyhow::ensure!(
         catalog.section(id).is_some() && applicable.contains(id),
-        "{id} is not one of the questions in {} for this app; stackvet_questions lists the ones \
-         that are",
+        "{id} is not one of the questions in {} for this app; stackvet_check lists the ones \
+         that are, in its section \"questions\"",
         catalog.file
     );
     let mut answers = existing

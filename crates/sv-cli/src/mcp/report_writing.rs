@@ -105,7 +105,7 @@ impl Server {
                 } else {
                     "It could not be sealed, so this server will not offer it as a report sv wrote."
                 },
-                summary_with(&report, fence)
+                summary_with(&report, fence, false)
             )
         });
         Ok(json!({

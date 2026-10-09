@@ -10,7 +10,7 @@ It makes a small app in a temporary folder, a copy of `examples/tested-notes` wi
 to git, and starts the image the way `.mcp.json` would (`docker run -i --rm --network none -v
 <folder>:<folder> <image> mcp --root <folder>`). Then, over MCP:
 
-- the thirteen tools are offered, and `stackvet_spec` answers;
+- the eleven tools are offered, and `stackvet_spec` answers;
 - `stackvet_prompts` gives the prompt library, each marked, so the prompts file is in the image;
 - `stackvet_guidance` gives the coding rules with their credit and license, so the rules file is in the image;
 - `stackvet_check` ran the committed-secrets check and found the `.env`. **This is asserted before
@@ -19,7 +19,8 @@ to git, and starts the image the way `.mcp.json` would (`docker run -i --rm --ne
   while proving nothing;
 - the same, run as root against a folder root does not own, which is what `safe.directory` is for:
   git refuses such a repository, and the check would then quietly be not assessed;
-- `stackvet_notes_file` writes into the owner's folder, as a file the owner owns;
+- `stackvet_record_answer`, asked for the notes file alone, writes it into the owner's folder, as a file the
+  owner owns;
 - `stackvet_bundle` writes a zip beside the app, as a file the owner owns, and the committed `.env` is not in it;
 - the container really has no network.
 
@@ -51,9 +52,7 @@ TOOLS = [
     "stackvet_guidance",
     "stackvet_preflight",
     "stackvet_check",
-    "stackvet_questions",
     "stackvet_write_report",
-    "stackvet_notes_file",
     "stackvet_record_answer",
     "stackvet_explain",
     "stackvet_bundle",
@@ -128,13 +127,13 @@ def main():
             ("tools/list", {}),
             ("tools/call", {"name": "stackvet_spec", "arguments": {}}),
             check_call,
-            ("tools/call", {"name": "stackvet_notes_file", "arguments": {"path": "app"}}),
+            ("tools/call", {"name": "stackvet_record_answer", "arguments": {"path": "app"}}),
             ("tools/call", {"name": "stackvet_bundle", "arguments": {"path": "app"}}),
             ("tools/call", {"name": "stackvet_guidance", "arguments": {"path": "app"}}),
             ("tools/call", {"name": "stackvet_prompts", "arguments": {}}),
         ])
         names = [t["name"] for t in replies[0]["result"]["tools"]]
-        check(names == TOOLS, f"thirteen tools offered: {names}")
+        check(names == TOOLS, f"eleven tools offered: {names}")
         prompts = replies[6]["result"]
         prompts_text = prompts["content"][0]["text"]
         check(prompts["isError"] is False and "**Shown to work, on " in prompts_text

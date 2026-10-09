@@ -1,6 +1,6 @@
 # From the architecture assessment of 8 October 2026: the four costs worth paying down
 
-**Status:** partly done: 5 of 12 parts done, 1 claimed, 5 open, as its markers read on 8 October 2026
+**Status:** done, 9 October 2026
 
 A read-only assessment of
 `sv`'s shape (the run harness, the MCP server, the check pipeline, the test suite and CI) made after the review of
@@ -297,3 +297,9 @@ owner's decision left to build), in branch `claude/stackvet-e9-tool-fold`: `stac
 `stackvet_notes_file` does, so the server lists eleven tools rather than thirteen; the two old names still answer as
 before, unlisted, and each answer names the tool to call instead; the guide, the README, and the tool counts
 follow. Read on `main` and the open pull requests just before this claim: no other session had claimed it.
+**Done the same day** (`docs/design/0343-two-mcp-tools-folded-into-others-the-questions-into-the.md`; ADR-066, Later,
+9 October 2026): the server lists eleven tools. `stackvet_check`'s section `questions` gives the questions in full, a
+page at a time, and its default answer gives them in full only when the whole check still fits, counting them as
+before when it would not; `stackvet_record_answer` with no id and no answer makes or refreshes the notes file. The two
+old names answer as before, unlisted, each ending with a line naming the tool to call instead. No date is set for
+taking them away.

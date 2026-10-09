@@ -430,7 +430,7 @@ or, for a tool configured with JSON:
 { "mcpServers": { "stackvet": { "command": "/path/to/sv", "args": ["mcp", "--root", "/home/you/code"] } } }
 ```
 
-It offers thirteen tools: `stackvet_spec` (the `stackvet.toml` to write), `stackvet_plan` (the plan for the
+It offers eleven tools: `stackvet_spec` (the `stackvet.toml` to write), `stackvet_plan` (the plan for the
 app from it, below), `stackvet_preflight` (what `sv run` will need, read from the code without running it),
 `stackvet_before` (one feature's brief before it is built, below), `stackvet_guidance` (the
 rules to follow while coding; see "Rules your AI coding tool follows while it codes" above),
@@ -439,15 +439,20 @@ work; `sv prompts`, or `sv prompts --requirement V1.2.4`, prints them at a termi
 work are also given in full at the end of `sv init`, `stackvet_spec`, and the server's opening instructions, since
 a prompt given where the tool starts did better than the same prompt fetched mid-build),
 `stackvet_check` (what
-applies, what was found, and first of all what was not examined), `stackvet_explain` (a requirement in
+applies, what was found, and first of all what was not examined; its section `questions` gives the questions only
+you can answer, for the tool to ask you one at a time), `stackvet_explain` (a requirement in
 its framework's own words; at a terminal, `sv explain V7.4.1` adds the checks that speak to it and the kind of run
 each needs, what to do about it, and, with `--app DIR`, what that app's last report said), `stackvet_write_report` (the full reports, into the app's folder),
-`stackvet_questions` (the questions only you can answer, for the tool to ask you one at a time), and
-`stackvet_notes_file` (the `security-notes.md` your written decisions go in), `stackvet_record_answer`
-(an answer written under one of those questions, always marked as the tool's own: once you have read it and agree,
-you change its `Written by:` line to `owner` yourself and record it with `sv review`), and `stackvet_bundle`
+`stackvet_record_answer`
+(an answer written under one of those questions in `security-notes.md`, the file your written decisions go in, which
+it makes if it is not there; always marked as the tool's own: once you have read it and agree, you change its
+`Written by:` line to `owner` yourself and record it with `sv review`), and `stackvet_bundle`
 (one zip beside the app, for you to keep or hand on; see "A zip to keep or hand on" above. A tool offers it when the report
 is written, if you want one).
+
+Until 9 October 2026 there were thirteen: `stackvet_questions` is now `stackvet_check`'s section `questions`, and
+`stackvet_notes_file` is `stackvet_record_answer` called with no question and no answer. An AI coding tool that
+still calls either old name gets the same answer, with a line naming the tool to call instead; neither is listed.
 
 A plan or a check too long for an AI coding tool to take in as one answer (over about 40,000 characters; Claude Code
 saves anything longer to a file instead of reading it) comes in parts. The first answer starts with what to act on:

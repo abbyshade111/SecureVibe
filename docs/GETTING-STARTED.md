@@ -116,7 +116,7 @@ message. Instead:
    path). VS Code fills in `${workspaceFolder}` with the open folder, so there is no path to type.
 4. Name it `stackvet`, and save it for the **Workspace** (this app only).
 5. In the `.vscode/mcp.json` it opens, click **Start** above `stackvet`. In the chat, the tools
-   button should now list the thirteen `stackvet_` tools.
+   button should now list the eleven `stackvet_` tools.
 
 The file it writes looks like this:
 
@@ -150,7 +150,7 @@ does not say so: it simply builds without it, and nothing gets checked. In the t
 
 > Which `stackvet_` tools can you call? List their names.
 
-It should list thirteen, among them `stackvet_spec` and `stackvet_check`. If it lists none, or says it
+It should list eleven, among them `stackvet_spec` and `stackvet_check`. If it lists none, or says it
 has no such tools, StackVet is not connected. Then, in this order: make sure Docker is running (step
 1); check the app folder's path in the settings file, in all three places; and restart the tool, since
 most read their MCP settings only when they start. In Claude Code, `/mcp` lists each server and
@@ -200,8 +200,9 @@ Open the app's folder in your AI tool and paste this, with your app described at
 >    it finds that is real. If a finding looks wrong, tell me instead of rewriting working code to
 >    make it go away.
 > 4. Never tell me the app is secure. Tell me what was checked and what was not.
-> 5. When the first version works, call `stackvet_questions` and ask me the questions one at a time.
->    Record only what I actually answer as mine.
+> 5. When the first version works, call `stackvet_check` with section `questions` and ask me the
+>    questions one at a time. Record my answers with `stackvet_record_answer`, and only what I
+>    actually answer as mine.
 
 More prompts like these, each for one thing StackVet checks, are in [the prompt library](PROMPTS.md).
 The ones shown to work are already given to your AI tool, at the end of the instructions it reads first, so you
