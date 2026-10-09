@@ -90,6 +90,10 @@ session on 8 October 2026 and closed at the owner's word the next day.
 backlog is worked off" (0222), "Test the weekly decision-record review from end to end" (0223), and "Mock-ups of the
 website: what stackvet.dev could look like and say" (0224). None of the three is taken while a phase above has an
 open item.
+**The owner's order of 9 October 2026, which comes first:** the record of the build loop (0006, finding 22(d),
+ADR-076), then "A deep review of sv for observability" (0226), then the website mock-ups (0224), which the owner
+asked to wait until the decisions made that day are built. The Cursor test (0222) waits for the owner, who is
+looking into what Cursor needs on their side.
 
 **Process, any time, each cheap:** "Process: shorter CI, a merge queue decision, and a nightly routine on `main`",
 and the owner's decision on "One file per backlog item, with a status line", which would make the status above a
