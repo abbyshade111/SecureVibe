@@ -219,3 +219,13 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    `requirements_for_tests` in `crates/sv-cli/src/assemble.rs` to `sv-frameworks`, beside `verification_class_for`,
    with tests of its own there. Nothing a report concludes changes. Confirmed on `main` just before this claim: the
    rule is still written inline in `assemble.rs`, it has no test of its own, and no other session holds this part.
+   **Its fifth part, the anonymous probes sent in one go, claimed 9 October 2026 by session securevibe-e9**, from the
+   roadmap (Phase 2, item 12, the next unclaimed part: the third waits on a decision, as securevibe-e2 noted, and the
+   fourth is theirs), in branch `claude/stackvet-e9-probes-in-one`. Not `probe_together` as it stands, which starts
+   every request at the same moment: that would change what the anonymous probes measure, since an app that falters
+   under thirty connections at once would be reported as crashing. Instead the anonymous requests go into the fence
+   in one call, as `probe_together`'s do, and are sent there one after another, in the same order, each waiting for
+   its answer, so the app sees what it saw before and the run pays for one container call rather than one each. A
+   rate limiter's answer is still waited out and the request sent again, alone, as now. Measured before and after
+   with Docker. Confirmed on `main` just before this claim: each anonymous request is its own container call
+   (`ask_anonymously_within`), and no other session holds this part.
