@@ -205,3 +205,22 @@ Sources: [Homebrew discussion 6482](https://github.com/orgs/Homebrew/discussions
 [sioyek issue 1666](https://github.com/ahrm/sioyek/issues/1666),
 [Apple developer forums thread 746992](https://developer.apple.com/forums/thread/746992),
 [Simon Willison, Homebrew formulas with GitHub Actions](https://til.simonwillison.net/homebrew/auto-formulas-github-actions).
+
+**The owner's decision, 9 October 2026: yes to Homebrew, and to the `homebrew-stackvet` repository; and "make sure
+there is support for Windows and Linux as well as Mac."** No Apple membership. Creating the repository from a
+session was refused by GitHub (the session's access cannot make repositories), so the owner makes it, empty and
+public, or the formula lives in this repository instead (Homebrew can tap any repository given its address, at the
+cost of fetching all of this one). What follows is the plan, each step claimed on its own:
+1. **The formula, Mac and Linux.** `Formula/sv.rb` builds `sv` from source with Rust as a build dependency and
+   installs the program with `data/` beside it in Homebrew's own folder, linking `bin/sv` to it; `sv` finds its data
+   through the link because it resolves the program's real place first (ADR-036). Homebrew runs on Linux as well, so
+   one formula serves both. Until the first release exists it builds the latest `main` (`brew install --HEAD`); a
+   stable version follows the signed releases (0191 part 4). It is tried in CI on a Mac runner and a Linux runner
+   (`brew install`, `brew test`, `brew audit`) before the guide mentions it.
+2. **Windows, found out first.** `sv` has never been built or run on Windows, and Homebrew does not run there. First a
+   CI job builds and tests `sv` on a Windows runner, to learn what breaks (paths, the `curl` that `sv probe` uses, the
+   container backend); its failures are fixed or written down. Only then a way to install it, Scoop or winget (both
+   free), chosen with what the job found. Until then the guide keeps saying plainly that Windows is untried, and that
+   the Docker route works wherever Docker Desktop does.
+3. **The guide** gains "Installing with Homebrew" for Mac and Linux once step 1 is green, and a Windows section once
+   step 2 is.
