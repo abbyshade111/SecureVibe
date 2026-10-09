@@ -43,12 +43,18 @@ pub struct App {
     pub summary: Result<Summary, String>,
     /// The runs kept for it when the person keeps history, oldest first; empty otherwise.
     pub runs: Vec<Run>,
+    /// Files in its history that could not be read as a run, said rather than passed over.
+    pub unread_runs: usize,
 }
 
 /// One run as history keeps it (ADR-057, "Keeping history safely" in `docs/DASHBOARD.md`): enough to
 /// say what changed and no more. Never code, a file's contents, a line of one, or a credential;
 /// a finding is its fingerprint, severity, rule, and `sv`'s own title for it.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+///
+/// Every field has a default, so a field added later does not make each older run unreadable and
+/// vanish from the page; a file with no `format` at all is not a run, and is counted as unread.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Run {
     /// The format of this record, so a later `sv` can tell an older one.
     pub format: u32,
@@ -309,8 +315,8 @@ fn chips(findings: &[(String, String)]) -> String {
 }
 
 /// Each kept run, newest first, set against the last earlier run it can be compared with.
-fn over_time(runs: &[Run]) -> String {
-    if runs.is_empty() {
+fn over_time(runs: &[Run], unread: usize) -> String {
+    if runs.is_empty() && unread == 0 {
         return String::new();
     }
     let mut b = String::from(
@@ -357,6 +363,17 @@ fn over_time(runs: &[Run]) -> String {
         b.push_str("</li>\n");
     }
     b.push_str("</ul>\n");
+    match unread {
+        0 => {}
+        1 => b.push_str(
+            "<p class=\"note\">One file in this app's history could not be read as a run, and is not \
+             shown: it may have been changed, or written by a later sv.</p>\n",
+        ),
+        n => b.push_str(&format!(
+            "<p class=\"note\">{n} files in this app's history could not be read as runs, and are not \
+             shown: they may have been changed, or written by a later sv.</p>\n"
+        )),
+    }
     b
 }
 
@@ -460,7 +477,7 @@ pub fn page(apps: &[App], written: &str) -> String {
                     }
                     b.push_str("</ul>\n");
                 }
-                b.push_str(&over_time(&app.runs));
+                b.push_str(&over_time(&app.runs, app.unread_runs));
                 if let Some(html) = &app.report_html {
                     b.push_str(&format!(
                         "<p><a href=\"{}\">Open the full report</a> for every requirement, one by one.</p>\n",
@@ -501,6 +518,9 @@ pub fn page(apps: &[App], written: &str) -> String {
     b.push_str("</section>\n</main>\n</body>\n</html>\n");
     b
 }
+
+#[cfg(test)]
+mod unread_tests;
 
 #[cfg(test)]
 mod tests {

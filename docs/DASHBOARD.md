@@ -145,6 +145,9 @@ What could go wrong, and what the recommendation does about each:
   got worse.
 - **Which app is which.** An app is known by its folder, so a moved or renamed folder starts a new history, and the page
   says when an app's history begins.
+- **A run that cannot be read.** A kept file that does not read as a run (changed by hand, or written by a later `sv`)
+  is counted, and the page says how many it could not show, rather than showing fewer runs and saying nothing. A run
+  written before a field was added still reads: every field has a default.
 
 The list of every app on this computer comes from the same place: an app is on it once a run of it has been kept.
 Without history, `sv dashboard` can still be given the app folders to show, and reads each one's latest report.
