@@ -53,7 +53,7 @@ jobs:
           grep -q "Read " check.txt || { echo "::error title=sv check::sv check on examples/flask-booking did not read the app"; exit 1; }
       - name: The whole test suite
         run: |
-          cargo test --workspace --no-fail-fast > suite.txt 2>&1 && status=0 || status=$?
+          CARGO_TERM_COLOR=never cargo test --workspace --no-fail-fast > suite.txt 2>&1 && status=0 || status=$?
           passed=$(awk '/^test result/{p+=$4} END{print p+0}' suite.txt)
           failed=$(awk '/^test result/{f+=$6} END{print f+0}' suite.txt)
           groups=$(grep -c '^test result' suite.txt || true)
@@ -64,6 +64,10 @@ jobs:
           if ! grep -q '^test result' suite.txt; then
             tr -d '\r' < suite.txt | awk '/^error/{n++} n>0 && n<=20 {print}' | awk 'BEGIN{RS="\nerror"} NR<=20 {gsub(/\n/," | "); print "error" $0}' | sed 's/^errorerror/error/' | while read -r line; do
               echo "::error title=Tests did not build on Windows::${line:0:900}"
+            done
+            # Whatever the form of the failure, its last lines, one annotation each.
+            tr -d '\r' < suite.txt | sed 's/\x1b\[[0-9;]*m//g' | grep -v '^\s*$' | tail -25 | while read -r line; do
+              echo "::warning title=Last lines before it stopped::${line:0:900}"
             done
           fi
           tail -60 suite.txt
