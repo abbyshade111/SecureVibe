@@ -120,6 +120,8 @@ evidence-tier rule without its number), and ADR-012 is also cited by number in `
 | [ADR-074](ADR-074.md) | Why a caught prompt injection was stopped, written down with it (C12.1.2, in part) |
 | [ADR-075](ADR-075.md) | A tool action the AI took, written down with its argument (C12.4.2, in part) (proposed) |
 | [ADR-076](ADR-076.md) | The build loop written down as it happens, and the report saying what it shows (proposed) |
+| [ADR-077](ADR-077.md) | The readers of untrusted input fuzzed weekly, apart from the workspace and the tests (proposed) |
+| [ADR-078](ADR-078.md) | CodeQL for Ruby, and for Java only where it reads the code without building it or reaching the network (proposed) |
 
 ## Where v1's records disagree with what v1 built
 
