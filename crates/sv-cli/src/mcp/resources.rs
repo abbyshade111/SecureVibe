@@ -47,8 +47,15 @@ impl Server {
                     "description": format!(
                         "{} A report sv wrote on this computer, sealed when it was written and \
                          unchanged since; it describes the app as it was when written, not \
-                         necessarily as it is now. {REPORT_QUOTES_THE_APP}",
-                        report_file_description(name)
+                         necessarily as it is now. {REPORT_QUOTES_THE_APP} {}",
+                        report_file_description(name),
+                        if fenced_when_read(name) {
+                            "Read, it comes back whole between <app-text-…> tags named for that \
+                             reading, with what they mean said first."
+                        } else {
+                            "Read, it comes back exactly as written, for a program to parse, \
+                             with no tags; the app's text is inside it all the same."
+                        }
                     ),
                     "mimeType": mime,
                     "size": meta.len(),
@@ -133,6 +140,13 @@ impl Server {
         }
         let text = String::from_utf8(bytes)
             .map_err(|_| not_found("it is not text, so sv did not write it"))?;
+        // Read back, a report is the app's text as much as a tool's result is, and is fenced as one
+        // is; the files a program parses are handed over as written (ADR-066, Later, 9 October 2026).
+        let text = if fenced_when_read(name) {
+            sv_report::fence::fenced_block(&text)
+        } else {
+            text
+        };
         Ok(json!({
             "contents": [{
                 "uri": file_uri(&path).unwrap_or_else(|| uri.to_owned()),
@@ -179,6 +193,12 @@ pub(super) fn report_folders(dir: &Path, depth: usize, found: &mut Vec<PathBuf>)
     for sub in below {
         report_folders(&sub, depth + 1, found);
     }
+}
+
+/// Whether a report file comes back between tags when read: the page and the two Markdown files,
+/// which a model reads, and not the JSON and SARIF, which a program parses and tags would break.
+pub(super) fn fenced_when_read(name: &str) -> bool {
+    name.ends_with(".md") || name.ends_with(".html")
 }
 
 /// What each report file is, for a person or a model choosing which to open.

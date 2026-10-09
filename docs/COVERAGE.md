@@ -340,7 +340,7 @@ none of them. Most are `sv`'s own checks: rules that read the code, and question
 running app (`--run`, with an `ai` section). The rest are semgrep's and CodeQL's, and need `--tools`.
 
 - C2.1.2: checked in part only, by `probe.ai-hidden-input`.
-- C2.1.3: settled by `probe.ai-injection-unscreened`.
+- C2.1.3: settled by `probe.ai-injection-unscreened`; and found failing by sv's `probe.ai-stored-injection-unscreened`.
 - C2.1.4: found failing by sv's `probe.ai-input-truncated`.
 - C2.1.5: found failing by sv's `probe.ai-input-charset-unrestricted`.
 - C2.1.6: found failing by codeql-javascript's `js/system-prompt-injection`.
