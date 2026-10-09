@@ -447,3 +447,6 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     guessed addresses cannot show that no log is served. The static half (a log handler writing into a served
     folder) is not part of this. **Record, `Status: proposed`: ADR-072.** Checked just before this claim: not on
     `main`, in no open pull request, and in no recent branch.
+    **Done on 9 October 2026** (DESIGN, "The app's log files served to anybody who asks (9 October 2026)"; ADR-072,
+    accepted). `probe.log-file-served` asks for nine common log addresses, not signed in, and finds one answered with
+    lines that read as a log; it never credits. Not done: the static half, and whether a log can be modified.
