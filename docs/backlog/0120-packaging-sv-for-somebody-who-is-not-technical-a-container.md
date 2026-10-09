@@ -224,3 +224,8 @@ cost of fetching all of this one). What follows is the plan, each step claimed o
    the Docker route works wherever Docker Desktop does.
 3. **The guide** gains "Installing with Homebrew" for Mac and Linux once step 1 is green, and a Windows section once
    step 2 is.
+
+**Step 2 begun 9 October 2026 by session securevibe-e2:** `.github/workflows/windows.yml` builds `sv` on Windows,
+checks an example app with it, and runs the whole suite, reporting each failing test as an annotation (ADR-051,
+Later). Not required; what it finds is written here as it is fixed or explained.
+
