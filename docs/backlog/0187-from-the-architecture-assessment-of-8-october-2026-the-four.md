@@ -259,3 +259,14 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    `in_turn_script` take the anonymous questions into the fence in one call and send them there one after another;
    from the first rate limiter's answer on, each is asked alone as before. The fence test that sends the fixed suite
    took about 6.6 seconds and takes about 2.3, measured with Docker. The rest of item 12 is open.
+   **Its last part, the library move, claimed 9 October 2026 by session securevibe-e9**, from the roadmap (Phase 2,
+   item 12, the last part, which the roadmap puts after the rest; items 3 and 4 are done, and the third part waits on
+   a decision), as the roadmap asks, in short pull requests, each landed before the next, each moving code and not
+   changing what any command prints or writes, with the verdict snapshots as the witness:
+   (1) `sv-cli` gains a library (`src/lib.rs`) holding the report's assembly (`assemble.rs`, `static_scan.rs`),
+   `Loaded`, and `ReportOptions`, with what they take from `main.rs` given its own place and the stage results named
+   and public (`StaticScan`, `Advisories`, `RunningApp`, `PersonsWord`, and the report put together); `main.rs` and
+   the MCP server call it; (2) the plan, the brief, the preflight, and the bundle the same way, so `main.rs` is the
+   arguments and the printing; (3) the MCP server's tools calling the library, nothing of the CLI. Branches
+   `claude/stackvet-e9-library-1` and on. Confirmed on `main` just before this claim: `sv-cli` has no library target,
+   `assemble.rs` reads everything in `main.rs` (`use super::*`), and no other session holds this part.
