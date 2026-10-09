@@ -31,9 +31,22 @@ fn places(program: Option<&Path>, built: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     if let Some(folder) = program.and_then(Path::parent) {
         out.push(folder.join("data"));
-        // Where `tools/install.sh` puts it, and where it put it before the rename (ADR-062).
-        out.push(folder.join(format!("../share/{}/data", crate::names::CONFIG_DIR)));
-        out.push(folder.join(format!("../share/{}/data", crate::names::OLD_CONFIG_DIR)));
+        // Where `tools/install.sh` puts it, and where it put it before the rename (ADR-062). Joined
+        // part by part, so each place is named in its system's own form, `\` on Windows.
+        out.push(
+            folder
+                .join("..")
+                .join("share")
+                .join(crate::names::CONFIG_DIR)
+                .join("data"),
+        );
+        out.push(
+            folder
+                .join("..")
+                .join("share")
+                .join(crate::names::OLD_CONFIG_DIR)
+                .join("data"),
+        );
     }
     out.push(built.to_path_buf());
     out
@@ -184,8 +197,14 @@ mod tests {
         let found = find(None, Some(&root.join("bin/sv")), &root.join("built"));
         std::fs::remove_dir_all(&root).ok();
         let why = found.unwrap_err();
-        for place in ["bin/data", "share/securevibe/data", "built"] {
-            assert!(why.contains(place), "{place} not named: {why}");
+        for place in [
+            Path::new("bin").join("data"),
+            Path::new("share").join("securevibe").join("data"),
+            Path::new("share").join("stackvet").join("data"),
+            PathBuf::from("built"),
+        ] {
+            let place = place.display().to_string();
+            assert!(why.contains(&place), "{place} not named: {why}");
         }
     }
 }

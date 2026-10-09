@@ -277,3 +277,15 @@ refuses it as an "invalid spec", and wrote it into the history. Every real place
 `sv_frameworks::paths::canonical`, which gives the short form wherever it names the same place, and a test fails on
 any other way of asking. With Linux containers on a Windows computer, which the runner does not have, none of this has
 been tried yet.
+Seventh Windows finding, the same day: with Linux containers said for what they are, the run on the containers pull
+request gave 2,681 passed and 25 failed, from 52 after the line endings and 65 before either. The paths group is
+next, and four of its failures were faults of `sv`'s, not of the tests. The MCP server's links to a report
+(`file://`) were written as `file://C%3A%5C...`, which no AI coding tool reads as a file, and none could be read back;
+they are now `file:///C:/...` and `file://server/share/...`, as RFC 8089 writes them, tested on every system.
+A report's name in the MCP server's list read `app\a/report.json`; its parts are now joined by `/` everywhere.
+The documentation pages wrote `\` into their links, because `tools/docs_page.py` built web addresses with the
+system's path rules. History kept a run under the folder as typed, so on every system `sv report .` kept every
+app's runs under one `.`, where `sv history forget` and the dashboard never found them; it is now kept under the
+app's real place (ADR-057, Later). The rest were tests that used names Windows refuses (a `:` or a `"`), made a
+link only Unix can make without a privilege, or expected `/` in a path Windows writes with `\`; each now uses
+what the system allows, with the reason beside it, and still runs whole on macOS and Linux.
