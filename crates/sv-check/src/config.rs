@@ -85,6 +85,7 @@ pub fn check_dir_in(
     crate::cert_checks::check(listing, &mut report);
     crate::ai_tool::hidden_characters(listing, &mut report);
     crate::rich_text::check(listing, bill_of_materials, &mut report);
+    crate::client_tech::check(listing, bill_of_materials, &mut report);
     crate::grants::check(listing, bill_of_materials, &mut report);
     crate::hosted_rules::check(listing, &mut report);
     crate::public_keys::check(listing, &mut report);

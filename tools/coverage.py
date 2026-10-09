@@ -76,6 +76,7 @@ RUST_CHECKS = {
     "config.mcp-server-unpinned": ("static", ["C10.1.1"]),
     "config.mcp-transport-unencrypted": ("static", ["C10.3.1"]),
     "config.rich-text-without-sanitizer": ("static", ["V1.3.1"]),
+    "config.client-tech-unsupported": ("static", ["V3.7.1"]),
     "config.retired-grant-enabled": ("static", ["V10.4.4"]),
     "config.model-file-can-run-code": ("static", ["C4.1.2"]),
     "config.certificate-checks-off": ("static", ["V12.3.2", "V12.3.4"]),
@@ -269,6 +270,8 @@ RUST_CHECKS = {
 # Checks in RUST_CHECKS that only ever raise their requirement as a finding: a clean run of one
 # credits nothing, because what would settle the requirement is not in anything the check reads.
 RUST_FINDINGS_ONLY = {
+    # No list of what a page loads is complete, so finding none shows nothing (ADR-070).
+    "config.client-tech-unsupported",
     # An `https://` address shows neither that the link is authenticated nor that it is the only one
     # (ADR-068).
     "config.mcp-transport-unencrypted",
