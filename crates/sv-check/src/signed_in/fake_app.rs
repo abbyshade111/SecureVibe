@@ -777,7 +777,7 @@ impl FakeApp {
                 .get(field)
                 .and_then(|v| v.as_str())
                 .and_then(|url| url.strip_prefix(FAKE_MODEL))
-                .and_then(|path| path.strip_prefix("/_sv/keys/"));
+                .and_then(|path| path.strip_prefix(crate::stand_in::KEYS));
             if let Some(tag) = tag.filter(|_| self.model_up) {
                 self.model_fetched.insert(tag.to_owned());
             }
@@ -1066,7 +1066,7 @@ impl Http for FakeApp {
         if !self.model_up {
             return None;
         }
-        let tag = r.path.strip_prefix("/_sv/fetched/")?;
+        let tag = r.path.strip_prefix(crate::stand_in::FETCHED)?;
         Some(ProbeResponse {
             id: r.id.clone(),
             status: 200,

@@ -312,9 +312,9 @@ impl FakeChat {
     fn model_reply(&mut self, message: &str) -> String {
         // Every marker, as the test model reads them; the last decides the reply.
         let marks: Vec<(String, String)> = message
-            .match_indices("SV-PROBE-")
+            .match_indices(crate::stand_in::MARKER)
             .filter_map(|(at, _)| {
-                let (kind, rest) = message[at + "SV-PROBE-".len()..].split_once('-')?;
+                let (kind, rest) = message[at + crate::stand_in::MARKER.len()..].split_once('-')?;
                 let tag: String = rest.chars().take_while(char::is_ascii_hexdigit).collect();
                 (!tag.is_empty()).then(|| (kind.to_owned(), tag))
             })
@@ -764,9 +764,9 @@ impl FakeChat {
                 reply = "That reply was withheld.".into();
             }
         }
-        if reply.contains("/_sv/exfil/") && self.flaws.fetches_images {
+        if reply.contains(crate::stand_in::EXFIL) && self.flaws.fetches_images {
             let tag = reply
-                .split("/_sv/exfil/")
+                .split(crate::stand_in::EXFIL)
                 .nth(1)
                 .and_then(|r| r.split('.').next())
                 .unwrap()
@@ -925,7 +925,7 @@ impl Http for FakeChat {
         if self.flaws.no_model {
             return None;
         }
-        if r.path == "/_sv/health" && self.flaws.model_unhealthy {
+        if r.path == crate::stand_in::HEALTH && self.flaws.model_unhealthy {
             return Some(ProbeResponse {
                 id: r.id.clone(),
                 status: 503,
@@ -933,10 +933,10 @@ impl Http for FakeChat {
                 body: String::new(),
             });
         }
-        let body = if r.path == "/_sv/health" {
+        let body = if r.path == crate::stand_in::HEALTH {
             "{\"ok\":true}".to_owned()
         } else {
-            let tag = r.path.trim_start_matches("/_sv/seen/");
+            let tag = r.path.trim_start_matches(crate::stand_in::SEEN);
             if self.flaws.loop_in_background > 0
                 && let Some(rounds) = self.rounds.get_mut(tag)
             {

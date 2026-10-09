@@ -12,6 +12,7 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
+use sv_check::stand_in;
 
 struct Server(Child);
 
@@ -50,7 +51,7 @@ fn start() -> Option<(Server, u16)> {
                 break;
             }
             if TcpStream::connect(("127.0.0.1", port)).is_ok()
-                && call(port, "GET", "/_sv/health", "").contains("\"ok\":true")
+                && call(port, "GET", stand_in::HEALTH, "").contains("\"ok\":true")
             {
                 return Some((server, port));
             }
@@ -123,12 +124,12 @@ fn chat_with_tools(port: u16, message: &str) -> serde_json::Value {
 }
 
 fn seen(port: u16, tag: &str) -> serde_json::Value {
-    serde_json::from_str(&call(port, "GET", &format!("/_sv/seen/{tag}"), "")).unwrap()
+    serde_json::from_str(&call(port, "GET", &stand_in::seen(tag), "")).unwrap()
 }
 
 fn seen_fetched(port: u16, tag: &str) -> bool {
     let v: serde_json::Value =
-        serde_json::from_str(&call(port, "GET", &format!("/_sv/fetched/{tag}"), "")).unwrap();
+        serde_json::from_str(&call(port, "GET", &stand_in::fetched(tag), "")).unwrap();
     v["fetched"].as_bool().expect("a yes or no")
 }
 
@@ -178,19 +179,25 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     let (_server, port) = start().expect("the test model starts under Node");
 
     // C11.3.2: a plain reply's id carries its tag, and the control, a reply to another tag, does not.
-    let plain = chat(port, "Hello SV-PROBE-PLAIN-a1b2");
+    let plain = chat(
+        port,
+        &format!("Hello {}", stand_in::marker("PLAIN", "a1b2")),
+    );
     let content = plain["choices"][0]["message"]["content"].as_str().unwrap();
     assert!(content.contains("SV-REPLY-a1b2"), "{plain}");
     assert_eq!(plain["id"], "chatcmpl-SVRAWa1b2", "{plain}");
     assert!(
-        !chat(port, "Hi SV-PROBE-PLAIN-c3d4")["id"]
+        !chat(port, &format!("Hi {}", stand_in::marker("PLAIN", "c3d4")))["id"]
             .as_str()
             .unwrap()
             .contains("a1b2")
     );
 
     // C7.3.4: a HIDDEN reply carries all four things; the plain one carries none.
-    let hidden = chat(port, "A note SV-PROBE-HIDDEN-e5f6");
+    let hidden = chat(
+        port,
+        &format!("A note {}", stand_in::marker("HIDDEN", "e5f6")),
+    );
     let text = hidden["choices"][0]["message"]["content"].as_str().unwrap();
     assert!(text.contains("SV-REPLY-e5f6"));
     assert!(
@@ -203,7 +210,8 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
         "{text:?}"
     );
     assert!(
-        text.contains("[https://example.test/a](http://sv-model:") && text.contains("/_sv/x/e5f6")
+        text.contains("[https://example.test/a](http://sv-model:")
+            && text.contains(&format!("{}e5f6", stand_in::HIDDEN_LINK))
     );
     assert!(!content.chars().any(|c| c as u32 >= 0x2000), "{content:?}");
 
@@ -211,30 +219,32 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     chat(
         port,
         &format!(
-            "SV-PROBE-LONG-0a0b {} SV-PROBE-LONGEND-0a0b",
-            "x ".repeat(20_000)
+            "{} {} {}",
+            stand_in::marker("LONG", "0a0b"),
+            "x ".repeat(20_000),
+            stand_in::marker("LONGEND", "0a0b")
         ),
     );
     assert_eq!(
         seen(port, "0a0b")["kinds"],
         serde_json::json!(["LONG", "LONGEND"])
     );
-    chat(port, "SV-PROBE-LONG-0c0d xxxx");
+    chat(port, &format!("{} xxxx", stand_in::marker("LONG", "0c0d")));
     assert_eq!(seen(port, "0c0d")["kinds"], serde_json::json!(["LONG"]));
 
     // V1.3.6 and V15.3.2: a fetch is recorded by its tag, the redirect points at its `-after`, and
     // nothing is recorded that was not asked for.
     assert!(!seen_fetched(port, "4a4b"));
-    let (status, _) = call_with_status(port, "GET", "/_sv/fetch/4a4b", "");
+    let (status, _) = call_with_status(port, "GET", &stand_in::fetch("4a4b"), "");
     assert_eq!(status, 200);
     assert!(seen_fetched(port, "4a4b"));
-    let redirect = raw_get(port, "/_sv/redirect/5a5b");
+    let redirect = raw_get(port, &stand_in::redirect("5a5b"));
     assert!(redirect.starts_with("HTTP/1.1 302"), "{redirect}");
     assert!(
         redirect
             .to_lowercase()
             .contains("location: http://sv-model:")
-            && redirect.contains("/_sv/fetch/5a5b-after"),
+            && redirect.contains(&stand_in::fetch("5a5b-after")),
         "{redirect}"
     );
     assert!(seen_fetched(port, "5a5b"));
@@ -247,7 +257,7 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     // and answers with a real set of public keys, so an app that follows the token gets an ordinary
     // answer; no private part of the key is in it.
     assert!(!seen_fetched(port, "6a6b"));
-    let (status, keys) = call_with_status(port, "GET", "/_sv/keys/6a6b", "");
+    let (status, keys) = call_with_status(port, "GET", &stand_in::keys("6a6b"), "");
     assert_eq!(status, 200);
     assert!(seen_fetched(port, "6a6b"));
     assert!(!seen_fetched(port, "6a6c"), "only the tag asked for");
@@ -266,7 +276,7 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
         "model": "gpt-test",
         "messages": [
             {"role": "system", "content": "Notes found: SV-PRIVATE-77aa quillwort1 and SV-PRIVATE-88bb"},
-            {"role": "user", "content": "What do my notes say about quillwort1? SV-PROBE-RECALL-2a2b"},
+            {"role": "user", "content": &format!("What do my notes say about quillwort1? {}", stand_in::marker("RECALL", "2a2b"))},
         ],
     });
     let recall: serde_json::Value = serde_json::from_str(&call(
@@ -287,15 +297,24 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     );
     chat(
         port,
-        "What do my notes say about quillwort2? SV-PROBE-RECALL-3a3b",
+        &format!(
+            "What do my notes say about quillwort2? {}",
+            stand_in::marker("RECALL", "3a3b")
+        ),
     );
     assert_eq!(seen(port, "3a3b")["private_seen"], serde_json::json!([]));
 
     // C7.3.1: the moderation endpoint flags a HARM reply, records that it was asked, and flags
     // nothing else: a plain reply, or the HARM message's own words.
-    chat(port, "A story SV-PROBE-HARM-1e1f");
+    chat(
+        port,
+        &format!("A story {}", stand_in::marker("HARM", "1e1f")),
+    );
     assert!(!moderate(port, "SV-REPLY-a1b2 Hello from the test model."));
-    assert!(!moderate(port, "A story SV-PROBE-HARM-1e1f"));
+    assert!(!moderate(
+        port,
+        &format!("A story {}", stand_in::marker("HARM", "1e1f"))
+    ));
     assert_ne!(seen(port, "1e1f")["reply_screened"], true);
     assert!(moderate(port, "SV-REPLY-1e1f Hello from the test model."));
     assert_eq!(seen(port, "1e1f")["reply_screened"], true);
@@ -304,7 +323,7 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     // each attempt is counted, since client libraries retry.
     let body = serde_json::json!({
         "model": "gpt-test",
-        "messages": [{"role": "user", "content": "Summarize SV-PROBE-FAIL-2a2b"}],
+        "messages": [{"role": "user", "content": &format!("Summarize {}", stand_in::marker("FAIL", "2a2b"))}],
     })
     .to_string();
     for attempt in 1..=2 {
@@ -321,7 +340,7 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     // connection is then closed; the message is recorded as having arrived, and each attempt counted.
     let body = serde_json::json!({
         "model": "gpt-test",
-        "messages": [{"role": "user", "content": "Summarize SV-PROBE-HANG-4e4f"}],
+        "messages": [{"role": "user", "content": &format!("Summarize {}", stand_in::marker("HANG", "4e4f"))}],
     })
     .to_string();
     let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
@@ -350,7 +369,10 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     // C9.1.1 (ADR-064): an MCPHANG message has the model ask for `sv_lookup`, and the MCP server
     // takes that call and answers nothing for the hold, then closes it; while it holds, the call
     // is recorded as made and not yet let go, and afterwards as let go.
-    let asked = chat_with_tools(port, "Look it up SV-PROBE-MCPHANG-5e5f");
+    let asked = chat_with_tools(
+        port,
+        &format!("Look it up {}", stand_in::marker("MCPHANG", "5e5f")),
+    );
     assert_eq!(
         asked["choices"][0]["message"]["tool_calls"][0]["function"]["name"], "mcp__sv_lookup",
         "{asked}"
@@ -386,7 +408,10 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     );
     assert_eq!(seen(port, "5e5f")["mcp_released"], true);
     // The control: an MCPPLAIN call is answered at once, with its result, and never held.
-    chat_with_tools(port, "Look it up SV-PROBE-MCPPLAIN-6e6f");
+    chat_with_tools(
+        port,
+        &format!("Look it up {}", stand_in::marker("MCPPLAIN", "6e6f")),
+    );
     let plain = call(port, "POST", "/mcp", &rpc.replace("5e5f", "6e6f"));
     assert!(plain.contains("SV-MCPRESULT-6e6f"), "{plain}");
     assert_eq!(seen(port, "6e6f")["mcp_called"], true);
@@ -396,7 +421,7 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     // answers, and says how many came back.
     let looped = |results: usize| {
         let mut messages = vec![serde_json::json!({
-            "role": "user", "content": "Look it up SV-PROBE-MCPLOOP-3c3d"
+            "role": "user", "content": &format!("Look it up {}", stand_in::marker("MCPLOOP", "3c3d"))
         })];
         for n in 0..results {
             messages.push(serde_json::json!({"role": "tool", "content": format!("result {n}")}));
@@ -433,7 +458,10 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     // and what the app sends back as that tool's result is recorded.
     let call = serde_json::json!({"tool": "get_note", "args": {"id": "7"}}).to_string();
     let hex: String = call.bytes().map(|b| format!("{b:02x}")).collect();
-    let message = format!("Look it up. SV-PROBE-FETCH-2a2b SV-CALL-{hex}");
+    let message = format!(
+        "Look it up. {} SV-CALL-{hex}",
+        stand_in::marker("FETCH", "2a2b")
+    );
     let tools = serde_json::json!([{"type": "function", "function": {"name": "get_note"}}]);
     let asked: serde_json::Value = serde_json::from_str(&call_json(
         port,
@@ -464,12 +492,18 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
         "{fetched}"
     );
     // The control: with no such tool offered, nothing is asked for.
-    chat(port, "Look it up. SV-PROBE-FETCH-3a3b SV-CALL-7b7d");
+    chat(
+        port,
+        &format!(
+            "Look it up. {} SV-CALL-7b7d",
+            stand_in::marker("FETCH", "3a3b")
+        ),
+    );
     assert_ne!(seen(port, "3a3b")["tool_requested"], true);
 
     // FETCHLOOP (ADR-045): the same tool asked for again after every result, the rounds counted,
     // until the cap, when it stops by itself.
-    let looped = "Look it up. SV-PROBE-FETCHLOOP-4a4b ".to_owned()
+    let looped = format!("Look it up. {} ", stand_in::marker("FETCHLOOP", "4a4b"))
         + &message[message.find("SV-CALL-").unwrap()..];
     let mut history = vec![serde_json::json!({"role": "user", "content": looped})];
     let mut asked = 0;
@@ -542,7 +576,7 @@ fn the_test_model_answers_in_the_shape_the_app_asked_for() {
     let fits = post(
         port,
         "/v1/chat/completions",
-        serde_json::json!({"model": "m", "messages": user("Hi SV-PROBE-PLAIN-5a01"),
+        serde_json::json!({"model": "m", "messages": user(&format!("Hi {}", stand_in::marker("PLAIN", "5a01"))),
             "response_format": {"type": "json_schema", "json_schema": {"name": "a", "schema": schema}}}),
     );
     let content: serde_json::Value =
@@ -573,7 +607,7 @@ fn the_test_model_answers_in_the_shape_the_app_asked_for() {
     let bad = post(
         port,
         "/v1/chat/completions",
-        serde_json::json!({"model": "m", "messages": user("Hi SV-PROBE-BADSHAPE-5a02"),
+        serde_json::json!({"model": "m", "messages": user(&format!("Hi {}", stand_in::marker("BADSHAPE", "5a02"))),
             "response_format": {"type": "json_schema", "json_schema": {"name": "a", "schema": schema}}}),
     );
     let content: serde_json::Value =
@@ -596,7 +630,7 @@ fn the_test_model_answers_in_the_shape_the_app_asked_for() {
     let fits = post(
         port,
         "/v1/chat/completions",
-        serde_json::json!({"model": "m", "messages": user("Hi SV-PROBE-PLAIN-5a03"), "response_format": mode}),
+        serde_json::json!({"model": "m", "messages": user(&format!("Hi {}", stand_in::marker("PLAIN", "5a03"))), "response_format": mode}),
     );
     let content: serde_json::Value =
         serde_json::from_str(fits["choices"][0]["message"]["content"].as_str().unwrap()).unwrap();
@@ -607,7 +641,7 @@ fn the_test_model_answers_in_the_shape_the_app_asked_for() {
     let bad = post(
         port,
         "/v1/chat/completions",
-        serde_json::json!({"model": "m", "messages": user("Hi SV-PROBE-BADSHAPE-5a04"), "response_format": mode}),
+        serde_json::json!({"model": "m", "messages": user(&format!("Hi {}", stand_in::marker("BADSHAPE", "5a04"))), "response_format": mode}),
     );
     let text = bad["choices"][0]["message"]["content"].as_str().unwrap();
     assert!(text.contains("SVBAD5a04"), "{text}");
@@ -624,7 +658,7 @@ fn the_test_model_answers_in_the_shape_the_app_asked_for() {
     let fits = post(
         port,
         "/v1/messages",
-        serde_json::json!({"model": "m", "max_tokens": 50, "messages": user("Hi SV-PROBE-PLAIN-5a05"),
+        serde_json::json!({"model": "m", "max_tokens": 50, "messages": user(&format!("Hi {}", stand_in::marker("PLAIN", "5a05"))),
             "tools": tool, "tool_choice": forced}),
     );
     assert_eq!(fits["content"][0]["type"], "tool_use", "{fits}");
@@ -638,7 +672,7 @@ fn the_test_model_answers_in_the_shape_the_app_asked_for() {
     let bad = post(
         port,
         "/v1/messages",
-        serde_json::json!({"model": "m", "max_tokens": 50, "messages": user("Hi SV-PROBE-BADSHAPE-5a06"),
+        serde_json::json!({"model": "m", "max_tokens": 50, "messages": user(&format!("Hi {}", stand_in::marker("BADSHAPE", "5a06"))),
             "tools": tool, "tool_choice": forced}),
     );
     assert_eq!(
@@ -653,7 +687,7 @@ fn the_test_model_answers_in_the_shape_the_app_asked_for() {
     let fits = post(
         port,
         "/v1/chat/completions",
-        serde_json::json!({"model": "m", "messages": user("Hi SV-PROBE-PLAIN-5a07"), "tools": functions,
+        serde_json::json!({"model": "m", "messages": user(&format!("Hi {}", stand_in::marker("PLAIN", "5a07"))), "tools": functions,
             "tool_choice": {"type": "function", "function": {"name": "answer"}}}),
     );
     let call = &fits["choices"][0]["message"]["tool_calls"][0]["function"];
@@ -669,7 +703,7 @@ fn the_test_model_answers_in_the_shape_the_app_asked_for() {
     let fits = post(
         port,
         "/v1/responses",
-        serde_json::json!({"model": "m", "input": "Hi SV-PROBE-PLAIN-5a08",
+        serde_json::json!({"model": "m", "input": &format!("Hi {}", stand_in::marker("PLAIN", "5a08")),
             "text": {"format": {"type": "json_schema", "name": "a", "schema": schema}}}),
     );
     let content: serde_json::Value =
@@ -683,7 +717,10 @@ fn the_test_model_answers_in_the_shape_the_app_asked_for() {
     );
 
     // The control: no shape asked for, a plain reply as before, and BADSHAPE says so.
-    let plain = chat(port, "Hi SV-PROBE-BADSHAPE-5a09");
+    let plain = chat(
+        port,
+        &format!("Hi {}", stand_in::marker("BADSHAPE", "5a09")),
+    );
     let text = plain["choices"][0]["message"]["content"].as_str().unwrap();
     assert!(
         text.contains("SV-REPLY-5a09") && !text.contains("SVBAD"),

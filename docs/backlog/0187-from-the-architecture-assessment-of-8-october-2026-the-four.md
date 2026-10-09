@@ -134,6 +134,11 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    script. The browser driver's split goes in the same way if it is as small; otherwise it stays open, and the done
    note says so. Nothing a run asks or concludes changes. Confirmed on `main` just before this claim: the strings are
    still repeated, only the model's script is run by a test, and no other session holds this part.
+   **Done the same day, apart from the browser driver** (`docs/design/0317-the-stand-in-protocol-defined-once-9-october-2026.md`):
+   `sv_check::stand_in` holds the addresses, the message marker, and the sign-in provider's modes, and the Rust
+   clients, the Docker runner, and the fakes take them from there; `crates/sv-run/tests/oidc_provider.rs` runs the real
+   sign-in provider under Node and holds every mode to what the Rust side assumes. The browser driver stays open: its
+   Rust side is already one function (`Action::to_json`), and running the driver in a test needs a real browser.
 10. **The MCP server.** Fold `securevibe_questions` into `securevibe_check {section: "questions"}` and
    `securevibe_notes_file` into `securevibe_record_answer` (fewer ways to do one thing, two fewer full check runs
    per loop; an ADR Later entry, the docs' "thirteen", `image_smoke.py`; the owner's VS Code flow used

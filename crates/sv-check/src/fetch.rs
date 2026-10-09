@@ -85,7 +85,7 @@ pub(crate) fn fetched(http: &mut dyn Http, tag: &str) -> Option<bool> {
     let answer = http.model(&ProbeRequest {
         id: format!("fetched-{tag}"),
         method: "GET".into(),
-        path: format!("/_sv/fetched/{tag}"),
+        path: crate::stand_in::fetched(tag),
         headers: Vec::new(),
         body: None,
     })?;
@@ -394,9 +394,9 @@ mod tests {
             if !self.flaws.fetches_anything {
                 return reply(400, "that address is not allowed");
             }
-            if let Some(tag) = path.strip_prefix("/_sv/fetch/") {
+            if let Some(tag) = path.strip_prefix(crate::stand_in::FETCH) {
                 self.fetched.insert(tag.to_owned());
-            } else if let Some(tag) = path.strip_prefix("/_sv/redirect/") {
+            } else if let Some(tag) = path.strip_prefix(crate::stand_in::REDIRECT) {
                 // The redirect itself is recorded under its own tag, as the test server does.
                 self.fetched.insert(tag.to_owned());
                 if self.flaws.crashes_on_redirect {
@@ -417,7 +417,7 @@ mod tests {
         }
 
         fn model(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
-            let tag = r.path.strip_prefix("/_sv/fetched/")?;
+            let tag = r.path.strip_prefix(crate::stand_in::FETCHED)?;
             if let Some((late, reads)) = &mut self.pending
                 && late == tag
             {
