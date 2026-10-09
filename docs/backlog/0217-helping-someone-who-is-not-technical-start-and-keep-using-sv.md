@@ -1,6 +1,6 @@
 # Helping someone who is not technical start and keep using sv
 
-**Status:** partly done: the recommendation is written (9 October 2026); which parts to build, and in what order, is the owner's
+**Status:** partly done: the recommendation is written and the owner chose it (9 October 2026); parts 1, 7, 5, and 3 are to build, in that order
 
 Asked for by the owner on 8 October 2026: "consider the best way to help someone non-technical start and use sv.
 One thought is to turn the getting started guide into a prompt so the AI tool can walk the person through the
@@ -125,3 +125,5 @@ What reading the code settled, which the parts above did not know:
 Windows: nothing above is tried there, and every part says so until the owner decides whether to support it.
 
 **For the owner:** say which of these to build, or "as recommended", and the first is claimed the same day.
+
+**The owner's decision, 9 October 2026: as recommended.** Parts 1 (the setup prompt, with `sv connect` printing the settings block), 7 (the glossary), 5 (the report read with you), and 3 narrowed (`sv doctor` and a status tool) are built in that order, each claimed on its own; part 4 is measured in the next paid prompt trial that runs anyway; part 8 is the owner's to arrange; part 6 stays in 0120.
