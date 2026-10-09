@@ -214,3 +214,8 @@ every reason the app could not be run passes through one function that cuts cred
 alike, and a failed seed's line is cut the same way; without `sv`'s rules the app's words are left out. Breaks: the
 redaction removed failed two tests, a call site that skipped it failed the test that reads the source, and the seed's
 redaction removed failed its own test.
+
+**Part 1, item 2 claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please go ahead with item
+2"), in branch `claude/explain-whose-word`: `sv explain` reading whose word a status rests on as the report does, so
+an answer only the AI coding tool gave, confirmed through `sv review`, is never told to the owner as their own.
+Open pull requests and recent branches read first: none touches `crates/sv-cli/src/explain.rs`.
