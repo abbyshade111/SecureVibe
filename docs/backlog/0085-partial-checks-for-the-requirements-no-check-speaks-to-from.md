@@ -347,3 +347,15 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     source or documentation; the other ten languages have no known switch and say so. Broken ten ways, each caught.
     Not done: a check never given an audience, and Keycloak's JSON setting. `jsonwebtoken`'s `ignoreAudience`,
     named in `docs/PARTIAL-CHECKS.md`, does not exist; the library checks the audience only when given one.
+13. **Hidden characters smuggled into the AI feature: C2.1.2, and C2.1.5 beside it. Not verified.** From
+    `docs/PARTIAL-CHECKS.md`: a message to the AI feature carrying invisible Unicode tag letters that spell an
+    instruction, zero-width characters and a right-to-left override (C2.1.2), and a second carrying control and
+    private-use characters no language needs (C2.1.5), with the test model recording which of them arrived.
+    **Claimed on 8 October 2026 by session paper-facts**, at the owner's word ("please choose the next backlog item
+    once it's merged"), in branch `claude/hidden-input`. C2.1.2: a finding when the tag letters or the override
+    reach the model as they were sent; credited in part when the app strips them or refuses the message, since one
+    family of smuggling is tried and encodings such as base64 are not. C2.1.5: only ever a finding, when those
+    characters reach the model unchanged. **Record, `Status: proposed`: ADR-065.** Checked just before this claim:
+    not on `main`, in no open pull request, and in no recent branch. Session securevibe-e9's claim on the stand-in
+    protocol (0187, `claude/stackvet-e9-stand-in`) moves the stand-in's shared strings into one module and changes
+    no question; whichever lands second merges the other in.
