@@ -151,6 +151,17 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    names appear in the same order, and a banned-word and American-spelling test over every string the AI tool
    reads (none exists). Reading stdin on its own thread, so `ping` and `notifications/canceled` are answered
    during a check, only if a client is seen to time out (a decision).
+   **Claimed 9 October 2026 by session securevibe-e9**, from the roadmap (Phase 2, next after item 9, which landed in
+   #1138), in branch `claude/stackvet-e9-mcp-record`, without the tool fold, which waits for the owner's word as the
+   roadmap says: the server's own decision record, with what the module doc and the dated DESIGN sections decided,
+   the stdin-thread question decided there (not until a client is seen to time out), and ADR-041's Governs line
+   given the server's report-lock callers at their paths now (`mcp.rs` is `mcp/` since the tests moved out); the
+   check injected into `Server`, so the time-limit tests use a fake that blocks on a channel instead of checking
+   `examples/flask-booking`, and the `#[cfg(test)] hold` field leaves the struct; and the AI-facing flow text held
+   in step by tests: the tool names in the same order in `INSTRUCTIONS`, the tool list, the spec `sv init` prints
+   and GETTING-STARTED's pasted prompt, and a banned-word and American-spelling test over every string the AI tool
+   reads. Nothing a check concludes changes. Confirmed on `main` just before this claim: the `hold` field is still
+   in the struct, no record governs `mcp/`, neither test exists, and no other session holds this part.
 11. **Process.** Every session inserts its claim at the top of this file's "Next" section, so a branch an hour old
    conflicts with `main` here; the same conflict was resolved three times on 8 October, each costing a 20-minute
    CI round. Append claims at the end of "Next" instead (a CLAUDE.md line), and merge the claim pull request before
