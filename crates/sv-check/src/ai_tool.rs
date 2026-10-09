@@ -3,7 +3,7 @@
 //! The person using `sv` builds with an AI coding tool, and the tool keeps files of its own in the
 //! folder: settings that run commands, permissions that let it act without asking, the MCP servers
 //! it starts, and instruction files it reads as orders. None of them is the app, so nothing here
-//! counts toward the app's grade. Two things are read:
+//! counts toward the app's grade. Three things are read:
 //!
 //! - **What the tool's settings let it do** (`read`): each command a setting runs, each address its
 //!   traffic is sent to, each permission that lets it act without asking, and each MCP server it
@@ -14,6 +14,10 @@
 //! - **Characters hidden in its instruction files** (`hidden_characters`): Unicode tag characters
 //!   and the controls that override the direction of text, which a person reading the file cannot
 //!   see and the tool reads. Only ever a finding, citing no requirement.
+//! - **`sv`'s own marks named in its instruction files** (`marks_named`): `Written by: owner`,
+//!   `by = "owner"`, `[[finding-review]]`, `not-the-app`, `Sealed by sv review`. A line naming one may
+//!   tell the tool to write a mark that is the owner's alone, or tell it never to, so it is a note for
+//!   the owner to read, never a finding.
 //!
 //! OWASP's Agentic Skills Top 10 names these risks (`docs/AGENTIC-SKILLS-TOP-10.md`); it is not a
 //! framework `sv` cites, so a note says which of its risks it speaks to in words only.
@@ -97,6 +101,8 @@ pub fn read(listing: &Listing) -> AiToolFiles {
                  their format from)"
             ));
             continue;
+        } else if instruction_file(relative) {
+            Kind::Instructions
         } else {
             continue;
         };
@@ -108,6 +114,11 @@ pub fn read(listing: &Listing) -> AiToolFiles {
                 continue;
             }
         };
+        if let Kind::Instructions = kind {
+            out.read.push(relative.to_owned());
+            marks_named(relative, &text, &mut out.notes);
+            continue;
+        }
         let Ok(json) = serde_json::from_str::<Value>(&text) else {
             out.not_read
                 .push(format!("`{relative}` (it is not JSON `sv` could read)"));
@@ -117,6 +128,7 @@ pub fn read(listing: &Listing) -> AiToolFiles {
         match kind {
             Kind::ClaudeSettings => claude_settings(relative, &json, &mut out.notes),
             Kind::Servers(key, tool) => servers(relative, tool, &json[key], &mut out.notes),
+            Kind::Instructions => {}
         }
     }
     out
@@ -124,6 +136,8 @@ pub fn read(listing: &Listing) -> AiToolFiles {
 
 enum Kind {
     ClaudeSettings,
+    /// A file the tool reads as instructions, read for `sv`'s own marks (`marks_named`).
+    Instructions,
     /// A file of MCP servers: the key that holds them, and the tools that read it.
     Servers(&'static str, &'static str),
 }
@@ -316,6 +330,52 @@ fn servers(file: &str, tool: &str, servers: &Value, notes: &mut Vec<ToolNote>) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// `sv`'s own marks named in the instruction files.
+
+/// The marks that say a person, not the AI coding tool, wrote or decided something, each as it is
+/// looked for (lower case, spaces and quotes as written) and as the note names it.
+const OWNER_MARKS: [(&str, &str); 5] = [
+    ("written by: owner", "`Written by: owner`"),
+    ("by = \"owner\"", "`by = \"owner\"`"),
+    ("[[finding-review]]", "`[[finding-review]]`"),
+    ("not-the-app", "`not-the-app`"),
+    ("sealed by sv review", "`Sealed by sv review`"),
+];
+
+/// A note for each instruction file with a line that names one of `sv`'s own marks (the gap
+/// analysis of 7 October 2026, finding 22(e); ADR-049, Later, 9 October 2026). Such a line may tell
+/// the tool to write a mark that is the owner's alone, or just as well tell it never to, so it is a
+/// note for the owner to read and never a finding. One note per file, naming its first such line
+/// and every mark the file names.
+fn marks_named(file: &str, text: &str, notes: &mut Vec<ToolNote>) {
+    let mut first = None;
+    let mut named: Vec<&str> = Vec::new();
+    for (number, line) in text.lines().enumerate() {
+        let lower = line.to_lowercase().replace("**", "").replace('*', "");
+        let lower = lower.split_whitespace().collect::<Vec<_>>().join(" ");
+        for (mark, name) in OWNER_MARKS {
+            if lower.contains(mark) || lower.contains(&mark.replace(" = ", "=")) {
+                first.get_or_insert((number + 1, line));
+                if !named.contains(&name) {
+                    named.push(name);
+                }
+            }
+        }
+    }
+    let Some((line, said)) = first else { return };
+    notes.push(ToolNote {
+        file: file.to_owned(),
+        tool: "the AI coding tool that reads it".to_owned(),
+        what: format!(
+            "names {}, which `sv` reads as yours alone, first on line {line}: \"{}\". Read it to \
+             make sure it does not tell your AI tool to write it for you",
+            named.join(", "),
+            quote(said)
+        ),
+        risk: "AST03",
+    });
+}
+
 // Characters hidden in the instruction files.
 
 /// Whether a file is one an AI coding tool reads as instructions.

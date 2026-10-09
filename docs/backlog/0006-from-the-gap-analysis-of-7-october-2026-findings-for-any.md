@@ -426,6 +426,18 @@ listed apart, below this item.
    (`audience`, `[data]`); until sealed, show the level 2 count beside it; compare `audience = "just-me"` with a
    public sign-up page, and a health-like app with `categories = []`. Changes what a report concludes: a record
    (ADR-024, Later, or a new one).
+   **Its first part claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up
+   new items as you merge"), in branch `claude/securevibe-e2-level-why`: under the level line, every report says why
+   the app is held to that level (the audience, or the sensitive data named, or the data list left unanswered), and
+   on whose word: answers in `stackvet.toml` that the AI coding tool usually writes and nobody has confirmed. At level
+   1, it also says how many more requirements level 2 would bring, so a level 1 resting on an unconfirmed
+   `audience = "just-me"` does not read as settled. Sealing the scope through `sv review`, and comparing the answers
+   with what the code shows (a public sign-up page, health-like fields), stay open. **`Status: proposed`: ADR-024,
+   Later, 9 October 2026** (what the report says about the level and on whose word). Read on `main` and the open pull
+   requests just before this claim: no other session had claimed any part of finding 17.
+   **The first part done the same day** (`docs/design/0330-why-the-level-and-on-whose-word-9-october-2026.md`; ADR-024, Later, accepted): `level_why` in
+   `report.json`, and the sentence under the level line in every report. Still open: sealing the scope through
+   `sv review`, and comparing the answers with what the code shows.
 18. **The AI tool's "when to bring in a person" text is shown as the owner's.** (`docs/GAP-ANALYSIS.md`, 4.2.) A
    `design-decisions.md` section the AI tool wrote saying no outside review is needed comes out as "Your
    design-decisions.md says …" in every report file (`main.rs`, near the escalation text). Name who wrote it, and
@@ -493,6 +505,17 @@ listed apart, below this item.
    (`docs/design/0328-a-report-read-back-is-fenced-as-a-tool-s-result-is-9-october.md`; ADR-066, Later, accepted):
    `report.html`, `compliance.md`, and `security.md` come back fenced whole; `report.json` and `findings.sarif` as
    written. Found on the way: two runs making the report key at once (backlog 0220, fixed on its own).
+   **(e) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
+   you merge"), in branch `claude/securevibe-e2-marks`: an instruction file the AI coding tool reads (`CLAUDE.md`,
+   `AGENTS.md`, `.cursorrules`, a skill, and the rest `sv` already reads for hidden characters) that names one of
+   `sv`'s own marks (`Written by: owner`, `by = "owner"`, `[[finding-review]]`, `not-the-app`, `Sealed by sv review`)
+   is noted in the report's section on the AI tool's files, with the line, for the owner to read: a line can tell
+   the tool to write a mark that is the owner's alone, or just as well tell it never to. A note, never a finding,
+   and counted toward nothing, as the section's other notes are. **`Status: proposed`: ADR-049, Later, 9 October
+   2026** (what is read in the AI tool's files). Read on `main` and the open pull requests just before this claim: no
+   other session had claimed (e).
+   **(e) done the same day** (`docs/design/0331-instruction-files-that-name-sv-s-own-marks-9-october-2026.md`; ADR-049, Later, accepted): a note in the AI tool's
+   section for each instruction file naming one of the marks, with its line.
 
 
 23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no

@@ -145,6 +145,7 @@ RUST_CHECKS = {
     "probe.unused-method-accepted": ("running", ["V4.1.4"]),
     "probe.jsonp-enabled": ("running", ["V3.5.6"]),
     "probe.docs-or-monitoring-exposed": ("running", ["V13.4.5"]),
+    "probe.log-file-served": ("running", ["V16.4.2"]),
     "probe.development-console-open": ("running", ["V15.2.3", "V13.4.2"]),
     "probe.version-disclosed": ("running", ["V13.4.6"]),
     "probe.reflected-unencoded": ("running", ["V1.2.1"]),
@@ -280,6 +281,8 @@ RUST_FINDINGS_ONLY = {
     "probe.ai-stored-injection-unscreened",
     # One reply on one page is not every place an app writes one (gap analysis finding 13(b)).
     "probe.ai-reply-html-unencoded",
+    # Nine guessed addresses cannot show that no log is served (ADR-072).
+    "probe.log-file-served",
     # No list of what a page loads is complete, so finding none shows nothing (ADR-070).
     "config.client-tech-unsupported",
     # An `https://` address shows neither that the link is authenticated nor that it is the only one
