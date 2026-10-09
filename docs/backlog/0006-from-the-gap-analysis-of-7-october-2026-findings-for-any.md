@@ -227,6 +227,10 @@ listed apart, below this item.
    `.update(**request.get_json())`), in Python, JavaScript, and TypeScript; one field picked out of the body, or the
    body checked by a schema first, is not reported. Confirmed on `main` and in the open pull requests just before this
    claim: no rule reads it, and no other session holds this part.
+   **That part done the same day** (`docs/design/0325-the-whole-request-body-saved-as-it-came-9-october-2026.md`):
+   `ast.request-body-passed-whole` in Python, JavaScript, and TypeScript, only ever a finding, with the fields picked
+   out or the body checked by a schema left alone; four guards broken in turn, each caught. Every part of this finding
+   is now done.
 12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
    Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
    and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
