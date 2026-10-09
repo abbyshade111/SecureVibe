@@ -292,6 +292,13 @@ listed apart, below this item.
    V8.2.2; nothing credits. A record that names no owner leaves it not assessed, saying so. `creates` and
    `change-email` stay unclaimed. Read on `main` and the open pull requests just before this claim: no other session
    had claimed (a).
+   **(b), the stored record's half, claimed 9 October 2026 by session securevibe-e9** ("please continue to work
+   through and pick up new items as you merge"), in branch `claude/stackvet-e9-stored-markup`: the first user saves a
+   second `owned` record whose text carries `<"'` between the marks the reflection probes use, then opens the record
+   and the pages that list it. An HTML page that writes the `<` back as it is, is a finding citing V1.2.1, as the
+   reflected check's is; only ever a finding, since one page escaping it says nothing of the others. A JSON answer is
+   not judged. The test model's reply carrying HTML stays unclaimed. Read on `main` and the open pull requests just
+   before this claim: no other session had claimed (b).
 14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
    `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
    `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
