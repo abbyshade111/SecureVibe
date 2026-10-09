@@ -1,6 +1,6 @@
 # Design-time prompts from the Secure by Design checklist
 
-**Status:** open
+**Status:** done, 4 October 2026
 
 Proposed on 4 October 2026 by session securevibe-e2,
 at the owner's asking to look at the Secure by Design documentation and checklist for prompts to add to the library

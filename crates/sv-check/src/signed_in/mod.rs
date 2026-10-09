@@ -106,6 +106,15 @@ pub trait Http {
         None
     }
 
+    /// Sends these requests one after another, each waiting for its answer before the next starts,
+    /// as `send` would, but handed to the app's side in one go, and gives back each answer in the
+    /// order given. The app sees what it would see from `send` called for each in turn; the run
+    /// pays for one way into the fence rather than one each. `None` when this way of reaching the
+    /// app cannot, and the caller sends them one by one.
+    fn send_in_turn(&mut self, _requests: &[ProbeRequest]) -> Option<Vec<Option<ProbeResponse>>> {
+        None
+    }
+
     /// The emails the app has sent to this address during the run, oldest first, as text: `None`
     /// when the run has no mail sink to read them from. Waits a little for there to be at least
     /// `at_least` of them, since an app may send its mail after it has answered.
@@ -1425,11 +1434,26 @@ pub fn ask_anonymously_within(
     spent: &std::cell::Cell<u64>,
 ) -> (Vec<ProbeResponse>, Vec<String>) {
     let mut patient = Patient::within(http, spent);
-    let answers = requests
-        .iter()
-        .filter_map(|request| patient.send(request))
-        .filter(|answer| rate_limited(answer).is_none())
-        .collect();
+    // In one go when the way to the app allows, up to the first answer that is a rate limiter's.
+    // From there on, one at a time as before: that answer is waited out and the request asked
+    // again, and so is each after it, so the waiting is what it was. Each of those was also asked
+    // in the one go, which a limiter counts; it was already saying no.
+    let in_turn = patient.inner.send_in_turn(requests).unwrap_or_default();
+    let mut answers = Vec::new();
+    let mut from = 0;
+    for answer in in_turn.into_iter().take(requests.len()) {
+        if answer.as_ref().is_some_and(|a| rate_limited(a).is_some()) {
+            break;
+        }
+        answers.extend(answer);
+        from += 1;
+    }
+    answers.extend(
+        requests[from..]
+            .iter()
+            .filter_map(|request| patient.send(request))
+            .filter(|answer| rate_limited(answer).is_none()),
+    );
     (answers, patient.still_limited)
 }
 
@@ -2309,6 +2333,8 @@ mod asked_tests;
 mod check_guard_tests;
 #[cfg(test)]
 mod fake_app;
+#[cfg(test)]
+mod in_turn_tests;
 #[cfg(test)]
 mod page_cookie_tests;
 #[cfg(test)]

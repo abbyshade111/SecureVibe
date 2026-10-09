@@ -1,6 +1,6 @@
 # Packaging `sv` for somebody who is not technical: a container now, a download later
 
-**Status:** open
+**Status:** partly done: the downloadable program (a build per platform in CI; on a Mac, notarizing or Homebrew)
 
 **The
 owner's decision, 26 September 2026: build the container now, and keep the downloadable program
