@@ -677,10 +677,24 @@ fn default_manifest_file() -> String {
     sv_frameworks::names::MANIFEST.to_owned()
 }
 
+/// Why a report's app is held to its ASVS level, on whose word, and what level 2 would add.
+#[derive(Debug, Clone, Serialize)]
+pub struct LevelWhy {
+    /// The answers that decide it, in words: "stackvet.toml says customers use it".
+    pub because: String,
+    /// At level 1, how many more requirements would apply at level 2.
+    pub level_two_more: usize,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Report {
     pub app_name: String,
     pub target_level: u8,
+    /// Why the app is held to `target_level`, and how many more requirements level 2 would bring at
+    /// level 1 (the gap analysis of 7 October 2026, finding 17). `None` for a report built without
+    /// a manifest's answers, which then says nothing more than its level.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub level_why: Option<LevelWhy>,
     /// Passed in rather than read from a clock, so the same app twice produces the same bytes.
     pub generated: Option<String>,
     /// Which `sv` made this report, so whoever reads it can tell which checks it had. Without it, a
@@ -1936,6 +1950,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         Vec::new()
     };
     Report {
+        level_why: None,
         app_name: inputs.app_name.to_owned(),
         target_level: inputs.target_level,
         generated: inputs.generated,

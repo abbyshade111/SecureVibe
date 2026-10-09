@@ -1073,6 +1073,7 @@ mod tests {
 
     fn report(undecided: bool, elsewhere: bool, excluded: bool) -> Report {
         Report {
+            level_why: None,
             app_name: "test".into(),
             target_level: 1,
             generated: None,

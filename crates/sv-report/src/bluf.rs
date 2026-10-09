@@ -201,13 +201,37 @@ pub fn held_to(report: &Report) -> String {
             "{unplaced} not yet placed because nobody has answered the question that decides them"
         ));
     }
-    match left_out.len() {
+    let held = match left_out.len() {
         0 => format!("Held to ASVS level {level}."),
         _ => format!(
             "Held to ASVS level {level}. Not in these numbers: {}.",
             left_out.join(", and ")
         ),
+    };
+    match &report.level_why {
+        Some(why) => format!("{held} {}", level_why_sentence(level, why)),
+        None => held,
     }
+}
+
+/// Why the app is held to its level, and on whose word (the gap analysis of 7 October 2026,
+/// finding 17): the answers that decide it are the AI coding tool's until somebody confirms them,
+/// and at level 1 the report says what level 2 would bring, so a level resting on an unconfirmed
+/// "only I use it" does not read as settled.
+fn level_why_sentence(level: u8, why: &crate::LevelWhy) -> String {
+    let mut said = format!(
+        "Level {level} because {}: answers in stackvet.toml, which your AI coding tool usually \
+         writes and nobody has confirmed, so check them.",
+        why.because
+    );
+    if level == 1 && why.level_two_more > 0 {
+        said.push_str(&format!(
+            " At level 2, {} more requirement{} would apply.",
+            why.level_two_more,
+            if why.level_two_more == 1 { "" } else { "s" }
+        ));
+    }
+    said
 }
 
 /// What kind of run this was, said by what did not run (gap analysis 6.1), or `None` when every
@@ -340,6 +364,7 @@ mod tests {
 
     fn report(counts: Counts) -> Report {
         Report {
+            level_why: None,
             app_name: "Test".into(),
             target_level: 1,
             generated: None,

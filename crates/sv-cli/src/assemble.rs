@@ -2183,6 +2183,16 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
                 .to_owned(),
         });
     }
+    // Why the app is held to its level, on whose word, and what level 2 would add (the gap
+    // analysis of 7 October 2026, finding 17; ADR-024, Later, 9 October 2026).
+    let level_why = sv_report::LevelWhy {
+        because: manifest.level_because(),
+        level_two_more: buckets
+            .out_of_level
+            .iter()
+            .filter(|id| frameworks.get(id.as_str()).is_some_and(|r| r.level == 2))
+            .count(),
+    };
     let mut report = sv_report::build(sv_report::Inputs {
         on_the_internet: manifest.app.deployment == sv_manifest::Deployment::Internet,
         ai_tool: sv_check::ai_tool::read(listing),
@@ -2217,6 +2227,7 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
         threats: Some((threat_rules, ctx)),
     });
     report.examined = examined;
+    report.level_why = Some(level_why);
     // What kind of run this was, by what did not run (gap analysis 6.1).
     let reach_path = sv_frameworks::data::file("reach.json");
     let reach = std::fs::read_to_string(&reach_path)
