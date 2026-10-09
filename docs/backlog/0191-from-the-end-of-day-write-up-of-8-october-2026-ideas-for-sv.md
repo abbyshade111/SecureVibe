@@ -71,3 +71,12 @@ and the open pull requests just before this claim: no other session had claimed 
 **Part 3 done the same day** (`docs/design/0340-the-readers-of-untrusted-input-fuzzed-weekly-9-october-2026.md`, ADR-077 accepted): four `cargo fuzz` targets in `fuzz/`, outside the
 workspace, seeded from the repository by `fuzz/seed.sh`, and `.github/workflows/fuzz.yml` running each for five minutes
 every Monday and by hand. A minute each here found no crash; a planted one was found within two minutes.
+**Part 6's plan brought to the owner, 9 October 2026**, by session securevibe-e9, with six questions and a
+recommendation for each; **the owner's answer: "as recommended"**. Part 4 first; then the Action, as `action.yml` in
+this repository, not on the Marketplace; `sv` alone, without `--tools` or `--run`; `findings.sarif` uploaded to code
+scanning where it is available and the report kept with every run; failing only when a check could not run, unless
+the repository asks for more. **Part 4 claimed 9 October 2026 by session securevibe-e9**, in branch
+`claude/stackvet-e9-signing`: the image's build provenance signed with GitHub's own keyless signing and pushed beside
+it. No binary is published, so none is signed. **`Status: proposed`: ADR-080.** **Part 6 claimed the same day by
+session securevibe-e9**, to be built once part 4 lands. **`Status: proposed`: ADR-081.** Read on `main` and the open
+pull requests just before this claim: no other session had claimed part 4 or part 6.
