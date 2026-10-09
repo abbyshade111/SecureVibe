@@ -253,3 +253,8 @@ Third Windows finding, the same day: with everything compiling, the whole suite 
 2,517 tests passed and 158 failed. GitHub keeps ten error annotations per step, so only the first ten failing names
 came back (all in `notes`, `git`, and `confirm`); the workflow now reports every failing name, twenty to a line, and
 what the first failures said, so they can be grouped by cause and fixed or explained.
+Fourth Windows finding, the same day: the full list from the next run (2,501 passed, 187 failed) showed most failures
+coming from one cause, randomness read from `/dev/urandom`, which Windows lacks; it is now read through `getrandom`
+on every system (ADR-043, Later). The rest are grouped for the next pull request: the container tests, which need
+Linux containers the Windows runner does not have; file names Windows refuses (`os error 123`); and a few others.
+
