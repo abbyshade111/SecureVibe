@@ -64,6 +64,13 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    needs every page judged to pass. `probe.private-page-headers` asks the same four headers of each private page
    the signed-in run opens. Five guards broken in turn, each caught. Not done: the cookies a signed-in page sets,
    which `probe.session-cookie-attributes` already judges at sign-in, and pages the run does not ask for.
+   **The cookies a signed-in page sets, claimed 9 October 2026 by session securevibe-e2**, from the roadmap (Phase 1,
+   item 3, the first part still open in its order), in branch `claude/securevibe-e2-page-cookie`: when a private page
+   the signed-in run opens sets the session cookie again, that cookie is judged as sign-in's is (HttpOnly and
+   SameSite), a finding names the page that dropped either, and the sign-in's credit for V3.3.2 and V3.3.4 is not
+   kept beside that finding. A cookie of another name stays out of it: only the session's own carries the session.
+   Pages the run does not ask for stay out of reach, as before. Confirmed on `main` just before this claim: not done,
+   and no other session had claimed it.
 4. **Sign-in tokens the app issues itself (V9.1.1, V9.1.2, V9.2.1, V9.1.3; all level 1).** When the token the
    app hands the test user is a JWT, send it back altered with the same signature, with `alg: none`, past its
    expiry, and naming a key the probe controls (`jku`, `kid`). The real token opening the page is the control, so
