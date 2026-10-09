@@ -327,6 +327,8 @@ listed apart, below this item.
    own plain note, found the same way; without it nothing is judged. The change to what the test model reports is a
    Later entry on ADR-042, written with the build. Read on `main` and the open pull requests just before this claim:
    no other session had claimed (e).
+   **(e) done the same day** (`docs/design/0330-a-prompt-injection-saved-in-a-note-9-october-2026.md`; ADR-042,
+   Later): `probe.ai-stored-injection-unscreened`.
    **(g) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
    you merge"), in branch `claude/securevibe-e2-gemini`: the test model answers Google's Gemini format as it answers
    OpenAI's and Anthropic's. A POST whose path ends `:generateContent` or `:streamGenerateContent` (whatever comes
