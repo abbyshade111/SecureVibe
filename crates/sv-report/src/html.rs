@@ -497,7 +497,12 @@ pub fn page(report: &Report) -> String {
                         .join("; ")
                 ),
                 Status::Documented => format!(
-                    " \u{2014} you answered this in {}",
+                    " \u{2014} {} {}",
+                    if line.confirmed_only() {
+                        "your AI coding tool wrote this, and a person confirmed it, in"
+                    } else {
+                        "you answered this in"
+                    },
                     line.documented_by
                         .iter()
                         .map(|c| c.scope.clone())
