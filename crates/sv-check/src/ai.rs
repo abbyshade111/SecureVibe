@@ -2572,7 +2572,8 @@ where
 }
 
 /// The tag a MARKUP reply carries: an image whose failure to load runs a line of script naming the
-/// message's tag.
+/// message's tag. The test model writes it in `model-provider.mjs`; this is the fake's copy.
+#[cfg(test)]
 fn markup_tag(tag: &str) -> String {
     format!("<img src=x onerror=\"document.title='SVMARKUP{tag}'\">")
 }
