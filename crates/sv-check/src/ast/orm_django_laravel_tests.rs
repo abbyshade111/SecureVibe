@@ -137,7 +137,7 @@ fn django_and_laravel_are_off_the_unread_list() {
             .is_some_and(|p| p.contains_key(package))
     };
     assert!(
-        listed("Python", "supabase") && listed("npm", "@supabase/supabase-js"),
+        rule.unread_packages.contains_key("Python") && rule.unread_packages.contains_key("npm"),
         "the rest stays"
     );
     for (ecosystem, package) in [

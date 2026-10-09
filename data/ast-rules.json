@@ -158,9 +158,9 @@
         "cpp": "(call_expression function: [(identifier) (qualified_identifier)] @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
       },
       "functionPatterns": {
-        "python": "^(execute|executemany|executescript|raw|read_sql|read_sql_query|extra|RawSQL|\\$where)$",
-        "javascript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal|\\$where)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal|\\$where)$",
-        "typescript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal|\\$where)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal|\\$where)$",
+        "python": "^(execute|executemany|executescript|raw|read_sql|read_sql_query|extra|RawSQL|\\$where|or_|filter)$",
+        "javascript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal|\\$where|or|filter)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal|\\$where|or|filter)$",
+        "typescript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal|\\$where|or|filter)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal|\\$where|or|filter)$",
         "go": "^(Query|QueryRow|Exec|Prepare|QueryContext|QueryRowContext|ExecContext|PrepareContext|Raw|Where|Or|Not|Order|Group|Having|Joins|Select|Find|First|Last|Take|FirstOrInit|FirstOrCreate|\\$where)$",
         "ruby": "^(execute|exec_query|find_by_sql|select_all|select_rows|select_values|where|rewhere|order|reorder|having|group|joins|from|pluck|count_by_sql)$",
         "php": "^(query|exec|multi_query|real_query|prepare|mysqli_query|mysqli_real_query|mysqli_multi_query|pg_query|pg_send_query|select|insert|update|delete|statement|unprepared|raw|whereRaw|orWhereRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|selectRaw|fromRaw)$",
@@ -199,6 +199,15 @@
         },
         "cpp": {
           "(^|::)(sqlite3_exec|mysql_query|mysql_real_query|PQexec)$": 1
+        },
+        "javascript": {
+          "(?:^|\\.)filter$": 2
+        },
+        "typescript": {
+          "(?:^|\\.)filter$": 2
+        },
+        "python": {
+          "^filter$": 2
         }
       },
       "argumentsForCommonNames": {
@@ -206,13 +215,15 @@
           "^(exec|prepare|all|get|run|each)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$",
           "(?:^|\\.)(?:where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{",
           "^\\$where$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{",
-          "\\.\\$where$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{"
+          "\\.\\$where$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{",
+          "(?:^|\\.)(?:or|filter)$": "^[\"'][^\"'\\n]*[\"']\\s*\\+|^`[\\s\\S]*\\$\\{"
         },
         "typescript": {
           "^(exec|prepare|all|get|run|each)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$",
           "(?:^|\\.)(?:where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{",
           "^\\$where$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{",
-          "\\.\\$where$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{"
+          "\\.\\$where$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{",
+          "(?:^|\\.)(?:or|filter)$": "^[\"'][^\"'\\n]*[\"']\\s*\\+|^`[\\s\\S]*\\$\\{"
         },
         "java": {
           "^(query|queryFor\\w+|update|batchUpdate)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$"
@@ -229,7 +240,8 @@
         },
         "python": {
           "^extra$": "[\"']\\s*%|\\+|\\.format\\(|(?:^|[\\s\\[{(,=:])[fFrRbB]{0,2}[fF][rR]?[\"']",
-          "^\\$where$": "[\"']\\s*%|\\+|\\.format\\(|(?:^|[\\s\\[{(,=:])[fFrRbB]{0,2}[fF][rR]?[\"']"
+          "^\\$where$": "[\"']\\s*%|\\+|\\.format\\(|(?:^|[\\s\\[{(,=:])[fFrRbB]{0,2}[fF][rR]?[\"']",
+          "^(?:or_|filter)$": "^(?:[fF][rR]?|[rR][fF])[\"']|^[\"'][^\"'\\n]*[\"']\\s*(?:%|\\+|\\.format\\()"
         },
         "php": {
           "^(select|insert|update|delete)$": "[\"']\\s*\\.|\\.\\s*[\"']|\"[^\"]*\\$|sprintf\\("
@@ -237,12 +249,8 @@
       },
       "boundParametersLowerConfidence": true,
       "unreadPackages": {
-        "npm": {
-          "@supabase/supabase-js": "filter text such as `.or(...)` and `.filter(...)`"
-        },
-        "Python": {
-          "supabase": "filter text such as `.or_(...)` and `.filter(...)`"
-        },
+        "npm": {},
+        "Python": {},
         "Go": {},
         "PHP": {}
       }
