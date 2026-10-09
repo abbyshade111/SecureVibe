@@ -184,6 +184,16 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    **Done the same day** (CLAUDE.md, the claim bullet; DESIGN, "The tests of the seven largest modules live beside
    them"): the rule written down, and the eleven test modules of the seven files moved to `src/<module>/<name>.rs`,
    verbatim. Not done: `ast.rs` and `sbom.rs` along their seams.
+   **The second half, `ast.rs` and `sbom.rs` along their seams, claimed 9 October 2026 by session securevibe-e2**,
+   from the roadmap (Phase 2, item 11's second half, the first unclaimed sub-item once the open parts of item 12 were
+   claimed or wait on a decision), in branch `claude/securevibe-e2-ast-sbom-seams`: code moved, not changed, into
+   files beside each module. From `ast.rs` (4,584 lines), the page reader (`html_fragments` and the tag reading
+   under it) to `ast/html.rs`, what counts as fixed text (`is_literal`, `Fixed`, and the bindings under it) to
+   `ast/fixed.rs`, and the notebook and template readers (Jupyter, Astro, EJS, Svelte, Vue) to `ast/templates.rs`;
+   from `sbom.rs` (1,560 lines), the lockfile and manifest readers to `sbom/lockfiles.rs` and the CycloneDX writer
+   to `sbom/cyclonedx.rs`. Nothing `sv` does changes, and the census and credit lines, which name a file and line,
+   are checked after the move. Confirmed on `main` just before this claim: both files are whole, and no other session
+   holds this part.
 12. **Smaller seams in the pipeline.** `Signature.condition` in `sv-scan` is a `String` skipped at run time when
    unknown (`sv-scan/src/lib.rs:297`), where the `Condition` enum refuses unknown names everywhere else: type it
    (ADR-015 governs both data files; one line). `not_for_tests` (`main.rs:4492-4510`) decides an applicability
