@@ -1154,7 +1154,7 @@ fn text_from_the_app_cannot_put_a_link_an_image_or_html_into_the_markdown_report
     // Windows refuses a `:` in a file name, so there the link points at a page rather than a
     // scheme; it is a link out of the span either way (backlog 0120).
     let name = if cfg!(windows) {
-        "x`[click](evil.example/t)`.py"
+        "x`[click](evil.example)`.py"
     } else {
         "x`[click](javascript:alert)`.py"
     };
