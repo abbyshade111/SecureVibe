@@ -280,6 +280,14 @@ listed apart, below this item.
    had claimed it.
    **(c) through sign-up done the same day**
    (`docs/design/0301-a-sign-up-that-tells-which-accounts-exist-8-october-2026.md`): `probe.signup-reveals-account`.
+   **(a), on `owned.create`, claimed 9 October 2026 by session securevibe-e9** ("please continue to work through and
+   pick up new items as you merge"), in branch `claude/stackvet-e9-owner-field`: when the record A reads back names
+   its owner (`user_id`, `owner_id`, `userId`, `ownerId`, `owner`, `author_id`, `created_by`), B creates one record
+   with that field set to A's value and one without it. B's record that A then reads as theirs, on A's list or
+   private pages or by its own record naming A as owner, while B's plain one is not, is a finding citing V15.3.3 and
+   V8.2.2; nothing credits. A record that names no owner leaves it not assessed, saying so. `creates` and
+   `change-email` stay unclaimed. Read on `main` and the open pull requests just before this claim: no other session
+   had claimed (a).
 14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
    `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
    `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
