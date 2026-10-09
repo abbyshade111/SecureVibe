@@ -254,3 +254,8 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    rate limiter's answer is still waited out and the request sent again, alone, as now. Measured before and after
    with Docker. Confirmed on `main` just before this claim: each anonymous request is its own container call
    (`ask_anonymously_within`), and no other session holds this part.
+   **That part done the same day**
+   (`docs/design/0320-the-anonymous-probes-in-one-call-one-after-another-9-october.md`): `Http::send_in_turn` and
+   `in_turn_script` take the anonymous questions into the fence in one call and send them there one after another;
+   from the first rate limiter's answer on, each is asked alone as before. The fence test that sends the fixed suite
+   took about 6.6 seconds and takes about 2.3, measured with Docker. The rest of item 12 is open.
