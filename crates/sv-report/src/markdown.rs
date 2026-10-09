@@ -191,6 +191,9 @@ pub fn compliance(report: &Report) -> String {
     // The short version, before any of the explaining. See `crate::bluf`.
     out.push_str("## The short version\n\n");
     out.push_str(&format!("{}\n\n", crate::bluf::headline(report)));
+    if let Some(line) = crate::baseline_line(report) {
+        out.push_str(&format!("{}\n\n", inert(&line)));
+    }
     let (worst, rest) = crate::bluf::worst_findings(report);
     if !worst.is_empty() {
         for f in worst {
@@ -780,6 +783,9 @@ pub fn security(report: &Report) -> String {
         )),
         None => out.push_str(&format!("Produced by `sv` {}.\n\n", report.sv.describe())),
     }
+    if let Some(line) = crate::baseline_line(report) {
+        out.push_str(&format!("{}\n\n", inert(&line)));
+    }
 
     if !report.gaps.is_empty() {
         // Deliberately before the findings. A list of findings read without this reads as the whole
@@ -882,6 +888,9 @@ fn finding_section(out: &mut String, report: &Report, finding: &sv_check::Findin
     if let Some(accepted) = crate::accepted_note(report, finding) {
         out.push_str(&format!("**{}**\n\n", inert(&accepted)));
     }
+    if let Some(held) = crate::baseline_note(report, finding) {
+        out.push_str(&format!("*{}*\n\n", inert(&held)));
+    }
     for note in crate::finding_notes(finding) {
         out.push_str(&format!("*{}*\n\n", inert(&note)));
     }
@@ -944,6 +953,7 @@ mod tests {
         let live = "![x](https://t.example/p.png) <img src=x> [click](https://e.example)";
         let report = crate::Report {
             level_why: None,
+            baseline: None,
             app_name: "test".into(),
             target_level: 1,
             generated: None,

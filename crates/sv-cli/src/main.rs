@@ -30,6 +30,7 @@ macro_rules! print {
     ($($arg:tt)*) => { ::std::print!("{}", ::sv_report::visible(&::std::format!($($arg)*))) };
 }
 
+mod baseline;
 mod history;
 mod review;
 
@@ -229,8 +230,8 @@ const COMMANDS: &[Command] = &[
         name: "check",
         word: Some("PATH"),
         flags: &[],
-        valued: &["--fail-on"],
-        help: "  sv check [PATH] [--fail-on WHAT]\n                     credentials left in the code, what the rules that read the code find,\n                     and how it is set up: a narrower scan than `sv report` (or\n                     stackvet_check), saying nothing about requirements; it reads\n                     stackvet.toml when it is there only to stop on one it cannot read\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, or an entry that is not an\n                     ordinary file), or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, or no file of the app was read;\n                     3 sv itself failed (no such folder, an option it does not know, a\n                     stackvet.toml it cannot read)\n",
+        valued: &["--fail-on", "--baseline"],
+        help: "  sv check [PATH] [--fail-on WHAT] [--baseline DIR]\n                     credentials left in the code, what the rules that read the code find,\n                     and how it is set up: a narrower scan than `sv report` (or\n                     stackvet_check), saying nothing about requirements; it reads\n                     stackvet.toml when it is there only to stop on one it cannot read\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, or an entry that is not an\n                     ordinary file), or any (both), several separated by commas\n                     --baseline DIR, an older report folder: attention fails only for a\n                     finding that report did not hold; every finding is still listed\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, or no file of the app was read;\n                     3 sv itself failed (no such folder, an option it does not know, a\n                     stackvet.toml it cannot read)\n",
     },
     Command {
         name: "sbom",
@@ -250,8 +251,8 @@ const COMMANDS: &[Command] = &[
         name: "report",
         word: Some("PATH"),
         flags: &["--run", "--slow", "--tools"],
-        valued: &["--out", "--advisories", "--fail-on"],
-        help: "  sv report [PATH] [--out DIR] [--run [--slow]] [--tools] [--advisories DIR] [--fail-on WHAT]\n                     write the reports: what applies, what was found, what nobody has answered,\n                     into PATH/stackvet-report unless --out says where; --run starts the app\n                     as `sv run` does, downloading its packages first with `install = true`\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, a tool --tools could\n                     not run, or an --advisories comparison that did not cover the app),\n                     or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, no file of the app was read,\n                     or --run was given and the app could not be started;\n                     3 sv itself failed (no stackvet.toml, a bad manifest, no such folder)\n",
+        valued: &["--out", "--advisories", "--fail-on", "--baseline"],
+        help: "  sv report [PATH] [--out DIR] [--run [--slow]] [--tools] [--advisories DIR] [--fail-on WHAT] [--baseline DIR]\n                     write the reports: what applies, what was found, what nobody has answered,\n                     into PATH/stackvet-report unless --out says where; --run starts the app\n                     as `sv run` does, downloading its packages first with `install = true`\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, a tool --tools could\n                     not run, or an --advisories comparison that did not cover the app),\n                     or any (both), several separated by commas\n                     --baseline DIR, an older report folder: attention fails only for a\n                     finding that report did not hold; every finding is still listed and\n                     counted, and those it held are marked\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, no file of the app was read,\n                     or --run was given and the app could not be started;\n                     3 sv itself failed (no stackvet.toml, a bad manifest, no such folder)\n",
     },
     Command {
         name: "review",
@@ -1203,6 +1204,12 @@ fn cmd_run(args: &[String]) -> Result<i32> {
 /// `--fail-on attention` and a finding at its severity, and 0 otherwise.
 fn cmd_check(args: &[String]) -> Result<i32> {
     let (fail_on, rest) = exit::FailOn::take(args)?;
+    // Read before anything else, so a baseline that cannot be read stops the run at once.
+    let (baseline, rest) = baseline::Baseline::take(&rest)?;
+    let baseline = baseline
+        .as_deref()
+        .map(baseline::Baseline::load)
+        .transpose()?;
     let app_dir = rest
         .first()
         .map(PathBuf::from)
@@ -1544,7 +1551,30 @@ fn cmd_check(args: &[String]) -> Result<i32> {
         }
     }
 
-    let (status, reasons) = gaps.status(fail_on, findings.iter().map(|f| f.severity));
+    let (status, reasons) = match &baseline {
+        None => gaps.status(fail_on, findings.iter().map(|f| f.severity)),
+        Some(b) => {
+            b.same_app(
+                manifest
+                    .as_ref()
+                    .map(|m| m.app.name.as_str())
+                    .filter(|n| !n.is_empty())
+                    .unwrap_or("This app"),
+            )?;
+            let new = findings.iter().filter(|f| !b.holds(f)).count();
+            println!(
+                "\nCompared with the baseline in {}: {new} of {} finding(s) new since then. Every \
+                 finding is listed below either way.",
+                b.folder.display(),
+                findings.len()
+            );
+            gaps.status_of(
+                fail_on,
+                findings.iter().filter(|f| !b.holds(f)).map(|f| f.severity),
+                "new finding(s), not in the baseline,",
+            )
+        }
+    };
     if findings.is_empty() {
         println!(
             "\nNo credentials found in what was read. That is not the same as none being there: these \n\
@@ -1584,6 +1614,9 @@ fn cmd_check(args: &[String]) -> Result<i32> {
         }
         for note in sv_report::finding_notes(f) {
             println!("     {note}");
+        }
+        if baseline.as_ref().is_some_and(|b| b.holds(f)) {
+            println!("     also in the baseline: it was there before");
         }
         if !f.impact.is_empty() {
             println!("     why it matters: {}", f.impact);
@@ -2344,6 +2377,13 @@ fn summary_counts(c: &sv_report::Counts) -> String {
 
 fn cmd_report(args: &[String]) -> Result<i32> {
     let (fail_on, args) = exit::FailOn::take(args)?;
+    // Read before the run, and before this run's report is written: the baseline may be the very
+    // folder it is written into.
+    let (baseline, args) = baseline::Baseline::take(&args)?;
+    let baseline = baseline
+        .as_deref()
+        .map(baseline::Baseline::load)
+        .transpose()?;
     let args = &args[..];
     let ReportArgs {
         app_dir,
@@ -2375,7 +2415,7 @@ fn cmd_report(args: &[String]) -> Result<i32> {
         elsewhere,
         false,
         || {
-            assemble_report(
+            let mut report = assemble_report(
                 &app_dir,
                 &ReportOptions::asked_of(
                     "`sv report`",
@@ -2385,7 +2425,12 @@ fn cmd_report(args: &[String]) -> Result<i32> {
                     advisories_dir,
                 ),
                 &loaded,
-            )
+            )?;
+            if let Some(b) = &baseline {
+                b.same_app(&report.app_name)?;
+                report.baseline = Some(b.note(&report.findings));
+            }
+            Ok(report)
         },
         &mut |note| eprintln!("{note}\n"),
     )?;
@@ -2495,7 +2540,23 @@ fn cmd_report(args: &[String]) -> Result<i32> {
         );
     }
     let gaps = report_gaps(&report, &loaded.adapters, run_tools, advisories_given);
-    let (status, reasons) = gaps.status(fail_on, report.findings.iter().map(|f| f.severity));
+    let (status, reasons) = match &report.baseline {
+        None => gaps.status(fail_on, report.findings.iter().map(|f| f.severity)),
+        Some(_) => {
+            if let Some(line) = sv_report::baseline_line(&report) {
+                println!("{line}");
+            }
+            gaps.status_of(
+                fail_on,
+                report
+                    .findings
+                    .iter()
+                    .filter(|f| !report.in_baseline(f))
+                    .map(|f| f.severity),
+                "new finding(s), not in the baseline,",
+            )
+        }
+    };
     // What was asked for and did not all run is said here whatever the exit status: by default it
     // does not change the status (ADR-029), and a run that ends quietly reads as one where it ran.
     let unsaid: Vec<&String> = gaps

@@ -100,12 +100,15 @@ fn an_unknown_option_is_an_error_that_names_the_commands_options_never_a_folder(
     let said = text(&sv(&["report", "-x"]));
     assert!(
         said.contains(
-            "it takes --run, --slow, --tools, --out, --advisories, --fail-on, and --help"
+            "it takes --run, --slow, --tools, --out, --advisories, --fail-on, --baseline, and --help"
         ),
         "{said}"
     );
     let said = text(&sv(&["check", "--run"]));
-    assert!(said.contains("it takes --fail-on, and --help"), "{said}");
+    assert!(
+        said.contains("it takes --fail-on, --baseline, and --help"),
+        "{said}"
+    );
     let said = text(&sv(&["sbom", "--run"]));
     assert!(said.contains("it takes no options but --help"), "{said}");
 }
