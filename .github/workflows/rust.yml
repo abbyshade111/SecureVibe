@@ -110,7 +110,10 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
-            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            # Docker Hub can refuse a sign-in too (one did, on #1289); the build then goes on
+            # anonymously, as it would without the token, rather than failing here.
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin \
+              || echo "::warning::Docker Hub refused the sign-in: the base images are downloaded anonymously."
           else
             echo "No Docker Hub token in this run: the base images are downloaded anonymously."
           fi
@@ -205,7 +208,10 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
-            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            # Docker Hub can refuse a sign-in too (one did, on #1289); the build then goes on
+            # anonymously, as it would without the token, rather than failing here.
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin \
+              || echo "::warning::Docker Hub refused the sign-in: the base images are downloaded anonymously."
           else
             echo "No Docker Hub token in this run: the base images are downloaded anonymously."
           fi
