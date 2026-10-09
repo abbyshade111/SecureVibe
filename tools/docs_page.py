@@ -251,6 +251,9 @@ nav.site ul { list-style: none; margin: 0; padding: 0; }
 nav.site li { margin: .1rem 0; }
 nav.site a { text-decoration: none; color: var(--fg); }
 nav.site a.here { color: var(--accent); font-weight: 600; }
+nav.site .tabs { display: flex; gap: .3rem; margin: .7rem 0 .2rem; }
+nav.site .tabs a { flex: 1; text-align: center; padding: .35rem .4rem; border: 1px solid var(--edge); border-radius: 6px; }
+nav.site .tabs a.here { border-color: var(--accent); }
 main { padding: 1.5rem clamp(1rem, 4vw, 3rem); max-width: 60rem; }
 .toc { border: 1px solid var(--edge); border-radius: 6px; padding: .6rem 1rem; background: var(--panel); font-size: .9rem; margin-bottom: 1.5rem; }
 .toc ul { margin: .2rem 0; padding-left: 1.1rem; }
@@ -268,14 +271,25 @@ input[type=search] { width: 100%; padding: .5rem .7rem; font: inherit; border: 1
 """
 
 
-def page(title, nav, body, depth):
+def tabs(up, board):
+    """The two views every page offers at the top of its sidebar: the documents, and the backlog at a glance (the
+    owner asked on 9 October 2026 for the board to sit beside the documents, one click from any page)."""
+    views = [("Documents", f"{up}index.html", not board), ("Backlog at a glance", f"{up}{BOARD}", board)]
+    links = []
+    for name, href, here in views:
+        mark = ' class="here"' if here else ""
+        links.append(f'<a{mark} href="{html.escape(href)}">{name}</a>')
+    return '<div class="tabs">' + "".join(links) + "</div>"
+
+
+def page(title, nav, body, depth, board=False):
     up = "../" * depth
     return (
         "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
         f"<title>{html.escape(title)} · StackVet docs</title>\n<style>{STYLE}</style>\n</head>\n<body>\n"
         f"<div class=\"layout\">\n<nav class=\"site\"><a href=\"{up}index.html\"><strong>StackVet docs</strong></a>"
-        f"{nav}</nav>\n<main>\n{body}\n</main>\n</div>\n</body>\n</html>\n"
+        f"{tabs(up, board)}{nav}</nav>\n<main>\n{body}\n</main>\n</div>\n</body>\n</html>\n"
     )
 
 
@@ -435,7 +449,8 @@ def build(out):
                           "t": text[:3000], "l": text.lower()[:3000] + " " + heading.lower()})
 
     board_body, counts = board(docs)
-    (out / BOARD).write_text(page("The backlog at a glance", nav_for(docs, titles, "index.md"), board_body, 0),
+    (out / BOARD).write_text(page("The backlog at a glance", nav_for(docs, titles, "index.md"), board_body, 0,
+                                  board=True),
                              encoding="utf-8")
     written.add((out / BOARD).resolve())
 
