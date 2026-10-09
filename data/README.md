@@ -54,7 +54,7 @@ The requirements themselves, as published. Read by `sv-frameworks` and counted b
 | `ast-rules.json` | `sv-check`, `sv-cli` | `sv`'s own rules for reading code, in each language. |
 | `secret-rules.json` | `sv-check`, `sv-cli` | The formats of keys and passwords the secrets scan looks for. |
 | `adapters.json` | `sv-check`, `sv-cli` | The outside scanners `sv` can run (semgrep, bandit, and others), and which requirements their rules speak to. |
-| `reach.json` | `sv-report`, through `sv report` | For each requirement a check can settle, the kinds of run with a check that can credit it. Written by `tools/coverage.py` (a test fails while it is out of date); the short version uses it to say how many requirements only a kind of run that did not happen could reach. |
+| `reach.json` | `sv-report`, through `sv report`; `sv-cli`, through `sv explain` | For each requirement a check can settle, the kinds of run with a check that can credit it. Written by `tools/coverage.py` (a test fails while it is out of date); the short version uses it to say how many requirements only a kind of run that did not happen could reach. Its `checks` part lists, for every requirement a check speaks to, each check, the kind of run it needs, what it looks for, and whether it is only ever a finding, for `sv explain`. |
 | `semgrep-packs.json` | tests and `tools/coverage.py` | Which rules each semgrep pack really loads, as measured by `tools/semgrep_packs.py`. |
 | `codeql-suites.json` | tests | Which queries each CodeQL suite the adapters run really selects, as measured by `tools/codeql_suites.py`. |
 

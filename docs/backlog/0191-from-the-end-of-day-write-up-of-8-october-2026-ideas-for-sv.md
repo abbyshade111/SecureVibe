@@ -54,5 +54,8 @@ there, is item 8 of "From the architecture assessment of 8 October 2026" and is 
    - with an app folder, its status in that app's last report and the reason given there.
    It reads files only and credits nothing. Read on `main` and the open pull requests just before this claim: no
    other session had claimed part 5.
+   **Done the same day** (DESIGN, "sv explain: one requirement at the terminal"): `sv explain ID [--app DIR]` (the
+   app given with `--app`, as `sv prompts` takes it), with `data/reach.json`'s new `checks` part. Not a column in
+   `report.html`: the command answers where the person reads the report.
 6. **A GitHub Action wrapping the image**, so `sv report --tools` runs on each pull request of an owner's app with
    the SARIF uploaded to code scanning. Adoption more than capability; the image and the SARIF writer exist.

@@ -854,6 +854,8 @@ impl ReviewLookup<'_> {
 
 pub mod brief;
 
+pub mod explain;
+
 pub mod parts;
 
 pub mod plan;
