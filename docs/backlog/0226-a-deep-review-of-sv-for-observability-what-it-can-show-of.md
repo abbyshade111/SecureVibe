@@ -231,3 +231,9 @@ function (`sv_report::confirmed_only_by`, with its labels in `Status::shown`), s
 through `sv review` is given as the report gives it and never as the owner's. Breaks: `sv explain` ignoring the rule
 failed its new test; the rule broken failed that test and the new one in `crates/sv-report/src/whose_word_tests.rs`,
 where before nothing in the report crate had failed.
+
+**Part 1, item 8 claimed on 9 October 2026 by session stackvet-e9**, under the owner's "continue to work off the
+backlog", in branch `claude/stackvet-e9-history-honest`: `#[serde(default)]` on the dashboard's `Run`, so a field
+added later does not hide every older run, and the page saying how many runs it could not read, each with a test
+that fails without it. Open pull requests (#1302, #1304, #1305) and the branches of the last few hours read first:
+none touches `crates/sv-cli/src/history.rs` or `crates/sv-report/src/dashboard.rs`.
