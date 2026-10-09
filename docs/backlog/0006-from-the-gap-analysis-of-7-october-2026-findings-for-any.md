@@ -438,6 +438,17 @@ listed apart, below this item.
    **The first part done the same day** (`docs/design/0330-why-the-level-and-on-whose-word-9-october-2026.md`; ADR-024, Later, accepted): `level_why` in
    `report.json`, and the sentence under the level line in every report. Still open: sealing the scope through
    `sv review`, and comparing the answers with what the code shows.
+   **Comparing the answers with what the code shows claimed 9 October 2026 by session securevibe-e2** ("please
+   continue to work through and pick up new items as you merge"), in branch `claude/securevibe-e2-level-hints`: when
+   the app is held to level 1, the report looks in the app's own code for what would make it level 2, a sign-up
+   route open to strangers (`/signup`, `/register`, and their like) beside `audience = "just-me"` or `"my-team"`, and
+   field names that hold health, financial, or identity information (`diagnosis`, `medication`, `card_number`,
+   `ssn`, and their like) beside a data list that names none of them, and asks the owner under the level line, naming
+   the file and line. A question, never a finding: it changes no level and counts toward nothing, since a name in the
+   code is a hint, not proof of what the app holds. The names are kept in `data/`, beside the other lists `sv` reads.
+   **`Status: proposed`: ADR-024, Later, 9 October 2026** (what the report says about the level). Sealing the scope
+   through `sv review` stays open. Read on `main` and the open pull requests just before this claim: no other session
+   had claimed this part.
 18. **The AI tool's "when to bring in a person" text is shown as the owner's.** (`docs/GAP-ANALYSIS.md`, 4.2.) A
    `design-decisions.md` section the AI tool wrote saying no outside review is needed comes out as "Your
    design-decisions.md says …" in every report file (`main.rs`, near the escalation text). Name who wrote it, and
