@@ -69,7 +69,10 @@ lacks, does not count, or every run would exit 2. Add `--fail-on attention` to e
 severity or worse, leaving out those marked only for information (or `attention:high` for high and critical
 only), `--fail-on not-assessed` to exit 2 also for a symbolic link not
 followed, a `--tools` tool that did not run, or an `--advisories` comparison that did not cover the app, or
-`--fail-on any` for both; 1 outranks 2. Packages
+`--fail-on any` for both; 1 outranks 2. To start using `sv` on an app that already has findings you know
+about, add `--baseline <an older report folder>`: `--fail-on attention` then exits 1 only for a finding that
+report did not have. Every finding is still listed and counted, and the ones already there are marked, so
+nothing is hidden; a baseline `sv` cannot read, or one for an app of another name, stops the run. Packages
 in folders `stackvet.toml` says are not the app, such as example apps and test fixtures, are listed apart
 and still count: that file is written by your AI coding tool, and naming a folder there must never hide a
 vulnerability. `sv` holds itself to this every week, auditing the Rust files it is built from

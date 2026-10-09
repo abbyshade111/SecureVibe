@@ -19,6 +19,9 @@ there, is item 8 of "From the architecture assessment of 8 October 2026" and is 
    with no readable `report.json`, or one made for another app, stops the run with exit 3 and says which, rather than
    quietly comparing against nothing. **`Status: proposed`: ADR-029, Later, 9 October 2026** (what exit 1 means with
    a baseline). Read on `main` and the open pull requests just before this claim: no other session had claimed it.
+   **Done the same day** (`docs/design/0338-fail-only-on-what-is-new-baseline-9-october-2026.md`; ADR-029, Later,
+   accepted): `--baseline` on `sv check` and `sv report`, the held findings marked in every report file and as
+   SARIF's `baselineState`, and a baseline that cannot be read or names another app refused with exit 3.
 2. **A corpus of known verdicts as a regression test.** The example apps and the trial apps already scored, with
    their expected counts per requirement checked in, run nightly and compared with the night before: the honesty
    rule turned into a measurement, so a change that credits more or finds less has to say why. Builds on the

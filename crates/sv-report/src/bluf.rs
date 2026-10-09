@@ -386,6 +386,7 @@ mod tests {
     fn report(counts: Counts) -> Report {
         Report {
             level_why: None,
+            baseline: None,
             app_name: "Test".into(),
             target_level: 1,
             generated: None,
