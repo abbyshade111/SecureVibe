@@ -1,6 +1,6 @@
 # Packaging `sv` for somebody who is not technical: a container now, a download later
 
-**Status:** partly done: the downloadable program (a build per platform in CI; on a Mac, notarizing or Homebrew)
+**Status:** claimed by securevibe-e2, 9 October 2026
 
 **The
 owner's decision, 26 September 2026: build the container now, and keep the downloadable program
