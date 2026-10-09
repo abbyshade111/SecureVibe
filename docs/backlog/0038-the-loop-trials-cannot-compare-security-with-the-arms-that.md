@@ -1,6 +1,6 @@
 # The loop trials cannot compare security with the arms that have no `sv`
 
-**Status:** claimed by paper-facts, 8 October 2026
+**Status:** done, 8 October 2026
 
 Found on 5 October 2026 by session
 paper-facts, in item 3: a build that never saw `sv`'s specification writes no manifest `sv` can read, so it cannot
@@ -15,3 +15,9 @@ ready", then "Haiku 5.5" for the model), in branch `claude/loop-compare`: 10 Cla
 one blind tester from the code alone, so the comparison is of the apps, as the owner chose on 5 October.
 Protocol, written before any build: `docs/prompts/loop-compare/protocol.md`. About $3.50 to $5; nothing spent before
 the owner's word. Read on `main` just before this claim: open, and no other session had claimed it.
+**Done the same day** (`docs/prompts/loop-compare/results.md`): 20 builds and 20 blind-tester runs, $3.57. Of the
+apps that started, every one built with `sv` had fewer running-app findings than every one built without (middle 3.5
+against 12), across headers, passwords, sessions and limits; own-code findings at high or critical, no difference by
+the rule. Four apps built with `sv` did not start, three pinning a version of the password package its prompt names
+that does not exist, so the measure rests on six; and the tester was not fully blind (eight of the ten copies built
+with `sv` still named it). The paper's `TRIALS.md` has it as the eleventh trial.

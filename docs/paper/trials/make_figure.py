@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Writes docs/paper/figure-trials.html: the ten trials of 5 to 8 October 2026, and every pasted-prompt comparison.
+"""Writes docs/paper/figure-trials.html: the eleven trials of 5 to 8 October 2026, and every pasted-prompt comparison.
 
 Every comparison is read from the trials' committed results files in docs/prompts/library-trial/. Only the trial
 list's dates, sizes and costs are typed here, each taken from that trial's own write-up, which is named beside it.
@@ -37,6 +37,8 @@ TRIALS = [
      "Do the three sentences added from the trials work?"),
     ("Haiku 5.5", "8 Oct", 21, 6.16, "docs/prompts/library-trial/haiku55.md",
      "Does Claude Haiku 5.5 build apps that can be tested, where Haiku 4.5 could not? (20 and a smoke build)"),
+    ("With and without sv", "8 Oct", 20, 3.57, "docs/prompts/loop-compare/results.md",
+     "Does an app built with sv attached have fewer security problems than one built without it? (and 20 tester runs)"),
 ]
 
 
@@ -166,7 +168,7 @@ def main():
 <body>
 <div class="viz-root">
   <h1>The prompt trials, 5 to 8 October 2026</h1>
-  <p class="sub">Apps built by Claude Haiku 4.5 and Claude Sonnet 5.5 (and, in the tenth trial, Claude Haiku 5.5) from one request, each checked by <code>sv</code>. A
+  <p class="sub">Apps built by Claude Haiku 4.5 and Claude Sonnet 5.5 (and, in the tenth and eleventh trials, Claude Haiku 5.5) from one request, each checked by <code>sv</code>. A
   prompt is <b>shown</b> when its problem was in at least 5 of the builds without it and at most 1 with it; <b>not
   shown</b> when it stayed in 2 or more; <b>no reading</b> when fewer than 5 builds had the problem without it.</p>
   <div class="hero">

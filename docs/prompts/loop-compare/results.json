@@ -1,0 +1,273 @@
+{
+ "arms": {
+  "none": {
+   "apps": 10,
+   "report": 10,
+   "started": 10,
+   "signed_in": 10,
+   "answered": [
+    25,
+    29,
+    29,
+    29,
+    29,
+    29,
+    30,
+    30,
+    31,
+    31
+   ],
+   "running_findings": [
+    10,
+    10,
+    11,
+    11,
+    12,
+    12,
+    12,
+    12,
+    12,
+    14
+   ],
+   "own_high": [
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    3
+   ]
+  },
+  "loop": {
+   "apps": 10,
+   "report": 10,
+   "started": 6,
+   "signed_in": 6,
+   "answered": [
+    0,
+    0,
+    0,
+    0,
+    24,
+    27,
+    27,
+    28,
+    30,
+    31
+   ],
+   "running_findings": [
+    2,
+    3,
+    3,
+    4,
+    5,
+    5
+   ],
+   "own_high": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  }
+ },
+ "differences": {
+  "running_findings": "fewer with sv: every app built with it below every app built without",
+  "own_high": "no difference by the rule (the two arms overlap)"
+ },
+ "problems": {
+  "password-rules": {
+   "none": [
+    10,
+    10
+   ],
+   "loop": [
+    1,
+    6
+   ],
+   "verdict": "shown"
+  },
+  "password-hashing": {
+   "none": [
+    0,
+    10
+   ],
+   "loop": [
+    0,
+    10
+   ],
+   "verdict": "no reading"
+  },
+  "same-site-redirects": {
+   "none": [
+    0,
+    10
+   ],
+   "loop": [
+    0,
+    6
+   ],
+   "verdict": "no reading"
+  },
+  "sanitize-rich-text": {
+   "none": [
+    0,
+    10
+   ],
+   "loop": [
+    0,
+    10
+   ],
+   "verdict": "no reading"
+  },
+  "check-every-request": {
+   "none": [
+    0,
+    10
+   ],
+   "loop": [
+    0,
+    6
+   ],
+   "verdict": "no reading"
+  },
+  "changes-from-own-pages": {
+   "none": [
+    0,
+    10
+   ],
+   "loop": [
+    0,
+    6
+   ],
+   "verdict": "no reading"
+  },
+  "database-placeholders": {
+   "none": [
+    0,
+    10
+   ],
+   "loop": [
+    0,
+    6
+   ],
+   "verdict": "no reading"
+  },
+  "files-under-own-names": {
+   "none": [
+    0,
+    10
+   ],
+   "loop": [
+    0,
+    6
+   ],
+   "verdict": "no reading"
+  },
+  "no-shell-with-input": {
+   "none": [
+    0,
+    10
+   ],
+   "loop": [
+    0,
+    10
+   ],
+   "verdict": "no reading"
+  },
+  "cross-site-access": {
+   "none": [
+    0,
+    10
+   ],
+   "loop": [
+    0,
+    6
+   ],
+   "verdict": "no reading"
+  },
+  "plain-error-pages": {
+   "none": [
+    0,
+    10
+   ],
+   "loop": [
+    0,
+    6
+   ],
+   "verdict": "no reading"
+  },
+  "production-server": {
+   "none": [
+    10,
+    10
+   ],
+   "loop": [
+    0,
+    6
+   ],
+   "verdict": "shown"
+  }
+ },
+ "left_out": [],
+ "by_check": {
+  "started": {
+   "none": 10,
+   "loop": 6
+  },
+  "without_sv": {
+   "probe.signup-reveals-account": 10,
+   "probe.opener-policy-missing": 10,
+   "probe.common-password-accepted": 10,
+   "probe.failed-sign-ins-unlimited": 10,
+   "probe.security-headers": 10,
+   "probe.private-page-cached": 9,
+   "probe.private-page-headers": 10,
+   "probe.breached-password-accepted": 10,
+   "probe.logout-keeps-session": 10,
+   "probe.version-disclosed": 10,
+   "probe.create-rate-unlimited": 9,
+   "probe.no-sign-out-link": 6,
+   "probe.context-word-password-accepted": 1,
+   "probe.session-cookie-attributes": 1
+  },
+  "with_sv": {
+   "probe.signup-reveals-account": 6,
+   "probe.no-sign-out-link": 4,
+   "probe.create-rate-unlimited": 5,
+   "probe.failed-sign-ins-unlimited": 2,
+   "probe.context-word-password-accepted": 1,
+   "probe.logout-keeps-session": 2,
+   "probe.common-password-accepted": 1,
+   "probe.breached-password-accepted": 1
+  }
+ },
+ "did_not_start": {
+  "app4e76b5": [
+   "loop",
+   "Installing the app's packages from PyPI before the run did not finish: it ended with: 2. remove package versions to allow pip to attempt to solve the dependency conflict / ERROR: Cannot install -r /in/requirements.txt (line 4) and blinker==1.8.2 because these package versions have conflicting dependencies. / ERROR: ResolutionImpossible: for help visit https://pip.pypa.io/en/latest/topics/dependenc"
+  ],
+  "app9a32fe": [
+   "loop",
+   "Installing the app's packages from PyPI before the run did not finish: it ended with: Downloading werkzeug-3.1.3-py3-none-any.whl.metadata (3.7 kB) / ERROR: Could not find a version that satisfies the requirement zxcvbn==4.4.28 (from versions: 4.4.27, 4.5.0) / ERROR: No matching distribution found for zxcvbn==4.4.28. The install takes only ready-made packages and runs none of their own install cod"
+  ],
+  "app308f53": [
+   "loop",
+   "Installing the app's packages from PyPI before the run did not finish: it ended with: Downloading webencodings-0.5.1-py2.py3-none-any.whl.metadata (2.1 kB) / ERROR: Could not find a version that satisfies the requirement zxcvbn==4.4.28 (from versions: 4.4.27, 4.5.0) / ERROR: No matching distribution found for zxcvbn==4.4.28. The install takes only ready-made packages and runs none of their own ins"
+  ],
+  "app660e86": [
+   "loop",
+   "Installing the app's packages from PyPI before the run did not finish: it ended with: Downloading nh3-0.2.17-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (1.7 kB) / ERROR: Could not find a version that satisfies the requirement zxcvbn==4.4.28 (from versions: 4.4.27, 4.5.0) / ERROR: No matching distribution found for zxcvbn==4.4.28. The install takes only ready-made packages "
+  ]
+ }
+}
