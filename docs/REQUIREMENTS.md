@@ -631,9 +631,9 @@ decided per app, from its `stackvet.toml` and its code.
 
 ## OWASP AISVS 1.0
 
-191 requirements: 23 can be checked, 18 can only be found failing, 0 where a check helps but a person decides, and 150 with no check.
+191 requirements: 23 can be checked, 19 can only be found failing, 0 where a check helps but a person decides, and 149 with no check.
 
-### Level 1 (51 requirements, 16 can be checked, 7 can only be found failing)
+### Level 1 (51 requirements, 16 can be checked, 8 can only be found failing)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -714,7 +714,7 @@ decided per app, from its `stackvet.toml` and its code.
 | **C10.2.1** Verify that MCP servers validate access tokens for each request and do not rely on transport security alone. | Can be checked | The running app: `probe.mcp-server-token-unchecked`, if it fails: Anyone who can reach the MCP server can use its tools, with no token or with one they made up: whatever the tools can do, any AI client on the network can have done. |
 | **C10.2.2** Verify that MCP servers validate the presented access token's issuer, audience, expiration, and scope claims in accordance with OAuth 2.1. | No check | – |
 | **C10.2.3** Verify that MCP servers acting as OAuth 2.1 resource servers do not store or persist access tokens or user credentials. | No check | – |
-| **C10.3.1** Verify that authenticated, encrypted streamable HTTP is used for MCP transport for remote services. | No check | – |
+| **C10.3.1** Verify that authenticated, encrypted streamable HTTP is used for MCP transport for remote services. | Can only be found failing | Reads the code: `config.mcp-transport-unencrypted`, looks for: An MCP server on another computer is reached over plain HTTP (found failing only) |
 | **C10.3.2** Verify that stdio transport is permitted only in controlled local environments. | No check | – |
 | **C10.4.1** Verify that MCP tools/list and tools/call responses are validated against their declared schemas before being injected into the model context. | Can be checked | The running app: `probe.ai-mcp-output-unvalidated`, if it fails: A tool's result that does not match the shape the tool promised is passed to the model as if it did, so a broken or hostile MCP server decides what the model is told. |
 | **C10.4.2** Verify that MCP tools/list and tools/call responses are screened for indirect prompt injection before being injected into the model context. | Can be checked | The running app: `probe.ai-mcp-injection-unscreened`, if it fails: Whoever controls what an MCP tool returns can write instructions to the model, and the model reads them with the same authority as the app's own.<br>Outside tools: semgrep, 2 rules, its rules look for: an MCP tool that returns an outside response unscreened for indirect prompt injection into the model context; an MCP tool whose description carries hidden instructions, an indirect prompt injection in its tools/list entry (found failing only) |

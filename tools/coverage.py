@@ -74,6 +74,7 @@ RUST_CHECKS = {
     "config.secrets-file-committed": ("static", ["V13.3.1"]),
     "config.development-server-started": ("static", ["V15.2.3"]),
     "config.mcp-server-unpinned": ("static", ["C10.1.1"]),
+    "config.mcp-transport-unencrypted": ("static", ["C10.3.1"]),
     "config.rich-text-without-sanitizer": ("static", ["V1.3.1"]),
     "config.retired-grant-enabled": ("static", ["V10.4.4"]),
     "config.model-file-can-run-code": ("static", ["C4.1.2"]),
@@ -266,6 +267,9 @@ RUST_CHECKS = {
 # Checks in RUST_CHECKS that only ever raise their requirement as a finding: a clean run of one
 # credits nothing, because what would settle the requirement is not in anything the check reads.
 RUST_FINDINGS_ONLY = {
+    # An `https://` address shows neither that the link is authenticated nor that it is the only one
+    # (ADR-068).
+    "config.mcp-transport-unencrypted",
     # A few characters kept out do not show an allow-list (ADR-065).
     "probe.ai-input-charset-unrestricted",
     # Found on 3 October 2026 to be counted as crediting when no code path gives them credit: each

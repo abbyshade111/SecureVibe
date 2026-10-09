@@ -87,8 +87,11 @@ fn gap_naming<'a>(gaps: &'a [(String, String)], package: &str) -> Option<&'a (St
         .find(|(what, why)| what.contains(RULE) && why.contains(&format!("uses {package} (")))
 }
 
-const KNEX_JS: &str = "const db = require('knex')({ client: 'sqlite3' });\n\
-    module.exports = (req, res) => db('users').whereRaw(\"name = '\" + req.query.name + \"'\").then(r => res.json(r));\n";
+// knex, the package of the fault, is read now (`ast/orm_raw_tests.rs`); TypeORM's query builder is not,
+// so it stands in as the package the rule cannot see into.
+const TYPEORM_JS: &str = "const { AppDataSource } = require('./data');\n\
+    module.exports = (req, res) => AppDataSource.getRepository('User').createQueryBuilder('u')\
+    .where(\"u.name = '\" + req.query.name + \"'\").getMany().then(r => res.json(r));\n";
 
 #[test]
 fn a_package_declared_with_no_lockfile_holds_the_credit_back() {
@@ -98,31 +101,31 @@ fn a_package_declared_with_no_lockfile_holds_the_credit_back() {
         &[
             (
                 "package.json",
-                "{ \"name\": \"users\", \"dependencies\": { \"knex\": \"3.1.0\" } }\n",
+                "{ \"name\": \"users\", \"dependencies\": { \"typeorm\": \"0.3.20\" } }\n",
             ),
-            ("users.js", KNEX_JS),
+            ("users.js", TYPEORM_JS),
         ],
     );
     let (checked_by, gaps) = v124_and_gaps(&dir);
     std::fs::remove_dir_all(&dir).ok();
     assert!(
         !credited(&checked_by),
-        "V1.2.4 was checked by the rule for an app whose queries go through knex: {checked_by:?}"
+        "V1.2.4 was checked by the rule for an app whose queries go through TypeORM: {checked_by:?}"
     );
-    let gap = gap_naming(&gaps, "knex").expect("a gap says knex held the rule back");
+    let gap = gap_naming(&gaps, "typeorm").expect("a gap says TypeORM held the rule back");
     assert!(
-        gap.1.contains("whereRaw"),
+        gap.1.contains("`where`"),
         "the gap names the calls the rule does not read: {gap:?}"
     );
 }
 
 #[test]
 fn a_package_only_in_the_lockfile_holds_the_credit_back() {
-    // knex arrives through another package: package.json does not declare it, the lockfile lists it.
+    // TypeORM arrives through another package: package.json does not declare it, the lockfile lists it.
     let lock = "{ \"name\": \"users\", \"lockfileVersion\": 3, \"packages\": { \
         \"\": { \"name\": \"users\", \"dependencies\": { \"users-db\": \"1.0.0\" } }, \
         \"node_modules/users-db\": { \"version\": \"1.0.0\" }, \
-        \"node_modules/knex\": { \"version\": \"3.1.0\" } } }\n";
+        \"node_modules/typeorm\": { \"version\": \"0.3.20\" } } }\n";
     let dir = app(
         "lockfile",
         "javascript",
@@ -132,18 +135,18 @@ fn a_package_only_in_the_lockfile_holds_the_credit_back() {
                 "{ \"name\": \"users\", \"dependencies\": { \"users-db\": \"1.0.0\" } }\n",
             ),
             ("package-lock.json", lock),
-            ("users.js", KNEX_JS),
+            ("users.js", TYPEORM_JS),
         ],
     );
     let (checked_by, gaps) = v124_and_gaps(&dir);
     std::fs::remove_dir_all(&dir).ok();
     assert!(
         !credited(&checked_by),
-        "V1.2.4 was checked with knex in the lockfile: {checked_by:?}"
+        "V1.2.4 was checked with TypeORM in the lockfile: {checked_by:?}"
     );
     assert!(
-        gap_naming(&gaps, "knex").is_some(),
-        "no gap names knex: {gaps:?}"
+        gap_naming(&gaps, "typeorm").is_some(),
+        "no gap names typeorm: {gaps:?}"
     );
 }
 

@@ -36,7 +36,7 @@ What each kind of check needs before it can run:
 | Framework | Requirements | Can settle | Can be credited | Supporting only | Nothing |
 |---|---|---|---|---|---|
 | OWASP ASVS 5.0 | 345 | 170 (49%) | 120 (35%) | 10 | 165 |
-| OWASP AISVS 1.0 | 191 | 41 (21%) | 23 (12%) | 0 | 150 |
+| OWASP AISVS 1.0 | 191 | 42 (22%) | 23 (12%) | 0 | 149 |
 | AISVS Appendix C | 68 | 3 (4%) | 2 (3%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 0 (0%) | 11 | 25 |
 
@@ -325,11 +325,11 @@ does not reach.
 | C7 Model Behavior, Output Control & Safety Assurance | 13 | 6 | 5 | 0 | 7 |
 | C8 Memory, Embeddings & Vector Database Security | 11 | 1 | 0 | 0 | 10 |
 | C9 Orchestration & Agentic Security | 34 | 8 | 5 | 0 | 26 |
-| C10 Model Context Protocol (MCP) Security | 23 | 9 | 7 | 0 | 14 |
+| C10 Model Context Protocol (MCP) Security | 23 | 10 | 7 | 0 | 13 |
 | C11 Adversarial Robustness | 17 | 2 | 1 | 0 | 15 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 3 | 3 | 0 | 18 |
 
-19 of these 44 can only ever be marked *needs attention*: a check can
+20 of these 45 can only ever be marked *needs attention*: a check can
 show the control missing, and finding nothing does not show it present, so a clean run credits
 none of them. Most are `sv`'s own checks: rules that read the code, and questions asked of the
 running app (`--run`, with an `ai` section). The rest are semgrep's and CodeQL's, and need `--tools`.
@@ -364,6 +364,7 @@ running app (`--run`, with an `ai` section). The rest are semgrep's and CodeQL's
 - C10.1.1: found failing by sv's `config.mcp-server-unpinned`.
 - C10.2.1: settled by `probe.mcp-server-token-unchecked`.
 - C10.2.6: settled by `probe.mcp-session-survives-end`.
+- C10.3.1: found failing by sv's `config.mcp-transport-unencrypted`.
 - C10.3.3: settled by `probe.mcp-server-origin-unchecked`.
 - C10.4.1: settled by `probe.ai-mcp-output-unvalidated`.
 - C10.4.2: settled by `probe.ai-mcp-injection-unscreened`; and found failing by semgrep's `mcp-tool-poisoning`, `mcp-unsanitized-return`.
