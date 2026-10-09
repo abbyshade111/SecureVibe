@@ -107,6 +107,7 @@ evidence-tier rule without its number), and ADR-012 is also cited by number in `
 | [ADR-061](ADR-061.md) | One file per backlog item, with a status line, so what is open is data and two claims meet only on their own item |
 | [ADR-062](ADR-062.md) | The product is StackVet and the command stays `sv`: one place for every name, the old names read for a window, the paper and v1 untouched (proposed) |
 | [ADR-063](ADR-063.md) | StackVet's logo is the code bracket, in terracotta, as the owner chose |
+| [ADR-064](ADR-064.md) | A tool that does not answer, and C9.1.1 checked in part (proposed) |
 
 ## Where v1's records disagree with what v1 built
 
