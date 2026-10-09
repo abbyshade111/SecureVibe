@@ -210,6 +210,14 @@ listed apart, below this item.
    `ast.fetch-address-from-request` in Python, JavaScript and TypeScript, and Go, only ever a finding, with an address
    from the app's settings or a written-out host left alone; six guards broken in turn, each caught. Of this finding,
    the request body passed whole to an update or create is still open.
+   **The request body passed whole to an update or create claimed 9 October 2026 by session securevibe-e9**, from the
+   roadmap (Phase 4, item 4, the last unclaimed part of this finding), in branch `claude/stackvet-e9-body-whole`: a code
+   rule, `ast.request-body-passed-whole`, only ever a finding, citing V15.3.3 (mass assignment), for the whole request
+   body handed to a model's create or update as it came (`User.create(req.body)`, `Object.assign(user, req.body)`,
+   Prisma's `data: req.body`, `new Model(req.body)`; `User(**request.json)`, `.objects.create(**request.data)`,
+   `.update(**request.get_json())`), in Python, JavaScript, and TypeScript; one field picked out of the body, or the
+   body checked by a schema first, is not reported. Confirmed on `main` and in the open pull requests just before this
+   claim: no rule reads it, and no other session holds this part.
 12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
    Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
    and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
