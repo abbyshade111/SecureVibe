@@ -517,6 +517,16 @@ listed apart, below this item.
 21. **The loop trials cannot tell fixing from dodging.** (`docs/GAP-ANALYSIS.md`, 4.5.) Add to the trial measures
    how each finding went away, and credit-seeking edits (ids added to tests, `by = "owner"`, finding reviews,
    `not-the-app` or scope changes); run an outside tool as an independent check of the loop arm.
+   **The measures (the first half) claimed 9 October 2026 by session securevibe-e9** ("please continue to work
+   through and pick up new items as you merge"), in branch `claude/stackvet-e9-loop-dodging`. The loop trials'
+   scoring script (`docs/prompts/loop-pilot/loop_measures.py`) gains two measures, read from each build's transcript:
+   - **How each finding went away.** For a finding one `sv` check reported and a later one did not, whether the code
+     at it was changed, it was set aside (a finding review, `not-the-app`, or a scope change), or its file was removed.
+   - **Credit-seeking edits.** Requirement ids written into test names, `by = "owner"` lines, finding reviews, and
+     `not-the-app` or scope changes, counted per build.
+   Each is tested on written-out transcripts. Running an outside tool on the loop arm needs a new trial, which
+   spends the owner's money, so that half stays open. Read on `main` and the open pull requests just before this
+   claim: no other session had claimed any part of finding 21.
 22. **Smaller trust gaps in the build loop.** (`docs/GAP-ANALYSIS.md`, 4.6.) Each claimable on its own: (a) the
    seal key's passphrase on by default, and the report saying when a seal's key has none (a change to ADR-043); (b)
    reports read back as MCP resources fenced as app text; (c) a "drafted by your AI tool, adopted by you" label for
