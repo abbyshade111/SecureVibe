@@ -80,3 +80,6 @@ the repository asks for more. **Part 4 claimed 9 October 2026 by session securev
 it. No binary is published, so none is signed. **`Status: proposed`: ADR-080.** **Part 6 claimed the same day by
 session securevibe-e9**, to be built once part 4 lands. **`Status: proposed`: ADR-081.** Read on `main` and the open
 pull requests just before this claim: no other session had claimed part 4 or part 6.
+**Part 4 done the same day** (`docs/design/0341-the-published-image-signed-9-october-2026.md`, ADR-080 accepted): the
+`publish` job signs the image it pushes with `actions/attest` and pushes the signed statement beside it; the README
+says how to check it with `gh attestation verify`. No binary is published, so none is signed.
