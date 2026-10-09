@@ -1594,10 +1594,11 @@ impl DockerBackend {
             "-c",
             &script,
         ]) {
-            Ok((_, out)) => out,
+            Ok((code, out)) => (code, out),
             Err(e) => return fail(format!("could not check the fence's gateway: {e}")),
         };
-        match gateway_verdict(&out) {
+        let (code, out) = out;
+        match gateway_verdict(&out, code) {
             GatewayVerdict::Closed => Ok(()),
             GatewayVerdict::Reachable => fail(format!(
                 "a container on the fenced network reached its gateway, {gateway}, which is this \
@@ -2462,11 +2463,37 @@ fn gateway_targets(config: &str) -> Vec<String> {
     out
 }
 
+/// What a command that should have reported printed instead, for a reason a person reads: its last
+/// lines that are not blank, since Docker's own error comes last, cut to 300 characters.
+fn what_it_printed(out: &str) -> String {
+    let lines: Vec<&str> = out
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect();
+    if lines.is_empty() {
+        return "it printed nothing".to_owned();
+    }
+    let tail = lines[lines.len().saturating_sub(3)..].join(" / ");
+    let cut: String = tail.chars().take(300).collect();
+    if cut.len() < tail.len() {
+        format!("it printed: {cut}…")
+    } else {
+        format!("it printed: {cut}")
+    }
+}
+
 /// Reads the knocks: the container's own loopback (the control, which must be refused) and then each
 /// gateway address. A connection or a refusal from any of them is the host answering; a timeout, no
 /// route, or an unreachable network from every one is the fence holding. Anything else is not taken
 /// for either.
-fn gateway_verdict(out: &str) -> GatewayVerdict {
+///
+/// `code` is how the knocking container's `docker run` ended. When the knocks never reported, the
+/// reason says what Docker or the container printed and that code, so a failure to start it (an image
+/// that could not be fetched, a network Docker refused) is said by name: until 9 October 2026 every
+/// such failure read only "the check did not run", and `main` stayed red for hours with the cause
+/// hidden (backlog 0226).
+fn gateway_verdict(out: &str, code: i32) -> GatewayVerdict {
     // Each knock's output, and its exit status, in order.
     let mut sections: Vec<(String, String, Option<i32>)> = Vec::new();
     let mut text = String::new();
@@ -2484,7 +2511,10 @@ fn gateway_verdict(out: &str) -> GatewayVerdict {
     }
     let Some((_, own, Some(own_code))) = sections.iter().find(|(m, _, _)| m == "sv-self").cloned()
     else {
-        return GatewayVerdict::Unknown("the check did not run".to_owned());
+        return GatewayVerdict::Unknown(format!(
+            "the check did not run: {} (exit {code})",
+            what_it_printed(out)
+        ));
     };
     if own_code == 0 || !own.to_lowercase().contains("refused") {
         return GatewayVerdict::Unknown(format!(
@@ -4490,6 +4520,10 @@ http.createServer((q, s) => {
 }
 
 #[cfg(test)]
+#[path = "gateway_said_tests.rs"]
+mod gateway_said_tests;
+
+#[cfg(test)]
 mod gateway_tests {
     use super::*;
 
@@ -4503,7 +4537,7 @@ mod gateway_tests {
             "sv-gateway=0\n",
         ] {
             assert_eq!(
-                gateway_verdict(&format!("{REFUSED_SELF}{gateway}")),
+                gateway_verdict(&format!("{REFUSED_SELF}{gateway}"), 0),
                 GatewayVerdict::Reachable,
                 "{gateway}"
             );
@@ -4519,7 +4553,7 @@ mod gateway_tests {
             "nc: can't connect to remote host (172.20.0.1): Connection timed out\nsv-gateway=1\n",
         ] {
             assert_eq!(
-                gateway_verdict(&format!("{REFUSED_SELF}{gateway}")),
+                gateway_verdict(&format!("{REFUSED_SELF}{gateway}"), 0),
                 GatewayVerdict::Closed,
                 "{gateway}"
             );
@@ -4547,10 +4581,10 @@ mod gateway_tests {
         let out = format!(
             "{REFUSED_SELF}nc: timed out\nsv-gateway=1\nnc: can't connect to remote host (10.9.0.254): Connection refused\nsv-gateway=1\n"
         );
-        assert_eq!(gateway_verdict(&out), GatewayVerdict::Reachable);
+        assert_eq!(gateway_verdict(&out, 0), GatewayVerdict::Reachable);
         let out =
             format!("{REFUSED_SELF}nc: timed out\nsv-gateway=1\nnc: timed out\nsv-gateway=1\n");
-        assert_eq!(gateway_verdict(&out), GatewayVerdict::Closed);
+        assert_eq!(gateway_verdict(&out, 0), GatewayVerdict::Closed);
     }
 
     #[test]
@@ -4558,19 +4592,19 @@ mod gateway_tests {
         // CI, 4 October 2026: with no gateway, the subnet's first address was the knocking container's
         // own, and its refusal read as the host answering.
         assert_eq!(
-            gateway_verdict(&format!("{REFUSED_SELF}sv-own=172.18.0.1\n")),
+            gateway_verdict(&format!("{REFUSED_SELF}sv-own=172.18.0.1\n"), 0),
             GatewayVerdict::Closed
         );
         // Its own address skipped, another that answers still stops the run.
         let out = format!(
             "{REFUSED_SELF}sv-own=172.18.0.1\nnc: 172.18.0.254 (172.18.0.254:9): Connection refused\nsv-gateway=1\n"
         );
-        assert_eq!(gateway_verdict(&out), GatewayVerdict::Reachable);
+        assert_eq!(gateway_verdict(&out, 0), GatewayVerdict::Reachable);
     }
 
     #[test]
     fn a_check_that_cannot_tell_is_never_taken_for_a_fence() {
-        let unknown = |out: &str| matches!(gateway_verdict(out), GatewayVerdict::Unknown(_));
+        let unknown = |out: &str| matches!(gateway_verdict(out, 0), GatewayVerdict::Unknown(_));
         // The control did not read as refused: an nc that says nothing would pass any gateway.
         assert!(unknown("sv-self=1\nnc: timed out\nsv-gateway=1\n"));
         assert!(unknown("sv-self=0\nnc: timed out\nsv-gateway=1\n"));
