@@ -458,3 +458,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     names the signed-in test user or carries a user or session field, since the requirement's per-feature and per-team
     parts cannot be seen; never a finding, since the same may be recorded elsewhere. **Record, `Status: proposed`:
     ADR-073.** Checked just before this claim: not on `main`, in no open pull request, and in no recent branch.
+    **Done on 9 October 2026** (DESIGN, "Token use tied to a user or a session (9 October 2026)"; ADR-073, accepted).
+    `probe.ai-token-use-attributed` credits C12.2.5 in part when the line carrying the call's token counts ties
+    them to the user or the session, and says so when it does not; it never finds. Not done: per feature endpoint and
+    per team or workspace.

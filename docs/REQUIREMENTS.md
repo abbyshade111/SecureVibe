@@ -631,7 +631,7 @@ decided per app, from its `stackvet.toml` and its code.
 
 ## OWASP AISVS 1.0
 
-191 requirements: 23 can be checked, 19 can only be found failing, 0 where a check helps but a person decides, and 149 with no check.
+191 requirements: 24 can be checked, 19 can only be found failing, 0 where a check helps but a person decides, and 148 with no check.
 
 ### Level 1 (51 requirements, 16 can be checked, 8 can only be found failing)
 
@@ -741,7 +741,7 @@ decided per app, from its `stackvet.toml` and its code.
 | **C12.5.1** Verify that dataset lineage records each dataset and its components, including all transformations, augmentations, and merges. | No check | – |
 | **C12.5.2** Verify that all labeling activities are recorded in logs. | No check | – |
 
-### Level 2 (95 requirements, 6 can be checked, 10 can only be found failing)
+### Level 2 (95 requirements, 7 can be checked, 10 can only be found failing)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -889,7 +889,7 @@ decided per app, from its `stackvet.toml` and its code.
 | **C12.2.2** Verify that behavioral anomaly detection identifies unusual conversation patterns, excessive retry attempts, or probing behaviors. | No check | – |
 | **C12.2.3** Verify that custom rules detect AI-specific threat patterns for coordinated jailbreak attempts, prompt injection, and system prompt extraction attempts. | No check | – |
 | **C12.2.4** Verify that extraction-alert events include offending query metadata to support investigation. | No check | – |
-| **C12.2.5** Verify that token usage is tracked at granular attribution levels including per user, per session, per feature endpoint, and per team or workspace. | No check | – |
+| **C12.2.5** Verify that token usage is tracked at granular attribution levels including per user, per session, per feature endpoint, and per team or workspace. | Can be checked | The running app: `probe.ai-token-use-attributed`, if it fails: Token use nobody can tie to a user or a session cannot show who ran up a bill, or which account is being used to drain the app's credit. (credited only, and only ever in part) |
 | **C12.3.2** Verify that hallucination detection monitors identify and flag model outputs that contain factually incorrect, inconsistent, or fabricated information. | No check | – |
 | **C12.3.3** Verify that hallucination rates are tracked as continuous time-series metrics to enable trend analysis and detection of sustained model degradation. | No check | – |
 | **C12.4.1** Verify that autonomous action triggers include proactive behavior-pattern analysis, security evaluation, and threat-landscape assessment. | No check | – |
