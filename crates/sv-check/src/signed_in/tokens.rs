@@ -1393,4 +1393,119 @@ mod tests {
             out.steps
         );
     }
+
+    /// A run of the token app: the accounts made in it, as the other token tests do.
+    fn run_token_app(flaws: Flaws) -> Outcome {
+        let mut app = FakeApp::new(flaws);
+        let acc = accounts();
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        run_with(&mut app, &bearer_users(), &acc, true, &Default::default(), false)
+    }
+
+    #[test]
+    fn a_session_that_is_one_fixed_key_is_found_whether_cookie_or_token() {
+        // ADR-066, V7.2.2. A new value at each sign-in, and the new session opens a private page:
+        // credited, for the cookie and for the token.
+        for (o, what) in [
+            (run_against(Flaws::default(), &users()), "the cookie `sid`"),
+            (run_token_app(Flaws::default()), "the sign-in token"),
+        ] {
+            let credit = o
+                .verified
+                .iter()
+                .find(|v| v.check_id == STATIC_SESSION.rule_id)
+                .unwrap_or_else(|| panic!("{what}: {:?}", o.steps));
+            assert!(credit.scope.contains(what), "{}", credit.scope);
+            assert!(!found(&o).contains(&STATIC_SESSION.rule_id));
+        }
+        // The same value at each sign-in: found, for the cookie and for the token.
+        for (o, what) in [
+            (
+                run_against(
+                    Flaws {
+                        same_session_id: true,
+                        ..Default::default()
+                    },
+                    &users(),
+                ),
+                "the cookie `sid`",
+            ),
+            (
+                run_token_app(Flaws {
+                    same_session_id: true,
+                    ..Default::default()
+                }),
+                "the sign-in token",
+            ),
+        ] {
+            let f = o
+                .findings
+                .iter()
+                .find(|f| f.rule_id == STATIC_SESSION.rule_id)
+                .unwrap_or_else(|| panic!("{what}: {:?}", o.steps));
+            assert!(f.description.contains(what), "{}", f.description);
+            assert!(!credited(&o).contains(&STATIC_SESSION.rule_id));
+        }
+        // A cookie repeated at two sign-ins breaks two requirements, and is found by exactly the
+        // two rules that cite them: unique (V7.2.3) and not one fixed key (V7.2.2).
+        let repeated = run_against(
+            Flaws {
+                same_session_id: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        let mut both = rule_ids(&repeated);
+        both.sort_unstable();
+        assert_eq!(
+            both,
+            vec![WEAK_SESSION_ID.rule_id, STATIC_SESSION.rule_id],
+            "the repeated cookie"
+        );
+        // A later sign-in that fails quietly, or sets no cookie: neither found nor credited, and
+        // each said.
+        for (later_anonymous, said) in [
+            (true, "did not open with the new session"),
+            (false, "not every value the first sign-in set was set again"),
+        ] {
+            let mut app = FakeApp::new(Flaws::default());
+            app.later_sign_ins_anonymous = later_anonymous;
+            app.later_sign_ins_set_no_cookie = !later_anonymous;
+            let acc = accounts();
+            for account in [&acc.a, &acc.b] {
+                app.users
+                    .insert(account.user.clone(), (account.password.clone(), false));
+            }
+            let o = run_with(&mut app, &users(), &acc, true, &Default::default(), false);
+            assert!(!credited(&o).contains(&STATIC_SESSION.rule_id), "{said}: {:?}", o.verified);
+            assert!(!found(&o).contains(&STATIC_SESSION.rule_id), "{said}");
+            assert!(
+                not_assessed(&o, "V7.2.2").iter().any(|w| w.contains(said)),
+                "{said}: {:?}",
+                o.not_assessed
+            );
+        }
+        // No private page: the sign-in itself is not shown working, so nothing is credited, and
+        // that is said.
+        let mut u = users();
+        u.private.clear();
+        let mut app = FakeApp::new(Flaws::default());
+        let acc = accounts();
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let o = run_with(&mut app, &u, &acc, true, &Default::default(), false);
+        assert!(!credited(&o).contains(&STATIC_SESSION.rule_id), "{:?}", o.verified);
+        assert!(
+            not_assessed(&o, "V7.2.2")
+                .iter()
+                .any(|w| w.contains("its session says nothing")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
 }

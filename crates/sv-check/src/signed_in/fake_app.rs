@@ -55,6 +55,13 @@ pub(super) struct FakeApp {
     pub(super) hides_private: bool,
     /// Signing in ends every other session of the same user.
     pub(super) one_session_per_user: bool,
+    /// Every sign-in of a user after their first answers as if it worked and gives a session that
+    /// is not signed in: a sign-in that fails quietly.
+    pub(super) later_sign_ins_anonymous: bool,
+    /// Every sign-in of a user after their first sets no cookie.
+    pub(super) later_sign_ins_set_no_cookie: bool,
+    /// How many times each user has signed in.
+    pub(super) sign_in_counts: BTreeMap<String, u32>,
     /// Two-factor secrets, by user.
     pub(super) totp: BTreeMap<String, Vec<u8>>,
     /// Sessions past the password and waiting for a code: session id -> user.
@@ -810,17 +817,28 @@ impl FakeApp {
                 "",
             );
         }
+        let count = self.sign_in_counts.entry(who.clone()).or_default();
+        *count += 1;
+        let later = *count > 1;
+        if later && self.later_sign_ins_set_no_cookie {
+            return Self::respond(303, vec![("Location", "/account".into())], "");
+        }
+        if later && self.later_sign_ins_anonymous {
+            let id = self.new_id();
+            let attrs = self.cookie_attrs();
+            return Self::respond(
+                303,
+                vec![
+                    ("Location", "/account".into()),
+                    ("Set-Cookie", format!("sid={id}; {attrs}")),
+                ],
+                "",
+            );
+        }
         if self.one_session_per_user {
             self.sessions.retain(|_, u| *u != who);
         }
-        let id = if self.flaws.same_session_id {
-            let n = who.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
-                (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
-            });
-            format!("{n:016x}{:016x}", n.rotate_left(17))
-        } else {
-            self.new_id()
-        };
+        let id = self.session_id_for(&who);
         self.sessions.insert(id.clone(), who);
         let attrs = self.cookie_attrs();
         Self::respond(
@@ -1175,6 +1193,19 @@ impl FakeApp {
             answer.headers.push(("location".into(), next));
         }
         answer
+    }
+
+    /// A new session id, or with `same_session_id` the one fixed id this user always gets, for a
+    /// cookie or a token alike.
+    fn session_id_for(&mut self, who: &str) -> String {
+        if self.flaws.same_session_id {
+            let n = who.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
+                (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
+            });
+            format!("{n:016x}{:016x}", n.rotate_left(17))
+        } else {
+            self.new_id()
+        }
     }
 
     fn answer(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
@@ -1862,7 +1893,7 @@ impl FakeApp {
                 let id = match self.jwt_lifetime {
                     Some(lifetime) => self.issue_jwt(&email, lifetime),
                     None => {
-                        let id = self.new_id();
+                        let id = self.session_id_for(&email);
                         self.sessions.insert(id.clone(), email);
                         id
                     }

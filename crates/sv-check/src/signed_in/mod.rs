@@ -2051,14 +2051,21 @@ fn run_checks(
         confirm.as_deref(),
         &mut out
     ));
-    quiet!(session_id_check(
+    asked!(
+        out,
         http,
-        users,
-        accounts,
-        &a,
-        signed_in_works,
-        &mut out
-    ));
+        "session_id_check",
+        &["V7.2.2"],
+        session_id_check(
+            http,
+            users,
+            accounts,
+            &a,
+            confirm.as_deref(),
+            signed_in_works,
+            &mut out
+        )
+    );
     quiet!(sign_out_on_get_check(
         http,
         users,
@@ -2491,13 +2498,6 @@ mod tests {
             (
                 Flaws {
                     short_session_ids: true,
-                    ..Default::default()
-                },
-                WEAK_SESSION_ID.rule_id,
-            ),
-            (
-                Flaws {
-                    same_session_id: true,
                     ..Default::default()
                 },
                 WEAK_SESSION_ID.rule_id,
