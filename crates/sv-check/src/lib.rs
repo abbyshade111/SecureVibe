@@ -14,6 +14,7 @@ pub mod browser;
 pub mod browser_storage;
 pub mod bundled;
 pub mod cert_checks;
+pub mod client_tech;
 pub mod coding_rules;
 pub mod config;
 pub mod confirm;

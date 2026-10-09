@@ -306,6 +306,14 @@ listed apart, below this item.
    **(a) on `owned.create` done the same day**
    (`docs/design/0326-a-record-put-into-another-user-s-account-9-october-2026.md`; ADR-053, Later):
    `probe.owner-field-trusted`. `creates` and `change-email` stay open.
+   **(a), on `change-email`, claimed 9 October 2026 by session securevibe-e9** ("please continue to work through and
+   pick up new items as you merge"), in branch `claude/stackvet-e9-email-role`: with `signup`, `change-email`, and an
+   `admin` page, an account made for it is shown refused the admin pages, then sends the email change with the sign-up
+   check's role fields added (`role=admin`, `is_admin=true`, and the rest). An admin page that then opens to it is a
+   finding under `probe.role-field-trusted` (V8.3.1, V15.3.3, V8.2.3); nothing credits a requirement. Never A or B,
+   whom the other checks rely on. `creates` stays unclaimed: stackvet.toml gives no way to read back what those
+   requests make, so an owner sent there could not be seen to take. Read on `main` and the open pull requests just
+   before this claim: no other session had claimed it.
    **(g) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
    you merge"), in branch `claude/securevibe-e2-gemini`: the test model answers Google's Gemini format as it answers
    OpenAI's and Anthropic's. A POST whose path ends `:generateContent` or `:streamGenerateContent` (whatever comes
@@ -436,6 +444,15 @@ listed apart, below this item.
    **That half done the same day** (DESIGN, "And on how many builds"): `builds` in each shown prompt's `tested`,
    said in every copy of its status. Breaks: the count left out of the words, a count changed, and a count
    removed each failed a test (`crates/sv-check/tests/prompts.rs` holds each count to its trial's account).
+   **(g), its second half, claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and
+   pick up new items as you merge"), in branch `claude/securevibe-e2-delivery`: each prompt's trial record says how
+   it did when `sv` gave it rather than the request (the two delivery trials, `docs/prompts/library-trial/delivery.md`
+   and `start.md`, by model), and every copy of its status says so: "shown to work with Sonnet at the start of a
+   build" for `secrets-in-the-environment`, "not shown" for `ai-feature-guard`, "no reading" where a trial could not
+   tell, and "not tried" for a prompt shown to work only when pasted into the request. Read from each trial's own
+   verdict file, and held to it by a test. Which prompts are shown, and so which `sv` gives (ADR-044), is unchanged, so
+   no record is proposed. Read on `main` and the open pull requests just before this claim: no other session had
+   claimed it.
 
 23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no
    warning and exit 0. Read it when present and exit 2 on a parse error; say plainly in its help and in the coding
