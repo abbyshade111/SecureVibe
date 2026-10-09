@@ -38,6 +38,14 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
+
+def write_text(path, text):
+    """Writes `text` as UTF-8 with Unix line endings on every system. Path.write_text uses the
+    system's own encoding and, on Windows, CRLF, which would make a generated file differ from the
+    one committed (backlog 0120)."""
+    with open(path, "w", encoding="utf-8", newline="\n") as out:
+        out.write(text)
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 OUT = ROOT / "docs" / "COVERAGE.md"
@@ -425,7 +433,7 @@ ID = r"(?:V|C)\d+\.\d+\.\d+|AC\.\d+\.\d+|SBD-[A-Z]+-\d+"
 
 
 def load(path):
-    return json.loads(Path(path).read_text())
+    return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
 def framework(path):
@@ -506,10 +514,10 @@ def rust_code():
     test_only = set()
     for path in paths:
         folder = path.parent if path.name in ("mod.rs", "lib.rs", "main.rs") else path.with_suffix("")
-        for m in re.finditer(r"#\[cfg\(test\)\]\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+(\w+)\s*;", path.read_text()):
+        for m in re.finditer(r"#\[cfg\(test\)\]\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+(\w+)\s*;", path.read_text(encoding="utf-8")):
             test_only.add(folder / f"{m.group(1)}.rs")
             test_only.add(folder / m.group(1) / "mod.rs")
-    return [(p, p.read_text().split("#[cfg(test)]")[0]) for p in paths if p not in test_only]
+    return [(p, p.read_text(encoding="utf-8").split("#[cfg(test)]")[0]) for p in paths if p not in test_only]
 
 
 def check_words():
@@ -588,7 +596,7 @@ NEVER_HANDED = defaultdict(set)
 def code_extensions():
     """The file extensions `sv` reads as code (`language_of` in sv-scan's ecosystems.rs): the only
     files it hands semgrep."""
-    text = (ROOT / "crates/sv-scan/src/ecosystems.rs").read_text()
+    text = (ROOT / "crates/sv-scan/src/ecosystems.rs").read_text(encoding="utf-8")
     body = text[text.index("pub fn language_of"):]
     body = body[: body.index("_ => return None")]
     # An arm may run over several lines, as rustfmt wraps a long one.
@@ -780,7 +788,7 @@ def check_credits(log):
     shipping = {str(p.relative_to(ROOT)): code.count("\n") + 1 for p, code in rust_code()}
     credited = defaultdict(set)
     lines = 0
-    for line in Path(log).read_text().splitlines():
+    for line in Path(log).read_text(encoding="utf-8").splitlines():
         check, ids, at = line.split("\t")
         path, number = at.rsplit(":", 1)
         if shipping.get(path, 0) < int(number):
@@ -870,7 +878,7 @@ def withheld_report(log):
 
     def read(path, columns):
         seen = set()
-        for line in Path(path).read_text().splitlines():
+        for line in Path(path).read_text(encoding="utf-8").splitlines():
             parts = line.split("\t")
             if len(parts) != columns:
                 continue
@@ -1270,19 +1278,19 @@ def main():
     listing_text = requirements_markdown(rows)
     if "--json" in sys.argv[1:]:
         path = Path(sys.argv[sys.argv.index("--json") + 1])
-        path.write_text(json.dumps({"tiers": [{"id": t, "name": n, "needs": d} for t, n, d in TIERS],
+        write_text(path, json.dumps({"tiers": [{"id": t, "name": n, "needs": d} for t, n, d in TIERS],
                                     "requirements": rows}, indent=1) + "\n")
         print(f"wrote {path}")
     if check:
         for path, want in ((OUT, text), (LIST_OUT, listing_text), (REACH_OUT, reach_text)):
-            current = path.read_text() if path.exists() else ""
+            current = path.read_text(encoding="utf-8") if path.exists() else ""
             if current != want:
                 sys.exit(f"{path.relative_to(ROOT)} is out of date: run `python3 tools/coverage.py` at "
                          "the repository root")
         return
-    OUT.write_text(text)
-    LIST_OUT.write_text(listing_text)
-    REACH_OUT.write_text(reach_text)
+    write_text(OUT, text)
+    write_text(LIST_OUT, listing_text)
+    write_text(REACH_OUT, reach_text)
     print(f"wrote {OUT.relative_to(ROOT)}, {LIST_OUT.relative_to(ROOT)} and {REACH_OUT.relative_to(ROOT)}")
 
 

@@ -57,6 +57,8 @@ mod ssh_format;
 pub mod stand_in;
 pub mod suite;
 pub mod test_report;
+#[cfg(test)]
+pub(crate) mod test_support;
 pub mod totp;
 pub mod verified;
 pub mod workflows;

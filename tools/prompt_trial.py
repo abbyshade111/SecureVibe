@@ -36,7 +36,7 @@ def merge_policy(path):
     if not os.path.exists(path):
         print('  no stackvet.toml: checked as it is', flush=True)
         return
-    text = open(path).read()
+    text = open(path, encoding="utf-8").read()
     try:
         own = tomllib.loads(text).get('policy', {})
     except tomllib.TOMLDecodeError as e:
@@ -52,7 +52,7 @@ def merge_policy(path):
     else:
         text = text.rstrip() + '\n\n[policy]\n' + lines + '\n'
     tomllib.loads(text)
-    open(path, 'w').write(text)
+    open(path, 'w', encoding='utf-8', newline='\n').write(text)
 
 def run(build, slow):
     src = os.path.join(HERE, build)
@@ -65,10 +65,10 @@ def run(build, slow):
     subprocess.run('git init -q && git add -A && git -c user.email=t@t -c user.name=t commit -qm build --allow-empty',
                    shell=True, cwd=dst, check=True)
     cmd = [SV, 'report', dst, '--run', '--out', out] + (['--slow'] if slow else [])
-    with open(dst + '.log', 'w') as log:
+    with open(dst + '.log', 'w', encoding='utf-8', newline='\n') as log:
         code = subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT, timeout=3600).returncode
     path = os.path.join(out, 'report.json')
-    return code, (json.load(open(path)) if os.path.exists(path) else None)
+    return code, (json.load(open(path, encoding="utf-8")) if os.path.exists(path) else None)
 
 def summary(report):
     lines = []
@@ -97,9 +97,9 @@ if __name__ == '__main__':
         state = (report.get('run_status') or {}).get('state', 'not run') if report else 'no report'
         print(f'[{i}/{len(builds)}] {build}: {state}, {time.time() - began:.0f}s', file=sys.stderr, flush=True)
         if report is None:
-            said = open(os.path.join(HERE, 'runs', build + '.log')).read().strip().splitlines()[-3:]
+            said = open(os.path.join(HERE, 'runs', build + '.log'), encoding="utf-8").read().strip().splitlines()[-3:]
             text = f'== {build} (exit {code}, no report: ' + ' / '.join(said) + ')'
         else:
             text = f'== {build} (exit {code}, run {report.get("run_status")})\n' + summary(report)
         print(text, flush=True)
-        open(os.path.join(HERE, 'runs', build + '.summary'), 'w').write(text + '\n')
+        open(os.path.join(HERE, 'runs', build + '.summary'), 'w', encoding='utf-8', newline='\n').write(text + '\n')

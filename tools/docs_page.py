@@ -27,6 +27,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+
+def write_text(path, text):
+    """Writes `text` as UTF-8 with Unix line endings on every system. Path.write_text uses the
+    system's own encoding and, on Windows, CRLF, which would make a generated file differ from the
+    one committed (backlog 0120)."""
+    with open(path, "w", encoding="utf-8", newline="\n") as out:
+        out.write(text)
+
 ROOT = Path(__file__).resolve().parent.parent
 MARK = ".stackvet-docs"
 # The marker the tool wrote until 9 October 2026 (ADR-062): a folder carrying it is still the tool's own.
@@ -415,7 +423,7 @@ def build(out):
     if out.resolve().is_relative_to(ROOT):
         sys.exit(f"{out} is inside the repository; the pages are kept outside it, so they are never committed.")
     out.mkdir(parents=True, exist_ok=True)
-    (out / MARK).write_text("Made by tools/docs_page.py. Run it again to bring these pages up to date.\n")
+    write_text((out / MARK), "Made by tools/docs_page.py. Run it again to bring these pages up to date.\n")
 
     docs = documents()
     texts = {d: (ROOT / d).read_text(encoding="utf-8", errors="replace") for d in docs}
@@ -439,7 +447,7 @@ def build(out):
         body = re.sub(r"(</h1>)", lambda m: m.group(1) + lead, body, count=1) if "</h1>" in body else lead + body
         target = out / (d[:-3] + ".html")
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(page(titles[d], nav_for(docs, titles, d), body, d.count("/")), encoding="utf-8")
+        write_text(target, page(titles[d], nav_for(docs, titles, d), body, d.count("/")))
         written.add(target.resolve())
         # The search index: each section of each document, by its heading.
         for part in re.split(r"(?m)^(?=#{1,4}\s)", texts[d]):
@@ -451,9 +459,8 @@ def build(out):
                           "t": text[:3000], "l": text.lower()[:3000] + " " + heading.lower()})
 
     board_body, counts = board(docs)
-    (out / BOARD).write_text(page("The backlog at a glance", nav_for(docs, titles, "index.md"), board_body, 0,
-                                  board=True),
-                             encoding="utf-8")
+    write_text((out / BOARD), page("The backlog at a glance", nav_for(docs, titles, "index.md"), board_body, 0,
+                                  board=True))
     written.add((out / BOARD).resolve())
 
     listing = [f'<h2>The backlog at a glance</h2><p><a href="{BOARD}">What is done, being worked on, and still to come</a> '
@@ -475,7 +482,7 @@ def build(out):
         "<ul id=\"results\"></ul>\n" + "".join(listing)
         + f'\n<script type="application/json" id="index">{data}</script>\n' + SEARCH
     )
-    (out / "index.html").write_text(page("StackVet docs", nav_for(docs, titles, "index.md"), body, 0), encoding="utf-8")
+    write_text((out / "index.html"), page("StackVet docs", nav_for(docs, titles, "index.md"), body, 0))
     written.add((out / "index.html").resolve())
 
     # Pages of documents that are gone, in its own folder only.

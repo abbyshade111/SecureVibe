@@ -27,6 +27,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+
+def write_text(path, text):
+    """Writes `text` as UTF-8 with Unix line endings on every system. Path.write_text uses the
+    system's own encoding and, on Windows, CRLF, which would make a generated file differ from the
+    one committed (backlog 0120)."""
+    with open(path, "w", encoding="utf-8", newline="\n") as out:
+        out.write(text)
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 SUITES = ROOT / "data" / "codeql-suites.json"
@@ -36,7 +44,7 @@ ADAPTERS = ROOT / "data" / "adapters.json"
 def adapter_suites() -> dict:
     """Suite -> the CodeQL adapter that runs it, from each adapter's `database analyze` arguments."""
     out = {}
-    for adapter in json.loads(ADAPTERS.read_text())["adapters"]:
+    for adapter in json.loads(ADAPTERS.read_text(encoding="utf-8"))["adapters"]:
         if not adapter["id"].startswith("codeql"):
             continue
         for arg in adapter["run"]["args"]:
@@ -46,7 +54,7 @@ def adapter_suites() -> dict:
 
 
 def version(codeql: str) -> str:
-    text = subprocess.run([codeql, "version", "--format=terse"], capture_output=True, text=True,
+    text = subprocess.run([codeql, "version", "--format=terse"], capture_output=True, text=True, encoding="utf-8",
                           check=True).stdout
     return text.strip()
 
@@ -54,10 +62,10 @@ def version(codeql: str) -> str:
 def query_ids(codeql: str, suite: str) -> list:
     """The `@id` of every query the suite selects, as `codeql resolve queries` resolves it."""
     listed = subprocess.run([codeql, "resolve", "queries", "--format=json", suite],
-                            capture_output=True, text=True, check=True).stdout
+                            capture_output=True, text=True, encoding="utf-8", check=True).stdout
     ids = []
     for path in json.loads(listed):
-        found = re.search(r"@id\s+(\S+)", Path(path).read_text())
+        found = re.search(r"@id\s+(\S+)", Path(path).read_text(encoding="utf-8"))
         if not found:
             sys.exit(f"{path}, selected by {suite}, has no @id")
         ids.append(found.group(1))
@@ -73,7 +81,7 @@ def main():
     args = parser.parse_args()
     measured = version(args.codeql)
     today = datetime.date.today().isoformat()
-    current = json.loads(SUITES.read_text()) if SUITES.exists() else {}
+    current = json.loads(SUITES.read_text(encoding="utf-8")) if SUITES.exists() else {}
     suites = current.get("suites", {})
     for suite, adapter in sorted(adapter_suites().items()):
         if args.only and adapter not in args.only:
@@ -81,7 +89,7 @@ def main():
         rules = query_ids(args.codeql, suite)
         suites[suite] = {"measured": today, "codeql": measured, "rules": rules}
         print(f"{suite}: {len(rules)} queries")
-    SUITES.write_text(json.dumps({
+    write_text(SUITES, json.dumps({
         "_comment": current.get("_comment", ""),
         "suites": dict(sorted(suites.items())),
     }, indent=2) + "\n")
