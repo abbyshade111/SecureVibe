@@ -162,6 +162,16 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    and GETTING-STARTED's pasted prompt, and a banned-word and American-spelling test over every string the AI tool
    reads. Nothing a check concludes changes. Confirmed on `main` just before this claim: the `hold` field is still
    in the struct, no record governs `mcp/`, neither test exists, and no other session holds this part.
+   **Done the same day, apart from the fold, which waits for the owner**
+   (`docs/design/0318-the-mcp-server-s-record-the-check-given-to-it-and-its-text.md`, ADR-066): the server's record is
+   ADR-066, which governs its own files and decides that requests are read on the thread that answers them until a
+   client is seen to give up on a `ping` during a check; ADR-041 governs `mcp/report_writing.rs`, the server's side of
+   the lock, and `main.rs` stays ungoverned, as the owner decided on 6 October. `Server.check` is the real check unless
+   a test gives another, and the time-limit test gives one that waits on a channel and hands back a copy of one real
+   report, so the `hold` field is gone. The tool list is in the order of the way to build, the spec gives the prompts
+   before the brief as the instructions do, and `mcp/flow_text_tests.rs` holds the instructions, the list, the spec,
+   and the guide's pasted prompt to that order, and every string the AI tool reads to American spelling and to no
+   sentence that calls an app safe unless it denies it.
 11. **Process.** Every session inserts its claim at the top of this file's "Next" section, so a branch an hour old
    conflicts with `main` here; the same conflict was resolved three times on 8 October, each costing a 20-minute
    CI round. Append claims at the end of "Next" instead (a CLAUDE.md line), and merge the claim pull request before
@@ -192,6 +202,8 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    than leaving its signature silently unread. Confirmed on `main` just before this claim: the field is a `String`
    read with `Condition::from_name` and skipped when unknown (`sv-scan/src/lib.rs`), every name in both files is
    known today, and no other session had claimed this part. The rest of item 12 stays open.
+   **That part done the same day** (`docs/design/0318-a-signature-s-condition-is-a-condition-9-october.md`): the field
+   is a `Condition`, and a misspelled name stops the load with the name. The rest of item 12 is open.
    **Its second part, `not_for_tests` moved, claimed 9 October 2026 by session securevibe-e9**, from the roadmap
    (Phase 2, item 12, the next unclaimed part in its order), in branch `claude/stackvet-e9-not-for-tests`: the rule for
    what an application's own tests cannot show (a requirement classed as documentation or deployment, the AISVS

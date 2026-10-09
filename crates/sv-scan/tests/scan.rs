@@ -137,11 +137,7 @@ fn every_derived_condition_has_a_signature() {
     // A `derived` condition with no signature would sit unanswered for ever while looking like an
     // oversight nobody notices. If one is added to the enum, this fails until it is described.
     let sigs = signatures();
-    let described: Vec<&str> = sigs
-        .signatures
-        .iter()
-        .map(|s| s.condition.as_str())
-        .collect();
+    let described: Vec<&str> = sigs.signatures.iter().map(|s| s.condition.name()).collect();
     let missing: Vec<&str> = Condition::ALL
         .iter()
         .filter(|c| c.source() == sv_frameworks::Source::Derived)
@@ -427,7 +423,7 @@ fn every_claim_corroborator_names_a_condition_that_exists() {
     let unknown: Vec<&str> = sigs
         .signatures
         .iter()
-        .map(|s| s.condition.as_str())
+        .map(|s| s.condition.name())
         .filter(|n| Condition::from_name(n).is_none())
         .collect();
     assert!(
@@ -445,7 +441,7 @@ fn only_file_based_claims_treat_absence_as_evidence() {
         .signatures
         .iter()
         .filter(|s| s.absence_is_evidence)
-        .map(|s| s.condition.as_str())
+        .map(|s| s.condition.name())
         .collect();
     assert_eq!(
         decisive,
@@ -456,7 +452,7 @@ fn only_file_based_claims_treat_absence_as_evidence() {
         assert!(
             !sig.files.is_empty(),
             "{} rules itself out by absence but names no files to look for",
-            sig.condition
+            sig.condition.name()
         );
     }
 }
@@ -471,12 +467,12 @@ fn no_hand_rollable_claim_is_ever_ruled_out_on_a_real_app() {
     let sigs = Signatures::load(&data("claim-corroborators.json")).unwrap();
     let report = scan_fixture_with("pinned-clean", &all_signatures());
     for sig in sigs.signatures.iter().filter(|s| !s.absence_is_evidence) {
-        let condition = Condition::from_name(&sig.condition).unwrap();
+        let condition = sig.condition;
         assert_ne!(
             answer(&report, condition).value,
             Some(false),
             "{} was ruled out although it can be written by hand",
-            sig.condition
+            sig.condition.name()
         );
     }
 }
@@ -503,12 +499,15 @@ fn every_signature_speaks_a_language_and_an_ecosystem_the_scanner_knows() {
     for sig in &sigs.signatures {
         for language in sig.source.keys() {
             if !known_languages.contains(language.as_str()) {
-                wrong.push(format!("{}: source language `{language}`", sig.condition));
+                wrong.push(format!(
+                    "{}: source language `{language}`",
+                    sig.condition.name()
+                ));
             }
         }
         for ecosystem in sig.packages.keys() {
             if !known_ecosystems.contains(ecosystem.as_str()) {
-                wrong.push(format!("{}: ecosystem `{ecosystem}`", sig.condition));
+                wrong.push(format!("{}: ecosystem `{ecosystem}`", sig.condition.name()));
             }
         }
     }
@@ -687,7 +686,7 @@ fn every_claim_corroborator_has_a_witness() {
     let unwitnessed: Vec<&str> = sigs
         .signatures
         .iter()
-        .map(|s| s.condition.as_str())
+        .map(|s| s.condition.name())
         .filter(|c| !witnessed.contains(c))
         .collect();
     assert!(
@@ -985,12 +984,12 @@ fn a_signature_that_cannot_check_anything_carries_no_patterns() {
                 && sig.files.is_empty()
                 && sig.languages.is_empty(),
             "{} says no check is possible but names things to look for",
-            sig.condition
+            sig.condition.name()
         );
         assert!(
             sig.note.len() > 80,
             "{} must explain why nothing can check it",
-            sig.condition
+            sig.condition.name()
         );
     }
 }
@@ -1119,7 +1118,7 @@ fn every_go_signature_names_a_module_path_that_go_mod_could_contain() {
         for sig in &sigs.signatures {
             for name in sig.packages.get("Go").into_iter().flatten() {
                 if !name.contains('/') && !name.contains('.') {
-                    wrong.push(format!("{file} {}: `{name}`", sig.condition));
+                    wrong.push(format!("{file} {}: `{name}`", sig.condition.name()));
                 }
             }
         }

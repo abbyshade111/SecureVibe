@@ -35,8 +35,7 @@ impl Server {
         let (send, receive) = std::sync::mpsc::channel();
         let loaded = std::sync::Arc::clone(&self.loaded);
         let dir = app_dir.to_path_buf();
-        #[cfg(test)]
-        let hold = std::sync::Arc::clone(&self.hold);
+        let assemble = std::sync::Arc::clone(&self.check);
         let check = std::thread::Builder::new()
             .name("sv-check".to_owned())
             .spawn(move || {
@@ -45,8 +44,6 @@ impl Server {
                     let _ = send.send(FromCheck::Starting(n, stage));
                 };
                 let report = assemble(&dir, &loaded, &starting);
-                #[cfg(test)]
-                hold.wait();
                 let _ = send.send(FromCheck::Done(Box::new(report)));
             })
             .context("the check could not be started")?;
