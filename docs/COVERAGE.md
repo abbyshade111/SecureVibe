@@ -35,7 +35,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Can be credited | Supporting only | Nothing |
 |---|---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 170 (49%) | 120 (35%) | 10 | 165 |
+| OWASP ASVS 5.0 | 345 | 171 (50%) | 121 (35%) | 10 | 164 |
 | OWASP AISVS 1.0 | 191 | 41 (21%) | 23 (12%) | 0 | 150 |
 | AISVS Appendix C | 68 | 3 (4%) | 2 (3%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 0 (0%) | 11 | 25 |
@@ -47,10 +47,10 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Can be credited | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 58 | 44 | 17 | 1 | 6 | 38 | 21 | 3 |
-| L2 | 183 | 91 | 67 | 20 | 0 | 19 | 46 | 28 | 2 |
+| L2 | 183 | 92 | 68 | 20 | 0 | 19 | 47 | 28 | 2 |
 | L3 | 92 | 21 | 9 | 3 | 0 | 8 | 2 | 6 | 3 |
 
-50 of the 170 ASVS requirements that can be settled can only ever be marked *needs attention*: a check can show the control missing, and finding nothing does not show it present, so a clean run credits none of them. They are counted under *Can settle* and not under *Can be credited*, and the kinds of check above count every requirement a check can settle either way.
+50 of the 171 ASVS requirements that can be settled can only ever be marked *needs attention*: a check can show the control missing, and finding nothing does not show it present, so a clean run credits none of them. They are counted under *Can settle* and not under *Can be credited*, and the kinds of check above count every requirement a check can settle either way.
 
 With nothing beyond plain `sv check`, 40 ASVS requirements can be settled. 25 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
@@ -66,7 +66,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 
 | Chapter | Requirements | Can settle | Can be credited | Supporting only | Nothing |
 |---|---|---|---|---|---|
-| V1 Encoding and Sanitization | 30 | 19 | 15 | 0 | 11 |
+| V1 Encoding and Sanitization | 30 | 20 | 16 | 0 | 10 |
 | V2 Validation and Business Logic | 13 | 2 | 1 | 2 | 9 |
 | V3 Web Frontend Security | 31 | 22 | 19 | 0 | 9 |
 | V4 API and Web Service | 16 | 10 | 5 | 0 | 6 |
@@ -131,7 +131,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` (sv only ever as a finding: `ast.download-piped-to-shell`) |
 | V16.5.3 | L2 | Reads the code: `ast.check-passes-on-error` (sv only ever as a finding: `ast.check-passes-on-error`) |
 
-### Settled by asking the running app (113)
+### Settled by asking the running app (114)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -140,6 +140,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V1.2.4 | L1 | Reads the code: `ast.sql-built-by-hand`; Signed in: `probe.sql-injection`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (bandit only ever as a finding: `B610`, `B611`; sv only ever as a finding: `probe.sql-injection`) |
 | V1.3.4 | L2 | Signed in: `probe.uploaded-svg-keeps-script` |
 | V1.3.6 | L2 | The running app: `probe.fetch-goes-anywhere`; Outside tools: `gosec`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `probe.fetch-goes-anywhere`) |
+| V1.3.11 | L2 | Signed in: `probe.mail-header-injected` |
 | V2.2.2 | L1 | Signed in: `probe.validation-only-in-the-browser` (sv only ever as a finding: `probe.validation-only-in-the-browser`) |
 | V2.4.1 | L2 | Signed in: `probe.create-rate-unlimited` |
 | V3.2.1 | L1 | Signed in: `probe.uploaded-file-rendered` |

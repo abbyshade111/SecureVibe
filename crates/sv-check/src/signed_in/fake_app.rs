@@ -1734,7 +1734,8 @@ impl FakeApp {
                 }
                 let typed = form(r).get("email")?.clone();
                 let first_line = typed.split(['\r', '\n']).next().unwrap_or("").to_owned();
-                let loose = self.flaws.reset_mails_typed_address || self.flaws.reset_cuts_line_breaks;
+                let loose =
+                    self.flaws.reset_mails_typed_address || self.flaws.reset_cuts_line_breaks;
                 let email = if loose { first_line } else { typed.clone() };
                 let known = self.users.contains_key(&email);
                 let mut issued = None;

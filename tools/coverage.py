@@ -209,6 +209,7 @@ RUST_CHECKS = {
     "probe.sessions-survive-deletion": ("signed-in", ["V7.4.2"]),
     "probe.password-hints": ("signed-in", ["V6.4.2"]),
     "probe.reset-reusable": ("signed-in", ["V6.4.3"]),
+    "probe.mail-header-injected": ("signed-in", ["V1.3.11"]),
     "probe.reset-keeps-old-password": ("signed-in", ["V6.4.3"]),
     "probe.reset-code-guessable": ("signed-in", ["V6.4.3"]),
     "probe.reset-code-in-answer": ("signed-in", ["V6.4.3"]),
@@ -372,7 +373,8 @@ RUST_CREDITS_ONLY = {
 # their requirement asks, so a requirement they alone credit is *checked in part*, never *checked*.
 # C9.1.1 names five quotas, and a check from outside the app can time only one (ADR-064); C2.1.2's
 # smuggling is tried in one family of characters, not in encodings or look-alike letters (ADR-065).
-RUST_IN_PART = {"probe.ai-tool-timeout", "probe.ai-hidden-input"}
+# V1.3.11's mail header injection is tried in one field of one kind of mail, the reset (ADR-069).
+RUST_IN_PART = {"probe.ai-tool-timeout", "probe.ai-hidden-input", "probe.mail-header-injected"}
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are
 # parsed, a requirement named only to say it is not assessed, and the three ids `sv init` prints as

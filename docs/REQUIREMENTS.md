@@ -36,7 +36,7 @@ decided per app, from its `stackvet.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 120 can be checked, 50 can only be found failing, 10 where a check helps but a person decides, and 165 with no check.
+345 requirements: 121 can be checked, 50 can only be found failing, 10 where a check helps but a person decides, and 164 with no check.
 
 ### Level 1 (70 requirements, 44 can be checked, 14 can only be found failing)
 
@@ -185,7 +185,7 @@ decided per app, from its `stackvet.toml` and its code.
 | **V15.2.1** Verify that the application only contains components which have not breached the documented update and remediation time frames. | Can be checked | Known vulnerabilities: `advisories`, looks for: Every package the app ships, compared with a local copy of the OSV database of known vulnerabilities<br>Outside tools: brakeman, 2 rules, its rules look for: an end-of-life Rails version: a component past its update and remediation time frames; an end-of-life Ruby version: a component past its update and remediation time frames |
 | **V15.3.1** Verify that the application only returns the required subset of fields from a data object. For example, it should not return an entire data object, as some individual fields should not be accessible to users. | Can only be found failing | Signed in: `probe.record-returns-secret-fields`, if it fails: A record handed back to the browser carries fields nobody outside the server should ever see. Whatever is in them has already left. (found failing only) |
 
-### Level 2 (183 requirements, 67 can be checked, 24 can only be found failing)
+### Level 2 (183 requirements, 68 can be checked, 24 can only be found failing)
 
 #### V1 Encoding and Sanitization
 
@@ -205,7 +205,7 @@ decided per app, from its `stackvet.toml` and its code.
 | **V1.3.8** Verify that the application appropriately sanitizes untrusted input before use in Java Naming and Directory Interface (JNDI) queries and that JNDI is configured securely to prevent JNDI injection attacks. | No check | – |
 | **V1.3.9** Verify that the application sanitizes content before it is sent to memcache to prevent injection attacks. | No check | – |
 | **V1.3.10** Verify that format strings which might resolve in an unexpected or malicious way when used are sanitized before being processed. | Can be checked | Outside tools: semgrep, 2 rules, its rules look for: a format string built from untrusted input<br>Outside tools: codeql-javascript, 1 rule, its rules look for: a format string built from untrusted input |
-| **V1.3.11** Verify that the application sanitizes user input before passing to mail systems to protect against SMTP or IMAP injection. | No check | – |
+| **V1.3.11** Verify that the application sanitizes user input before passing to mail systems to protect against SMTP or IMAP injection. | Can be checked | Signed in: `probe.mail-header-injected`, if it fails: A line break typed into the address field becomes a new header of the email the app sends, so anybody can add recipients and make the app's own mail account send its reset email, or spam and phishing in its name, wherever they like. (only ever in part) |
 | **V1.4.1** Verify that the application uses memory-safe string, safer memory copy and pointer arithmetic to detect or prevent stack, buffer, or heap overflows. | Can only be found failing | Outside tools: semgrep, 3 rules, its rules look for: gets, which reads input with no limit on its length and can overflow the buffer; strcat or a similar join with no length limit, which can overflow the buffer; strcpy or a similar copy with no length limit, which can overflow the buffer (found failing only) |
 | **V1.4.2** Verify that sign, range, and input validation techniques are used to prevent integer overflows. | No check | – |
 | **V1.4.3** Verify that dynamically allocated memory and resources are released, and that references or pointers to freed memory are removed or set to null to prevent dangling pointers and use-after-free vulnerabilities. | Can only be found failing | Outside tools: semgrep, 2 rules, its rules look for: memory freed twice; memory used after it was freed (found failing only) |
