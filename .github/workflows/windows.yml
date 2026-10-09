@@ -70,10 +70,6 @@ jobs:
           paste -d, -s failed.txt | tr ',' '\n' | awk 'NR%20==1{if(line)print line; line=$0; next}{line=line", "$0} END{if(line)print line}' | head -9 | while read -r group; do
             echo "::warning title=Failed on Windows, twenty at a time::${group}"
           done
-          # And the first failure's own message, for the commonest causes.
-          tr -d '\r' < suite.txt | awk '/^---- .* stdout ----$/{n++} n>=1 && n<=6' | grep -v '^\s*$' | grep -v 'note: run with' | head -40 | paste -d'|' -s | fold -w 900 | head -5 | while read -r part; do
-            echo "::notice title=What the first failures said::${part}"
-          done
           if ! grep -q '^test result' suite.txt; then
             tr -d '\r' < suite.txt | awk '/^error/{n++} n>0 && n<=20 {print}' | awk 'BEGIN{RS="\nerror"} NR<=20 {gsub(/\n/," | "); print "error" $0}' | sed 's/^errorerror/error/' | while read -r line; do
               echo "::error title=Tests did not build on Windows::${line:0:900}"
@@ -85,3 +81,21 @@ jobs:
           fi
           tail -60 suite.txt
           exit "$status"
+      # Each failing test's own words: where it panicked and the message after it, one line a test,
+      # twelve tests to an annotation. A step of its own, since GitHub keeps ten annotations of each
+      # kind per step: ten notices hold 120 failures.
+      - name: What each failure said
+        if: always()
+        run: |
+          set +e +o pipefail
+          [ -f suite.txt ] || exit 0
+          tr -d '\r' < suite.txt | sed 's/\x1b\[[0-9;]*m//g' | awk '
+            /^---- .* stdout ----$/ { if (name != "") print name ": " msg; name = $2; msg = ""; keep = 0; next }
+            /^failures:$/ { if (name != "") print name ": " msg; name = ""; next }
+            name != "" && /panicked at/ { sub(/.*panicked at /, ""); msg = $0; keep = 4; next }
+            name != "" && keep > 0 && NF > 0 && !/^note: / && !/^stack backtrace/ { msg = msg " | " $0; keep--; next }
+          ' | cut -c1-400 > said.txt
+          wc -l < said.txt
+          awk 'NR%12==1{if(group)print group; group=$0; next}{group=group" ~~ "$0} END{if(group)print group}' said.txt | head -10 | while read -r group; do
+            echo "::notice title=What the failures said::${group}"
+          done
