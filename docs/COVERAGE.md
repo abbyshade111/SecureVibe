@@ -35,7 +35,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Can be credited | Supporting only | Nothing |
 |---|---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 171 (50%) | 121 (35%) | 10 | 164 |
+| OWASP ASVS 5.0 | 345 | 172 (50%) | 121 (35%) | 10 | 163 |
 | OWASP AISVS 1.0 | 191 | 42 (22%) | 23 (12%) | 0 | 149 |
 | AISVS Appendix C | 68 | 3 (4%) | 2 (3%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 0 (0%) | 11 | 25 |
@@ -47,12 +47,12 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Can be credited | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 58 | 44 | 17 | 1 | 6 | 38 | 21 | 3 |
-| L2 | 183 | 92 | 68 | 23 | 0 | 19 | 47 | 28 | 2 |
+| L2 | 183 | 93 | 68 | 24 | 0 | 19 | 47 | 28 | 2 |
 | L3 | 92 | 21 | 9 | 3 | 0 | 8 | 2 | 6 | 3 |
 
-50 of the 171 ASVS requirements that can be settled can only ever be marked *needs attention*: a check can show the control missing, and finding nothing does not show it present, so a clean run credits none of them. They are counted under *Can settle* and not under *Can be credited*, and the kinds of check above count every requirement a check can settle either way.
+51 of the 172 ASVS requirements that can be settled can only ever be marked *needs attention*: a check can show the control missing, and finding nothing does not show it present, so a clean run credits none of them. They are counted under *Can settle* and not under *Can be credited*, and the kinds of check above count every requirement a check can settle either way.
 
-With nothing beyond plain `sv check`, 43 ASVS requirements can be settled. 25 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 44 ASVS requirements can be settled. 25 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -68,7 +68,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 |---|---|---|---|---|---|
 | V1 Encoding and Sanitization | 30 | 20 | 16 | 0 | 10 |
 | V2 Validation and Business Logic | 13 | 2 | 1 | 2 | 9 |
-| V3 Web Frontend Security | 31 | 22 | 19 | 0 | 9 |
+| V3 Web Frontend Security | 31 | 23 | 19 | 0 | 8 |
 | V4 API and Web Service | 16 | 10 | 5 | 0 | 6 |
 | V5 File Handling | 13 | 8 | 8 | 1 | 4 |
 | V6 Authentication | 47 | 24 | 16 | 1 | 22 |
@@ -86,7 +86,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 
 ## ASVS 5.0 requirement by requirement
 
-### Settled by reading the code (43)
+### Settled by reading the code (44)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -100,6 +100,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V1.5.2 | L2 | Reads the code: `ast.unsafe-deserialization`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
 | V3.4.2 | L1 | Reads the code: `ast.cors-any-origin-with-credentials`; The running app: `probe.cors-any-origin`; Outside tools: `semgrep`, `codeql-javascript` (sv only ever as a finding: `ast.cors-any-origin-with-credentials`) |
 | V3.5.1 | L1 | Reads the code: `ast.csrf-protection-off`; Signed in: `probe.cross-site-request-accepted`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `ast.csrf-protection-off`) |
+| V3.7.1 | L2 | Reads the code: `config.client-tech-unsupported` (sv only ever as a finding: `config.client-tech-unsupported`) |
 | V3.7.2 | L2 | Reads the code: `ast.open-redirect`; Signed in: `probe.open-redirect`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `probe.open-redirect`) |
 | V4.4.1 | L1 | Reads the code: `ast.plaintext-websocket-url`; Outside tools: `semgrep` (semgrep only ever as a finding: `detect-insecure-websocket`; sv only ever as a finding: `ast.plaintext-websocket-url`) |
 | V5.3.2 | L1 | Reads the code: `ast.file-path-from-value`; Signed in: `probe.upload-path-traversal`; Outside tools: `gosec`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |

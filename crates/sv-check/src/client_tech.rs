@@ -22,15 +22,30 @@ pub const CLIENT_TECH: &str = "config.client-tech-unsupported";
 /// from endoflife.date on 9 October 2026 (ADR-070); a library or a date is added here, not in the
 /// rule.
 const ENDED: &[(&str, u64, &str, &str)] = &[
-    ("angular", u64::MAX, "AngularJS", "Its makers ended support on 31 December 2021"),
-    ("vue", 2, "Vue 2 or older", "Its makers ended support for Vue 2 on 31 December 2023"),
+    (
+        "angular",
+        u64::MAX,
+        "AngularJS",
+        "Its makers ended support on 31 December 2021",
+    ),
+    (
+        "vue",
+        2,
+        "Vue 2 or older",
+        "Its makers ended support for Vue 2 on 31 December 2023",
+    ),
     (
         "bootstrap",
         4,
         "Bootstrap 4 or older",
         "Its makers ended support for Bootstrap 4 on 1 January 2023, and for Bootstrap 3 on 24 July 2019",
     ),
-    ("jquery", 2, "jQuery 1 or 2", "Its makers support only jQuery 3 and 4"),
+    (
+        "jquery",
+        2,
+        "jQuery 1 or 2",
+        "Its makers support only jQuery 3 and 4",
+    ),
 ];
 
 /// A library loaded from a CDN with its version in the address: `code.jquery.com/jquery-1.12.4.js`,
@@ -49,9 +64,15 @@ static FROM_CDN: LazyLock<Regex> = LazyLock::new(|| {
 static PLUG_INS: LazyLock<Vec<(Regex, &'static str)>> = LazyLock::new(|| {
     [
         (r"(?i)<applet\b", "a Java applet"),
-        (r#"(?i)<object\b[^>]*\bclassid\s*=\s*["']?clsid:"#, "an ActiveX control"),
+        (
+            r#"(?i)<object\b[^>]*\bclassid\s*=\s*["']?clsid:"#,
+            "an ActiveX control",
+        ),
         (r"(?i)application/x-shockwave-flash", "a Flash object"),
-        (r#"(?i)<embed\b[^>]*\bsrc\s*=\s*["']?[^"'\s>]+\.swf\b"#, "a Flash object"),
+        (
+            r#"(?i)<embed\b[^>]*\bsrc\s*=\s*["']?[^"'\s>]+\.swf\b"#,
+            "a Flash object",
+        ),
         (r"(?i)application/x-silverlight", "a Silverlight object"),
         (r#"(?i)\blanguage\s*=\s*["']?vbscript\b"#, "VBScript"),
     ]
@@ -65,9 +86,31 @@ fn holds_markup(extension: Option<&str>) -> bool {
     matches!(
         extension,
         Some(
-            "html" | "htm" | "xhtml" | "vue" | "svelte" | "jsx" | "tsx" | "js" | "ts" | "erb"
-                | "ejs" | "hbs" | "handlebars" | "njk" | "jinja" | "jinja2" | "j2" | "twig"
-                | "php" | "cshtml" | "razor" | "jsp" | "aspx" | "mustache" | "liquid"
+            "html"
+                | "htm"
+                | "xhtml"
+                | "vue"
+                | "svelte"
+                | "jsx"
+                | "tsx"
+                | "js"
+                | "ts"
+                | "erb"
+                | "ejs"
+                | "hbs"
+                | "handlebars"
+                | "njk"
+                | "jinja"
+                | "jinja2"
+                | "j2"
+                | "twig"
+                | "php"
+                | "cshtml"
+                | "razor"
+                | "jsp"
+                | "aspx"
+                | "mustache"
+                | "liquid"
         )
     )
 }
@@ -83,7 +126,10 @@ fn major(version: &str) -> Option<u64> {
 }
 
 /// The entry for a library, when this major version of it is past its end of life.
-fn ended(package: &str, version_major: u64) -> Option<&'static (&'static str, u64, &'static str, &'static str)> {
+fn ended(
+    package: &str,
+    version_major: u64,
+) -> Option<&'static (&'static str, u64, &'static str, &'static str)> {
     let package = match package.to_ascii_lowercase().as_str() {
         "angularjs" | "angular.js" => "angular".to_owned(),
         other => other.to_owned(),
@@ -111,7 +157,10 @@ pub fn check(listing: &Listing, sbom: &Sbom, report: &mut ConfigReport) {
     }
     // What a `package.json` asks for, for an app with no lockfile to read, or a library the
     // lockfile does not list: the version asked for, which may be a range, by its first number.
-    for entry in listing.app_files().filter(|f| f.file_name() == "package.json") {
+    for entry in listing
+        .app_files()
+        .filter(|f| f.file_name() == "package.json")
+    {
         let Some(manifest) = entry
             .read_text()
             .ok()
@@ -133,7 +182,11 @@ pub fn check(listing: &Listing, sbom: &Sbom, report: &mut ConfigReport) {
                     report.findings.push(library_finding(
                         crate::rich_text::where_named(listing, &format!("\"{name}\"")),
                         library,
-                        &format!("`{name}` {} (as `{}` asks for it)", asked.as_str().unwrap_or(""), entry.relative),
+                        &format!(
+                            "`{name}` {} (as `{}` asks for it)",
+                            asked.as_str().unwrap_or(""),
+                            entry.relative
+                        ),
                     ));
                 }
             }
@@ -220,10 +273,11 @@ fn library_finding(
             "The app loads {what}, which is {name}. {when} (endoflife.date), so a security fault \
              found in it now is not fixed."
         ),
-        impact: "A fault found in an unsupported library stays open for good, in every browser that \
+        impact:
+            "A fault found in an unsupported library stays open for good, in every browser that \
                  loads the app's pages, and the people who find such faults look first at the \
                  libraries nobody is fixing any more."
-            .into(),
+                .into(),
         fix: "Move to a supported version, or to a supported library that does the same job: \
               Angular or another current framework in place of AngularJS, Vue 3, Bootstrap 5, \
               jQuery 3 or 4 (or none: most of what it did, browsers now do themselves)."
@@ -269,7 +323,8 @@ mod tests {
     use std::fs;
 
     fn scratch(name: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("sv-client-tech-{name}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("sv-client-tech-{name}-{}", std::process::id()));
         fs::remove_dir_all(&dir).ok();
         fs::create_dir_all(&dir).unwrap();
         dir
@@ -288,7 +343,13 @@ mod tests {
             .findings
             .iter()
             .filter(|f| f.rule_id == CLIENT_TECH)
-            .map(|f| (f.location.file.clone(), f.location.line, f.description.clone()))
+            .map(|f| {
+                (
+                    f.location.file.clone(),
+                    f.location.line,
+                    f.description.clone(),
+                )
+            })
             .collect();
         out.sort();
         out
@@ -327,15 +388,33 @@ mod tests {
         };
         assert!(said("package.json", 1, "AngularJS"), "{found:#?}");
         assert!(said("package.json", 1, "Vue 2"), "{found:#?}");
-        assert!(said("templates/base.html", 2, "Bootstrap 3 on 24 July 2019"), "{found:#?}");
-        assert!(said("templates/base.html", 3, "jQuery 1 or 2"), "{found:#?}");
-        assert!(said("templates/base.html", 5, "a Flash object"), "{found:#?}");
-        assert!(said("templates/base.html", 6, "a Java applet"), "{found:#?}");
+        assert!(
+            said("templates/base.html", 2, "Bootstrap 3 on 24 July 2019"),
+            "{found:#?}"
+        );
+        assert!(
+            said("templates/base.html", 3, "jQuery 1 or 2"),
+            "{found:#?}"
+        );
+        assert!(
+            said("templates/base.html", 5, "a Flash object"),
+            "{found:#?}"
+        );
+        assert!(
+            said("templates/base.html", 6, "a Java applet"),
+            "{found:#?}"
+        );
         assert!(said("templates/base.html", 7, "VBScript"), "{found:#?}");
-        assert!(said("static/banner.xap", 1, "a Silverlight file"), "{found:#?}");
+        assert!(
+            said("static/banner.xap", 1, "a Silverlight file"),
+            "{found:#?}"
+        );
         assert_eq!(found.len(), 8, "{found:#?}");
         assert!(
-            report.findings.iter().all(|f| f.requirement_ids == ["V3.7.1"]),
+            report
+                .findings
+                .iter()
+                .all(|f| f.requirement_ids == ["V3.7.1"]),
             "{:?}",
             report.findings
         );
@@ -372,7 +451,11 @@ mod tests {
         .enumerate()
         {
             let dir = scratch(&format!("ng{n}"));
-            fs::write(dir.join("index.html"), format!("<script src=\"{address}\"></script>\n")).unwrap();
+            fs::write(
+                dir.join("index.html"),
+                format!("<script src=\"{address}\"></script>\n"),
+            )
+            .unwrap();
             let found = hits(&run(&dir));
             assert!(
                 found.len() == 1 && found[0].2.contains("AngularJS"),
@@ -406,7 +489,8 @@ mod tests {
             !report
                 .passed
                 .iter()
-                .any(|v| v.check_id == CLIENT_TECH || v.requirement_ids.iter().any(|q| q == "V3.7.1")),
+                .any(|v| v.check_id == CLIENT_TECH
+                    || v.requirement_ids.iter().any(|q| q == "V3.7.1")),
             "{:?}",
             report.passed
         );
