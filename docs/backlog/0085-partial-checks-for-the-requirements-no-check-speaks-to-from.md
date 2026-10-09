@@ -364,3 +364,13 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     reaching the model, and credits C2.1.2 in part when they are taken out or the message is refused;
     `probe.ai-input-charset-unrestricted` finds control and private-use characters reaching it, and never credits.
     Not done: smuggling by encodings such as base64 or by look-alike letters, and normalization (C2.1.1).
+14. **V7.2.2: a session that is one fixed key, from the running app. Not verified.** From `docs/PARTIAL-CHECKS.md`,
+    the running half: the session value given at two separate sign-ins of the first test user, and at the second
+    user's, compared. `probe.session-id-weak` (V7.2.3) already finds a cookie repeated across two sign-ins of one
+    user; it does not compare two users, and it skips an app that signs in with a token rather than a cookie.
+    **Claimed on 8 October 2026 by session paper-facts**, at the owner's word ("please continue to work through and
+    pick up new items as you merge"), in branch `claude/static-session`: a finding when any session value, cookie or
+    token, is the same at two of the three sign-ins; credited when every one differs, since V7.2.2 asks exactly that
+    sessions are not one static key. The static half (a key built into the browser's code) is not part of this.
+    **Record, `Status: proposed`: ADR-067.** Checked just before this claim: not on `main`, in no open pull request,
+    and in no recent branch.
