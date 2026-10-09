@@ -847,6 +847,17 @@ fn stop(child: &mut std::process::Child) {
         // SAFETY: a plain system call; the group is the one `run_bounded` made for this child.
         unsafe { libc::kill(-pid, libc::SIGKILL) };
     }
+    // Windows has no process groups to stop at once, and stopping the command alone leaves what it
+    // started running and holding its output open, so the reading waits until that ends by itself:
+    // 30 seconds for a `sleep 30`, or never for a suite that hangs (backlog 0120). `taskkill /T`,
+    // Windows' own, stops the command and everything it started.
+    #[cfg(windows)]
+    let _ = Command::new("taskkill")
+        .args(["/T", "/F", "/PID", &child.id().to_string()])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
     let _ = child.kill();
     let _ = child.wait();
 }

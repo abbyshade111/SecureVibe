@@ -1,5 +1,11 @@
 //! `sv review` says once, before anything else, when the key folder in use is the old one,
 //! `~/.config/securevibe` (ADR-062), and names the move; it says nothing of it otherwise.
+//!
+//! Unix only: these tests type into `sv review` through a pseudo-terminal (Python's `pty`), which
+//! Windows does not have; there they would not run `sv` at all, and the test that looks for nothing
+//! said would pass on nothing (backlog 0120). How `sv review` behaves at a Windows console (it says
+//! the passphrase will show as it is typed, ADR-043, Later) is not tested anywhere yet.
+#![cfg(unix)]
 
 use std::path::{Path, PathBuf};
 use std::process::Command;

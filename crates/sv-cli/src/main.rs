@@ -1686,7 +1686,20 @@ fn stdout_is_a_file() -> bool {
             .and_then(|f| f.metadata())
             .is_ok_and(|m| m.is_file())
     }
-    #[cfg(not(unix))]
+    // The same question through the handle Windows gives standard output: until 9 October 2026
+    // the answer there was always no, so `sv init > stackvet.toml` wrote the instructions into the
+    // file too, and every later command refused it (backlog 0120). A pipe or a console is no file.
+    #[cfg(windows)]
+    {
+        use std::os::windows::io::AsHandle;
+        std::io::stdout()
+            .as_handle()
+            .try_clone_to_owned()
+            .map(std::fs::File::from)
+            .and_then(|f| f.metadata())
+            .is_ok_and(|m| m.is_file())
+    }
+    #[cfg(not(any(unix, windows)))]
     {
         false
     }
