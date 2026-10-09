@@ -1,6 +1,6 @@
 # Put the StackVet logo to work once the rename has landed
 
-**Status:** open
+**Status:** partly done: parts 2 (the repository's preview image, a setting), 3 (the two sites), and 5 (the mark in the reports), each the owner's to decide
 
 Asked for by the owner on 8 October 2026, the day they chose the name StackVet and its logo: "a backlog item for after
 the change is complete to deploy the logo and all that." **Waits for the rename** (ADR-062, and the backlog item the rename's
@@ -35,3 +35,10 @@ how to make them again; the owner's choice is ADR-063. Each part below can be cl
 there), and the image's `org.opencontainers.image` labels in the `Dockerfile`. Confirmed on `main` just before this
 claim: neither file carries the logo or any label, and no other session holds this item. Parts 2, 3, and 5 stay the
 owner's.
+**Parts 1 and 4 done the same day:** the logo, light or dark to match the reader's GitHub theme, at the top of
+`README.md` and `docs/GETTING-STARTED.md`; and the `Dockerfile`'s `org.opencontainers.image` labels (title,
+description, url, source, licenses), so the package page on GitHub's registry shows StackVet and links back to the
+repository. `tools/docs_page.py` leaves a `<picture>` block out, since it shows no images and would otherwise print the
+markup at the top of the README's page; its self-test holds that, and removing the skip failed it. Not checked by
+hand: how the image's package page shows the labels, which needs the next push to `main` to publish the image. Parts
+2, 3, and 5 remain the owner's.

@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="brand/stackvet-logo-dark.svg">
+  <img alt="StackVet" src="brand/stackvet-logo.svg" width="320">
+</picture>
+
 # Building an app with StackVet alongside
 
 This is for building an app from an empty folder with an AI coding tool, with StackVet checking it as
