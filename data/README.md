@@ -57,6 +57,73 @@ The requirements themselves, as published. Read by `sv-frameworks` and counted b
 | `semgrep-packs.json` | tests and `tools/coverage.py` | Which rules each semgrep pack really loads, as measured by `tools/semgrep_packs.py`. |
 | `codeql-suites.json` | tests | Which queries each CodeQL suite the adapters run really selects, as measured by `tools/codeql_suites.py`. |
 
+## The fields of a rule in `ast-rules.json`
+
+Each rule is one entry in the file's `rules` list. `sv` refuses to load the file when a rule has a field not named
+here, so a misspelled field stops the run rather than being ignored. A test
+(`crates/sv-check/tests/ast_rule_schema.rs`) fails when this list and the fields `sv` accepts differ, in either
+direction. "Per language" means an object whose keys are language names (`python`, `javascript`, `typescript`, `go`,
+`java`, `kotlin`, `csharp`, `php`, `ruby`, `rust`, `swift`, `dart`, `c`, `cpp`, `shell`). A pattern is a regular
+expression. The code's own comments on `AstRule` (`crates/sv-check/src/ast.rs`) give each field's reasons at length.
+
+A query marks parts of what it matches with names, and the fields below read them: `@fn` is the called name, `@mod` the
+object or module the call is on, `@arg` the argument judged, `@kw` a keyword argument's name, `@hash` a hash the call
+names, and `@hit` the place the finding points to (the first part matched, when there is no `@hit`).
+
+Every rule has these:
+
+- `id` (text): the rule's name, used in findings and in the report.
+- `title` (text): one line saying what was found.
+- `severity` (`critical`, `high`, `medium`, `low`, or `info`): how bad it would be.
+- `confidence` (`high`, `medium`, or `low`): how sure the rule is, kept apart from how bad.
+- `requirementIds` (list of text): the requirements the rule speaks to, the same whether it finds something or not.
+- `cwe` (list of text): the weakness numbers (CWE) a finding names.
+- `description`, `impact`, `fix` (text): what the finding means, what it allows, and how to put it right.
+- `queries` (per language, text): one tree-sitter query per language. A language with no query is one the rule says
+  nothing about.
+
+What a match must look like to be reported, each optional (per language unless it says otherwise):
+
+- `functionPatterns`: what `@fn` must match.
+- `modulePatterns`: what `@mod` must match.
+- `argumentPatterns`: what `@arg` must match. A match with no `@arg` is not reported.
+- `argumentPatternsByHash` (per language, pattern to pattern): for a call that names its hash, what `@arg` must match
+  for each hash that `@hash` matches, in place of `argumentPatterns`.
+- `argumentPositions` (per language, pattern to number): calls whose argument that matters is not the first, with
+  its position counted from 0.
+- `argumentsForCommonNames` (per language, pattern to pattern): calls with a name too common to report on alone, and
+  what their argument must look like to be reported.
+- `keywordPatterns`: what `@kw` must match. A match with no `@kw` is not reported.
+- `enclosingFunctionPatterns`: what the name of the function around the match must match, written as lower-case
+  words joined by `_`.
+- `valueNamePatterns`: what one of the names given to the value at `@hit` must match, written the same way.
+- `safeArgumentPatterns`: an `@arg` known to be safe, so the call is not reported.
+- `literalArgumentIsSafe` (true or false, false when left out): a call whose `@arg` is plain fixed text is not
+  reported.
+- `safeArgumentPiecesRead` (true or false): an argument pieced together is safe when every piece is fixed text or
+  matches `safeArgumentPatterns`.
+- `argumentNamesRead` (true or false): `argumentPatterns` also matches through a name set, in the function around
+  the call, to text the pattern matches.
+- `functionNamesRead` (true or false): `functionPatterns` also matches through the name `@fn` begins with, read as
+  what the function around it sets it to.
+
+What a finding says, each optional and false when left out:
+
+- `boundParametersLowerConfidence`: a plain name with values passed after it lowers the finding's confidence, and
+  the finding says why.
+- `saysWhenReadFromDatabase`: an argument built from fixed text and values read back from the app's database says so.
+- `saysWhenChecked`: an argument passed through a function whose name says it checks it names that function.
+
+What a clean result says, each optional:
+
+- `looksFor` (text): what the rule looks for, in plain words, shown beside a clean result.
+- `looksForIn` (per language, text): where the rule looks for something narrower than `looksFor` says.
+- `nothingToFind` (per language, text): languages with nothing for the rule to find, each with the reason. A language
+  cannot have both this and a query.
+- `findingsOnly` (true or false, false when left out): the rule can show the fault present and never its absence, so
+  finding nothing credits nothing.
+- `jsxQuery` (text): patterns added to the `typescript` query for files that may hold JSX (`.tsx`, `.astro`).
+
 ## Passwords
 
 | File | Read by | What it is |
