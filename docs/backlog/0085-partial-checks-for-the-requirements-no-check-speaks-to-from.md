@@ -380,3 +380,12 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     opening a private page, is credited. Not three sign-ins of two users, as claimed: the run's promised limit of 60
     sign-ins was already reached in the busiest test, and a key fixed for everybody shows at two sign-ins of one
     person. Not done: the static half.
+15. **C10.3.1: an MCP link to a remote server over plain HTTP, from the code. Not verified.** From
+    `docs/PARTIAL-CHECKS.md`: an `http://` address to a host that is not this computer or a private network, in an MCP
+    server's entry in a configuration file or as the address an MCP client transport is opened with in code.
+    **Claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please continue to work through and
+    pick up new items as you merge"), in branch `claude/mcp-transport`: `config.mcp-transport-unencrypted`, only ever
+    a finding, since an `https://` address shows neither that the link is authenticated nor that it is the only one.
+    The app's files only, as `config.mcp-server-unpinned` reads them; the AI coding tool's own are ADR-049's. The old
+    SSE transport, and the running half, are not part of this. **Record, `Status: proposed`: ADR-068.** Checked just
+    before this claim: not on `main`, in no open pull request, and in no recent branch.
