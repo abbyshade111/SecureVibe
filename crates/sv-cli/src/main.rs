@@ -1137,26 +1137,10 @@ fn cmd_run(args: &[String]) -> Result<i32> {
                 println!("  {} — {}", gap.what, gap.why);
             }
 
-            if let Some(signed_in) = &outcome.signed_in
-                && !signed_in.steps.is_empty()
-            {
-                println!("\nThen, as two test users: {}.", signed_in.steps.join("; "));
-            }
-            if let Some(oidc) = &outcome.oidc
-                && !oidc.steps.is_empty()
-            {
-                println!(
-                    "\nThen, through a test provider standing in for the one it signs in with: {}.",
-                    oidc.steps.join("; ")
-                );
-            }
-            if let Some(ai) = &outcome.ai
-                && !ai.steps.is_empty()
-            {
-                println!(
-                    "\nThen, its AI feature, with a test model standing in for the real one: {}.",
-                    ai.steps.join("; ")
-                );
+            for (lead, asked) in outcome.asked() {
+                if !asked.steps.is_empty() {
+                    println!("\nThen, {lead}: {}.", asked.steps.join("; "));
+                }
             }
 
             // What the probes cannot reach comes before what they found, for the usual reason.
