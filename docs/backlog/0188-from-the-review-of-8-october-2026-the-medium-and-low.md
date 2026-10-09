@@ -1,6 +1,6 @@
 # From the review of 8 October 2026: the medium and low findings, for any session to pick up
 
-**Status:** open
+**Status:** done, 8 October 2026
 
 The four rated
 high were built the same day (the entry above this one's predecessor). Each of these can be claimed on its own.
@@ -184,3 +184,6 @@ high were built the same day (the entry above this one's predecessor). Each of t
    every stage reads in one struct (`Scene`) and what each produces returned; the report, the stage names, and their
    order unchanged, held by the verdict snapshots and the rest of `sv-cli`'s suite. With it, every part of item 7 is
    done. `main.rs` is 5,063 lines after it, and its size stays with the architecture assessment's item.
+**Every part done, checked on `main` on 9 October 2026 by session securevibe-e9** from the roadmap (Phase 1, item 1):
+each of the seven parts has its done note above, the last (`assemble_report_saying`) on 8 October; the status line read
+"open" because the board does not read notes that mark several parts at once.
