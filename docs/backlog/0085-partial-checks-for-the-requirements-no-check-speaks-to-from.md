@@ -359,3 +359,8 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     not on `main`, in no open pull request, and in no recent branch. Session securevibe-e9's claim on the stand-in
     protocol (0187, `claude/stackvet-e9-stand-in`) moves the stand-in's shared strings into one module and changes
     no question; whichever lands second merges the other in.
+    **Done on 8 October 2026** (DESIGN, "Hidden characters sent into the AI feature (8 October 2026)"; ADR-065,
+    accepted). `probe.ai-hidden-input` finds an instruction in invisible tag letters, or a right-to-left override,
+    reaching the model, and credits C2.1.2 in part when they are taken out or the message is refused;
+    `probe.ai-input-charset-unrestricted` finds control and private-use characters reaching it, and never credits.
+    Not done: smuggling by encodings such as base64 or by look-alike letters, and normalization (C2.1.1).

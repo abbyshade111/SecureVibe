@@ -195,3 +195,10 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    (`probe_together` exists; about 3 s per run). Then the library move: a crate or module with typed stage structs
    (`StaticScan`, `Advisories`, `RunningApp`, `PersonsWord`, `Reviewed`), `Loaded` and `ReportOptions` typed, and
    `sv-cli` and `mcp.rs` reduced to arguments and printing; after items 3 and 4, so the seams are already cut.
+   **Its first part, `Signature.condition` typed, claimed 9 October 2026 by session securevibe-e2**, from the roadmap
+   (Phase 2, item 12, the first unclaimed part in its order), in branch `claude/securevibe-e2-typed-condition`: the
+   field becomes `sv_frameworks::Condition`, so a name either data file misspells (`tech-signatures.json`,
+   `claim-corroborators.json`) stops the load with the name, as an unknown condition does everywhere else, rather
+   than leaving its signature silently unread. Confirmed on `main` just before this claim: the field is a `String`
+   read with `Condition::from_name` and skipped when unknown (`sv-scan/src/lib.rs`), every name in both files is
+   known today, and no other session had claimed this part. The rest of item 12 stays open.

@@ -123,6 +123,8 @@ RUST_CHECKS = {
     "probe.ai-output-shape-unchecked": ("running", ["C7.1.1"]),
     "probe.ai-agent-unbounded": ("running", ["C9.1.2"]),
     "probe.ai-tool-timeout": ("running", ["C9.1.1"]),
+    "probe.ai-hidden-input": ("running", ["C2.1.2"]),
+    "probe.ai-input-charset-unrestricted": ("running", ["C2.1.5"]),
     "probe.ai-call-log-session": ("running", ["C12.1.1"]),
     "probe.ai-tool-reads-others-records": ("signed-in", ["C9.5.3"]),
     "probe.ai-retrieval-ignores-user": ("signed-in", ["C5.2.2", "C8.1.3"]),
@@ -263,6 +265,8 @@ RUST_CHECKS = {
 # Checks in RUST_CHECKS that only ever raise their requirement as a finding: a clean run of one
 # credits nothing, because what would settle the requirement is not in anything the check reads.
 RUST_FINDINGS_ONLY = {
+    # A few characters kept out do not show an allow-list (ADR-065).
+    "probe.ai-input-charset-unrestricted",
     # Found on 3 October 2026 to be counted as crediting when no code path gives them credit: each
     # only ever raises a finding. Several have a control that could let them credit (see the backlog).
     "probe.directory-listing",
@@ -365,8 +369,9 @@ RUST_CREDITS_ONLY = {
 
 # Checks in RUST_CHECKS whose credit is only ever *in part* (ADR-053): they try one piece of what
 # their requirement asks, so a requirement they alone credit is *checked in part*, never *checked*.
-# C9.1.1 names five quotas, and a check from outside the app can time only one (ADR-064).
-RUST_IN_PART = {"probe.ai-tool-timeout"}
+# C9.1.1 names five quotas, and a check from outside the app can time only one (ADR-064); C2.1.2's
+# smuggling is tried in one family of characters, not in encodings or look-alike letters (ADR-065).
+RUST_IN_PART = {"probe.ai-tool-timeout", "probe.ai-hidden-input"}
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are
 # parsed, a requirement named only to say it is not assessed, and the three ids `sv init` prints as
