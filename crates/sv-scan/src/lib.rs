@@ -32,7 +32,10 @@ use sv_frameworks::Condition;
 // should stop the run, not change the answer.
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Signature {
-    pub condition: String,
+    /// The condition this answers. A name the data file misspells stops the load, as an unknown
+    /// condition does everywhere else, rather than leaving this signature silently unread (the
+    /// architecture assessment of 8 October 2026, item 12).
+    pub condition: Condition,
     /// Why this signature is shaped the way it is. Carried into the report.
     #[serde(default)]
     pub note: String,
@@ -294,11 +297,12 @@ pub fn scan_listing_app(
     }
 
     for (i, sig) in signatures.signatures.iter().enumerate() {
-        if let Some(condition) = Condition::from_name(&sig.condition) {
-            report
-                .answers
-                .push(evaluate(condition, sig, &report, source_hits[i].as_ref()));
-        }
+        report.answers.push(evaluate(
+            sig.condition,
+            sig,
+            &report,
+            source_hits[i].as_ref(),
+        ));
     }
 
     // A compose file that builds two or more services from this repository's own code is the
