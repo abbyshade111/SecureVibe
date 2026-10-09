@@ -58,6 +58,8 @@ mod marker_tests;
 #[cfg(test)]
 mod old_names_tests;
 mod protocol;
+#[cfg(test)]
+mod quoted_tests;
 mod report_writing;
 #[cfg(test)]
 mod resource_fence_tests;
@@ -208,13 +210,21 @@ fn this_sv_running(subcommand: &str, app: &str) -> String {
 }
 
 /// A path as a shell reads it: as it is when it holds nothing a shell treats specially, otherwise
-/// in single quotes.
+/// quoted the way this system's shells read.
 fn quoted(text: &str) -> String {
-    if text
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || "/._-~+:,@".contains(c))
-    {
+    quoted_for(text, cfg!(windows))
+}
+
+/// `quoted`, for either system, so the Windows form is tested on every one. On Windows `\` is a
+/// path's own separator, and a path that needs quoting gets double quotes, which the Command Prompt
+/// reads; single quotes there are part of the name (backlog 0120).
+fn quoted_for(text: &str, windows: bool) -> String {
+    let plain =
+        |c: char| c.is_ascii_alphanumeric() || "/._-~+:,@".contains(c) || (windows && c == '\\');
+    if text.chars().all(plain) {
         text.to_owned()
+    } else if windows {
+        format!("\"{}\"", text.replace('"', "\"\""))
     } else {
         format!("'{}'", text.replace('\'', "'\\''"))
     }

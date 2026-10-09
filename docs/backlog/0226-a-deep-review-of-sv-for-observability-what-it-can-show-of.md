@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 1 items 4 to 6 and 9 to 11; part 2 (9); part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 1 items 5, 6, and 9 to 11; part 2 (9); part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -249,6 +249,11 @@ backlog", in branch `claude/stackvet-e9-suite-steps`: the steps of the MCP-serve
 report and to `sv run`'s printout as the other suites' are, with a test that fails without it. Open pull requests
 (#1305, #1308, both this session's) and the branches of the last few hours read first: none touches
 `crates/sv-cli/src/assemble.rs`, `crates/sv-check/src/mcp_server.rs`, or `crates/sv-check/src/fetch.rs`.
+
+**Part 1, item 4 done the same day** (`docs/design/0344-every-suite-s-steps-reach-the-report-and-sv-run-from-one.md`): `RunOutcome::asked` is the one list of the suites asked beyond the
+anonymous ones, which the evidence, the report's steps, and `sv run`'s printout all read, so the MCP-server and
+fetch suites' steps now reach both. It names every field of `RunOutcome`, so a suite added later does not build
+until it is placed. Break: with those two suites taken out of the list, both new tests fail.
 
 **Part 1, items 3 and 7 done the same day** (`docs/design/0344-the-build-loop-record-read-a-line-at-a-time-and-said-when.md`):
 the record is read as bytes and decoded a line at a time, so a byte that is not UTF-8 costs its line, counted as

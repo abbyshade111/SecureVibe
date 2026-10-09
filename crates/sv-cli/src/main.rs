@@ -1137,26 +1137,10 @@ fn cmd_run(args: &[String]) -> Result<i32> {
                 println!("  {} — {}", gap.what, gap.why);
             }
 
-            if let Some(signed_in) = &outcome.signed_in
-                && !signed_in.steps.is_empty()
-            {
-                println!("\nThen, as two test users: {}.", signed_in.steps.join("; "));
-            }
-            if let Some(oidc) = &outcome.oidc
-                && !oidc.steps.is_empty()
-            {
-                println!(
-                    "\nThen, through a test provider standing in for the one it signs in with: {}.",
-                    oidc.steps.join("; ")
-                );
-            }
-            if let Some(ai) = &outcome.ai
-                && !ai.steps.is_empty()
-            {
-                println!(
-                    "\nThen, its AI feature, with a test model standing in for the real one: {}.",
-                    ai.steps.join("; ")
-                );
+            for (lead, asked) in outcome.asked() {
+                if !asked.steps.is_empty() {
+                    println!("\nThen, {lead}: {}.", asked.steps.join("; "));
+                }
             }
 
             // What the probes cannot reach comes before what they found, for the usual reason.
@@ -1686,7 +1670,20 @@ fn stdout_is_a_file() -> bool {
             .and_then(|f| f.metadata())
             .is_ok_and(|m| m.is_file())
     }
-    #[cfg(not(unix))]
+    // The same question through the handle Windows gives standard output: until 9 October 2026
+    // the answer there was always no, so `sv init > stackvet.toml` wrote the instructions into the
+    // file too, and every later command refused it (backlog 0120). A pipe or a console is no file.
+    #[cfg(windows)]
+    {
+        use std::os::windows::io::AsHandle;
+        std::io::stdout()
+            .as_handle()
+            .try_clone_to_owned()
+            .map(std::fs::File::from)
+            .and_then(|f| f.metadata())
+            .is_ok_and(|m| m.is_file())
+    }
+    #[cfg(not(any(unix, windows)))]
     {
         false
     }
