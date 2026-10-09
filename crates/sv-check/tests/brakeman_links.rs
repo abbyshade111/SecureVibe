@@ -5,6 +5,9 @@
 //! Needs the real Brakeman: without it on `PATH` this says so and checks nothing. Run here on 8
 //! October 2026 with Brakeman 8.1.0.
 
+// Unix only: every test here follows symbolic links, which Windows allows only with special rights (backlog 0120).
+#![cfg(unix)]
+
 mod scratch;
 
 use scratch::Scratch;

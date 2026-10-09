@@ -943,6 +943,8 @@ pub mod report_files;
 
 pub mod report_folder;
 
+pub mod build_loop;
+
 pub mod report_seal;
 
 /// The coding prompts shown to work, in full, for the two places every builder reads before any code:

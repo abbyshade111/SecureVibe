@@ -675,6 +675,8 @@ mod tests {
         }
     }
 
+    // Unix only: it makes symbolic links, which Windows allows only with special rights (backlog 0120).
+    #[cfg(unix)]
     #[test]
     fn a_link_out_of_the_app_and_a_loop_are_listed_once_and_never_followed() {
         // The fixture that found this: `vendor-link` points outside the app, `src/loop` points at

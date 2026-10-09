@@ -248,6 +248,9 @@ pub fn page(report: &Report) -> String {
     if let Some(line) = crate::baseline_line(report) {
         b.push_str(&format!("<p class=\"note\">{}</p>\n", escape(&line)));
     }
+    if let Some(line) = crate::build_loop_line(report) {
+        b.push_str(&format!("<p class=\"note\">{}</p>\n", escape(&line)));
+    }
     let (worst, rest) = crate::bluf::worst_findings(report);
     if !worst.is_empty() {
         b.push_str("<ul class=\"worst\">\n");
@@ -1089,6 +1092,7 @@ mod tests {
         Report {
             level_why: None,
             baseline: None,
+            build_loop: None,
             app_name: "test".into(),
             target_level: 1,
             generated: None,

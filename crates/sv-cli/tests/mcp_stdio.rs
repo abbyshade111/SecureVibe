@@ -11,6 +11,8 @@ fn a_whole_session_over_stdio() {
     let mut child = Command::new(env!("CARGO_BIN_EXE_sv"))
         .args(["mcp", "--root"])
         .arg(&examples)
+        // The repository's own examples keep no record of this test's calls (ADR-076).
+        .env("SV_BUILD_LOOP_RECORD", "off")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

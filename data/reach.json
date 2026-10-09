@@ -76,6 +76,9 @@
   "C12.2.5": [
    "running"
   ],
+  "C12.4.2": [
+   "running"
+  ],
   "V1.2.1": [
    "tools"
   ],
@@ -3585,6 +3588,14 @@
     "id": "probe.ai-token-use-attributed",
     "run": "The running app",
     "looks_for": "Token use nobody can tie to a user or a session cannot show who ran up a bill, or which account is being used to drain the app's credit.",
+    "finding_only": false
+   }
+  ],
+  "C12.4.2": [
+   {
+    "id": "probe.ai-tool-action-logged",
+    "run": "The running app",
+    "looks_for": "An action the AI took that leaves no record of what it did, with what, when and on whose say-so cannot be reviewed after something goes wrong.",
     "finding_only": false
    }
   ]
