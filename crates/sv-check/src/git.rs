@@ -301,12 +301,14 @@ mod tests {
     #[test]
     fn a_name_git_would_quote_is_given_as_it_is() {
         let (dir, _) = planted("quoted");
-        let names = [
-            "données/secrets.json",
-            "a \"quoted\" name.txt",
-            "back\\slash.txt",
-        ];
-        for name in names {
+        // Git quotes a name with letters beyond English, a quote, or a backslash. Windows refuses
+        // the last two in a file name (a backslash is its folder separator), so there the names
+        // are the ones it allows (backlog 0120).
+        let mut names = vec!["données/secrets.json", "clé 🔑 privée.pem"];
+        if cfg!(unix) {
+            names.extend(["a \"quoted\" name.txt", "back\\slash.txt"]);
+        }
+        for name in names.iter().copied() {
             let path = dir.join(name);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
             std::fs::write(&path, "x\n").unwrap();

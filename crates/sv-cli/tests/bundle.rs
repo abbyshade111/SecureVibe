@@ -368,12 +368,15 @@ fn a_file_the_scan_could_not_read_stays_out_unless_it_is_a_plain_image_or_font_a
 #[test]
 fn links_and_editor_folders_stay_out() {
     let made = make("links");
-    assert!(
-        !made.has("outside-link")
-            && made
-                .left_out("outside-link")
-                .is_some_and(|r| r.contains("link"))
-    );
+    // The link is made only on Unix (`make`); Windows needs a privilege to make one.
+    if cfg!(unix) {
+        assert!(
+            !made.has("outside-link")
+                && made
+                    .left_out("outside-link")
+                    .is_some_and(|r| r.contains("link"))
+        );
+    }
     assert!(
         !made.names().iter().any(|n| n.contains(".vscode")) && made.left_out(".vscode/").is_some()
     );

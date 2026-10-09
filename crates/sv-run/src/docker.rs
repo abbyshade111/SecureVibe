@@ -2033,9 +2033,24 @@ fn seed_failed(code: i32, out: &str, accounts: &sv_check::signed_in::Accounts) -
         secrets.push(encoded.to_lowercase());
         secrets.push(encoded);
     }
+    // `sv`'s own test secrets first, by value, as a blank the redaction below leaves alone; then
+    // every other credential the line carries, the app's own included (backlog 0226, part 1,
+    // item 1): a seed that fails on its database prints the database's address, password and all.
+    const BLANK: &str = "{sv_test_secret}";
     for secret in secrets.iter().filter(|s| !s.is_empty()) {
-        line = line.replace(secret.as_str(), "[a test secret, left out]");
+        line = line.replace(secret.as_str(), BLANK);
     }
+    line =
+        match sv_check::secrets::SecretRules::load(&sv_frameworks::data::file("secret-rules.json"))
+        {
+            Ok(rules) => sv_check::secrets::redact_text(&rules, &line).0,
+            Err(_) => {
+                "what it printed is left out, because sv's own rules for finding credentials in \
+                   it could not be read"
+                    .to_owned()
+            }
+        };
+    let line = line.replace(BLANK, "[a test secret, left out]");
     format!(
         "The seed command in stackvet.toml failed (exit {code}): {line}. With no accounts there \
          is nobody to sign in as."
@@ -2090,6 +2105,10 @@ fn is_docker_time(word: &str) -> bool {
         && word.ends_with('Z')
         && b[..4].iter().all(u8::is_ascii_digit)
 }
+
+#[cfg(test)]
+#[path = "seed_failure_tests.rs"]
+mod seed_failure_tests;
 
 #[cfg(test)]
 mod tests {
@@ -2484,7 +2503,20 @@ fn gateway_verdict(out: &str) -> GatewayVerdict {
     }
     let Some((_, own, Some(own_code))) = sections.iter().find(|(m, _, _)| m == "sv-self").cloned()
     else {
-        return GatewayVerdict::Unknown("the check did not run".to_owned());
+        // What Docker said, for the one line that says why: on 9 October 2026 this ran three times
+        // in CI with no reason given, while Docker Hub was failing, and nobody could say whether
+        // the image or the fence was at fault.
+        // Docker ends a refused `run` with "Run 'docker run --help' for more information", under
+        // the line that says why; that hint is passed over.
+        let said: String = out
+            .lines()
+            .filter(|l| !(l.trim_start().starts_with("Run 'docker") && l.contains("--help")))
+            .collect::<Vec<_>>()
+            .join("\n");
+        return GatewayVerdict::Unknown(format!(
+            "the check did not run; Docker said: {}",
+            last_line(&said)
+        ));
     };
     if own_code == 0 || !own.to_lowercase().contains("refused") {
         return GatewayVerdict::Unknown(format!(
@@ -4747,3 +4779,6 @@ mod at_once_tests {
 
 #[cfg(test)]
 mod backend_tests;
+
+#[cfg(test)]
+mod gateway_said_tests;

@@ -149,9 +149,10 @@ pub fn probe_the_running_app(
     app_dir: &Path,
     slow: bool,
 ) -> std::result::Result<(sv_run::RunOutcome, sv_run::RunPlan), String> {
-    let mut plan = RunPlan::from_manifest(manifest, app_dir).map_err(|e| e.explain())?;
+    let mut plan = RunPlan::from_manifest(manifest, app_dir)
+        .map_err(|e| cannot_run_said(&e.explain(), e.kind()))?;
     plan.slow = slow;
-    let backend = sv_run::detect().map_err(|e| e.explain())?;
+    let backend = sv_run::detect().map_err(|e| cannot_run_said(&e.explain(), e.kind()))?;
     // Said before the wait, not only after it: the wait is a minute (family-hub, 3 October 2026).
     if let Some(warning) = sv_run::loopback_warning(&plan.start) {
         eprintln!("{warning}");
@@ -172,8 +173,42 @@ pub fn probe_the_running_app(
         report_lock::let_go_of_all();
         exit::exit_with(exit::INTERRUPTED);
     }
-    Ok((outcome.map_err(|e| e.explain())?, plan))
+    Ok((
+        outcome.map_err(|e| cannot_run_said(&e.explain(), e.reason.kind()))?,
+        plan,
+    ))
 }
+
+/// Why the app could not be run, with every credential in it cut down as a finding shows one. The
+/// reason quotes the app's own output, which `sv` did not write: its crash line, its last line, the
+/// end of a failed install, what the container backend said. A database error that prints its
+/// address prints the password in it, and the reason goes into the report and to the terminal
+/// (backlog 0226, part 1, item 1). Every way a run can fail passes here, so none is missed.
+fn cannot_run_said(said: &str, kind: &str) -> String {
+    said_without_credentials(
+        said,
+        kind,
+        SecretRules::load(&secret_rules_path()).ok().as_ref(),
+    )
+}
+
+/// `cannot_run_said`, with the rules given: `said` is the failure as `sv-run` explains it, and `kind`
+/// what kind of failure it was (`CannotRun::kind`). Without the rules nothing can be cut, so the
+/// app's own words are left out rather than shown whole, and the reason says only the kind.
+fn said_without_credentials(said: &str, kind: &str, rules: Option<&SecretRules>) -> String {
+    match rules {
+        Some(rules) => sv_check::secrets::redact_text(rules, said).0,
+        None => format!(
+            "The app could not be run ({kind}). What it printed is left out here, because sv's own \
+             rules for finding credentials in it could not be read, so it could not be shown safely: \
+             start the app yourself to see what it printed, and reinstall sv. Everything that needs \
+             the app running is reported as not assessed."
+        ),
+    }
+}
+
+#[cfg(test)]
+mod cannot_run_said_tests;
 
 /// Every request the anonymous probes make: the fixed suite, and the GraphQL and WebSocket
 /// questions when stackvet.toml says where those are. One function, because `sv run` also counts

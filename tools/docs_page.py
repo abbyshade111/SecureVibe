@@ -21,7 +21,7 @@ document is shown as text, never run.
 import argparse
 import html
 import json
-import os
+import posixpath
 import re
 import subprocess
 import sys
@@ -66,8 +66,10 @@ def link_target(target, here):
         return target
     path, _, anchor = target.partition("#")
     if path.endswith(".md"):
-        resolved = os.path.normpath(os.path.join(os.path.dirname(here), path))
-        rel = os.path.relpath(resolved[:-3] + ".html", os.path.dirname(here) or ".")
+        # A link is a web address, written with `/` on every system: posixpath, not os.path, which
+        # on Windows would write `\` into the page (backlog 0120).
+        resolved = posixpath.normpath(posixpath.join(posixpath.dirname(here), path))
+        rel = posixpath.relpath(resolved[:-3] + ".html", posixpath.dirname(here) or ".")
         return rel + ("#" + anchor if anchor else "")
     return target
 
@@ -302,7 +304,7 @@ def nav_for(docs, titles, here):
             continue
         out.append(f"<h2>{html.escape(name)}</h2><ul>")
         for d in mine:
-            href = os.path.relpath(d[:-3] + ".html", os.path.dirname(here) or ".")
+            href = posixpath.relpath(d[:-3] + ".html", posixpath.dirname(here) or ".")
             cls = ' class="here"' if d == here else ""
             out.append(f'<li><a{cls} href="{html.escape(href)}">{html.escape(titles[d])}</a></li>')
         out.append("</ul>")
