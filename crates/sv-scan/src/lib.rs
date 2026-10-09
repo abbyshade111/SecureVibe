@@ -541,8 +541,28 @@ fn evaluate(
     }
 }
 
-/// A path pattern: either an exact relative path, or `*.ext` matched against every path.
+/// A path pattern: an exact relative path (or a folder at the root), `*.ext` matched against
+/// every path, or `**/name` matched against a file or folder of that name at any depth.
+///
+/// `**/` is for names that are as often in a subfolder as at the root: a `Dockerfile` under
+/// `deploy/`, a `compose.yaml` under `docker/`, a `Chart.yaml` under `charts/app/`. A bare
+/// `Dockerfile` matched only at the root, so an app whose Dockerfile sat one folder down was
+/// answered "no infrastructure configuration" when its owner had said nothing (gap analysis of
+/// 7 October 2026, finding 16).
 fn matching_path(paths: &BTreeSet<String>, pattern: &str) -> Option<String> {
+    if let Some(name) = pattern.strip_prefix("**/") {
+        let name = name.replace('\\', "/").to_lowercase();
+        return paths
+            .iter()
+            .find(|p| {
+                let p = p.replace('\\', "/").to_lowercase();
+                p == name
+                    || p.starts_with(&format!("{name}/"))
+                    || p.ends_with(&format!("/{name}"))
+                    || p.contains(&format!("/{name}/"))
+            })
+            .cloned();
+    }
     if let Some(ext) = pattern.strip_prefix("*.") {
         let suffix = format!(".{}", ext.to_lowercase());
         return paths
