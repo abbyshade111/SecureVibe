@@ -51,6 +51,10 @@
 //           argument; the MCP server here (`POST /mcp`) answers that call with a clean result, one
 //           that breaks the tool's declared output schema, or one carrying an injected
 //           instruction; and whatever the app then sends back as the tool's result is recorded
+//   MCPHANG asks for `sv_lookup` as MCPPLAIN does, and the MCP server takes the call and answers
+//           nothing, holding it for HANG_SECONDS and then closing it unanswered, as a tool that has
+//           stopped responding does; `mcp_called` in what was seen says the call arrived, and
+//           `mcp_released` that the hold has ended (ADR-064)
 //
 // Every other answer takes the shape the app asked for: JSON that fits the JSON schema it named
 // (OpenAI's `response_format` or `text.format`, Anthropic's `output_format`), with the reply's text
@@ -591,6 +595,18 @@ function mcp(message, res) {
       return ok({ tools: [LOOKUP] });
     case 'tools/call': {
       const tag = String((params.arguments || {}).q || '');
+      const what = seen.get(tag) || {};
+      if (what.kind === 'MCPHANG') {
+        // As a held AI message: nothing is written until the hold ends, and then the call is closed
+        // unanswered. `mcp_released` marks the end, so an answer seen before it came while the
+        // tool still held the call.
+        seen.set(tag, { ...what, mcp_called: true });
+        setTimeout(() => {
+          seen.set(tag, { ...(seen.get(tag) || {}), mcp_released: true });
+          res.destroy();
+        }, HANG_SECONDS * 1000);
+        return undefined;
+      }
       return ok(toolResult(tag));
     }
     default:

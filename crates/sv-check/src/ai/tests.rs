@@ -138,6 +138,13 @@ struct Flaws {
     trace_on_timeout: bool,
     /// It runs the model's tool calls for as long as the model asks.
     unbounded_tool_loop: bool,
+    /// It sets no time limit on its tools: a message whose tool call is never answered is never
+    /// answered (C9.1.1).
+    waits_on_tool: bool,
+    /// Its own time limit on a tool runs out, and it answers with the library's traceback.
+    tool_trace_on_timeout: bool,
+    /// It answers a message whose tool call is held only once the tool has let the call go.
+    answers_after_tool_lets_go: bool,
     /// Its tool loop fails after three rounds, and it catches the error and answers 200 with
     /// an apology.
     loop_error_caught: bool,
@@ -245,6 +252,10 @@ struct FakeChat {
     /// For each tag of an MCP message: whether the model asked for the tool, whether the MCP
     /// server was called, and what the app passed back to the model as the result.
     mcp: BTreeMap<String, (bool, bool, String)>,
+    /// The MCPHANG tags whose held tool call the test MCP server has let go.
+    mcp_released: std::collections::BTreeSet<String>,
+    /// Until when, on the fake clock, the test MCP server holds an MCPHANG call.
+    tool_held_until: u64,
     /// For each tag, every marker for it the message carried.
     kinds: BTreeMap<String, Vec<String>>,
     /// The tags of HARM messages, and those whose reply the app asked the moderation endpoint
@@ -664,6 +675,37 @@ impl FakeChat {
                 "{\"error\":\"The assistant is taking too long. Please try again.\"}".into(),
             );
         }
+        // A message whose tool call the test MCP server holds: answered by the app's own time limit
+        // on the tool, or not at all.
+        let held = self.last_tag.clone();
+        if self
+            .kinds
+            .get(&held)
+            .and_then(|k| k.last())
+            .is_some_and(|k| k == "MCPHANG")
+            && self.mcp.get(&held).is_some_and(|(_, called, _)| *called)
+        {
+            self.tool_held_until = self.clock + HANG_HOLD;
+            if self.flaws.waits_on_tool {
+                self.no_answer = true;
+                return answer(200, String::new());
+            }
+            if self.flaws.answers_after_tool_lets_go {
+                self.mcp_released.insert(held.clone());
+            }
+            if self.flaws.tool_trace_on_timeout {
+                return answer(
+                    500,
+                    "Traceback (most recent call last):\n  File \"/app/tools.py\", line 17, in \
+                         lookup\nTimeoutError: the tool did not answer in 5 seconds"
+                        .into(),
+                );
+            }
+            return answer(
+                200,
+                format!("{{\"reply\":\"SV-REPLY-{held} Sorry, the lookup did not answer.\"}}"),
+            );
+        }
         // A message the test model fails on: the service's error, handled or not.
         let failing = self.last_tag.clone();
         if self
@@ -913,6 +955,7 @@ impl Http for FakeChat {
                             "input_tokens": input, "output_tokens": output,
                             "tools_offered": if requested { vec!["sv_lookup"] } else { vec![] },
                             "tool_requested": requested, "mcp_called": called,
+                            "mcp_released": self.mcp_released.contains(tag),
                             "tool_result": result,
                             "kinds": self.kinds.get(tag).cloned().unwrap_or_default(),
                             "reply_screened": self.screened.contains(tag),
@@ -3364,6 +3407,124 @@ fn an_agent_with_a_limit_is_credited_and_one_without_is_found() {
     });
     assert!(!found(&no_tool).contains(&AGENT_UNBOUNDED.rule_id));
     assert!(!credited(&no_tool).contains(&AGENT_UNBOUNDED.rule_id));
+}
+
+#[test]
+fn a_tool_with_a_time_limit_is_credited_in_part_and_nothing_else_is_ever_credited() {
+    // ADR-064: the test MCP tool holds the call, and the app answering by itself within the
+    // wait, while the call is still held, is a time limit on that tool: C9.1.1, in part.
+    let careful = ask_mcp(Flaws::default());
+    let credit = careful
+        .verified
+        .iter()
+        .find(|v| v.check_id == TOOL_TIMEOUT.rule_id)
+        .unwrap_or_else(|| panic!("{:?}", careful.steps));
+    assert!(credit.in_part, "{credit:?}");
+    assert_eq!(credit.requirement_ids, vec!["C9.1.1"]);
+    assert!(
+        why(&careful, "C9.1.1")
+            .iter()
+            .any(|w| w.contains("CPU, memory, disk and network")),
+        "the rest of C9.1.1 is said to be unchecked: {:?}",
+        careful.not_assessed
+    );
+    // Never a finding, and in every case below no credit either.
+    let neither = |o: &Outcome| {
+        assert!(
+            !found(o).contains(&TOOL_TIMEOUT.rule_id),
+            "{:?}",
+            o.findings
+        );
+        assert!(
+            !credited(o).contains(&TOOL_TIMEOUT.rule_id),
+            "{:?}",
+            o.steps
+        );
+    };
+    // No limit of its own: no answer within the wait says nothing, and the hold is waited out.
+    let mut app = FakeChat {
+        flaws: Flaws {
+            waits_on_tool: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let waits = run(&mut app, &mcp_section(), &context(None, &NO_POLICY)).0;
+    neither(&waits);
+    assert!(
+        why(&waits, "C9.1.1")
+            .iter()
+            .any(|w| w.contains("no answer within the 15 seconds") && w.contains("longer")),
+        "{:?}",
+        waits.not_assessed
+    );
+    assert!(
+        app.tool_held_until > 0 && app.clock >= app.tool_held_until,
+        "the run went on before the test MCP tool let go: {:?}",
+        waits.steps
+    );
+    // A traceback when its own limit runs out: no credit.
+    let traced = ask_mcp(Flaws {
+        tool_trace_on_timeout: true,
+        ..Default::default()
+    });
+    neither(&traced);
+    assert!(
+        why(&traced, "C9.1.1")
+            .iter()
+            .any(|w| w.contains("carried a trace")),
+        "{:?}",
+        traced.not_assessed
+    );
+    // An answer that came only once the tool let go shows the tool's limit, not the app's.
+    let late = ask_mcp(Flaws {
+        answers_after_tool_lets_go: true,
+        ..Default::default()
+    });
+    neither(&late);
+    assert!(
+        why(&late, "C9.1.1")
+            .iter()
+            .any(|w| w.contains("only after the tool had let the call go")),
+        "{:?}",
+        late.not_assessed
+    );
+    // Not asked where the tool was never offered, or offered and never called, and said so.
+    for flaws in [
+        Flaws {
+            no_mcp_tools: true,
+            ..Default::default()
+        },
+        Flaws {
+            mcp_never_calls: true,
+            ..Default::default()
+        },
+    ] {
+        let o = ask_mcp(flaws);
+        neither(&o);
+        assert!(
+            why(&o, "C9.1.1")
+                .iter()
+                .any(|w| w.contains("was not asked")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+    // Called for the control and not for the held call: nothing shown.
+    let once = ask_mcp(Flaws {
+        mcp_calls_once: true,
+        ..Default::default()
+    });
+    neither(&once);
+    assert!(
+        why(&once, "C9.1.1")
+            .iter()
+            .any(|w| w.contains("did not call the test MCP tool this time")),
+        "{:?}",
+        once.not_assessed
+    );
+    // With no MCP server named, C9.1.1 is not mentioned at all: there is no tool to hold.
+    assert!(why(&ask(Flaws::default()), "C9.1.1").is_empty());
 }
 
 #[test]

@@ -21,6 +21,8 @@ decided per app, from its `stackvet.toml` and its code.
   not show it is, so a clean run credits nothing.
 - *credited only*: that check can show the requirement is met, and never marks it *needs
   attention*, since the app may meet it in a way the check cannot see; it says so instead.
+- *only ever in part*: that check tries one piece of what the requirement asks, so what it credits
+  is marked *checked in part*, never *checked* (ADR-053).
 - Each check says what kind it is and so what it needs to run:
 
 | Kind | Needs |
@@ -629,9 +631,9 @@ decided per app, from its `stackvet.toml` and its code.
 
 ## OWASP AISVS 1.0
 
-191 requirements: 21 can be checked, 17 can only be found failing, 0 where a check helps but a person decides, and 153 with no check.
+191 requirements: 22 can be checked, 17 can only be found failing, 0 where a check helps but a person decides, and 152 with no check.
 
-### Level 1 (51 requirements, 14 can be checked, 6 can only be found failing)
+### Level 1 (51 requirements, 15 can be checked, 6 can only be found failing)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -697,7 +699,7 @@ decided per app, from its `stackvet.toml` and its code.
 
 | Requirement | Coverage | Checks |
 |---|---|---|
-| **C9.1.1** Verify that per-tool quotas and timeouts (e.g., CPU, memory, disk, egress, and execution time) are enforced. | No check | – |
+| **C9.1.1** Verify that per-tool quotas and timeouts (e.g., CPU, memory, disk, egress, and execution time) are enforced. | Can be checked | The running app: `probe.ai-tool-timeout`, if it fails: A tool that stops answering holds the message that called it for as long as the tool does, so one stuck tool leaves the person waiting and ties up what is serving them. (credited only, and only ever in part) |
 | **C9.1.2** Verify that per-execution budgets (e.g., max recursion depth, token use, and monetary spend) are configured and enforced by the runtime. | Can be checked | The running app: `probe.ai-agent-unbounded`, if it fails: A model that keeps asking for tools is run for as long as it asks, so one message can cost as much as the model cares to spend, and a model talked into a loop runs the app's tools without end.<br>Outside tools: semgrep, 1 rule, its rules look for: a model called in a loop with no limit on iterations, token use, or spend (found failing only) |
 | **C9.2.1** Verify that the agent runtime blocks execution of privileged, high-impact, or irreversible actions until explicit human approval is received and verified. | No check | – |
 | **C9.3.1** Verify that each tool/plugin executes in a least-privilege sandbox or is otherwise isolated from model operations. | Can only be found failing | Outside tools: semgrep, 1 rule, its rules look for: an agent tool that runs arbitrary code, not isolated in a least-privilege sandbox; dynamic code execution, such as eval, on data that may be untrusted (found failing only) |

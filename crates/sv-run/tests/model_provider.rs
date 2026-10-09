@@ -106,6 +106,22 @@ fn chat(port: u16, message: &str) -> serde_json::Value {
     .expect("a chat completion")
 }
 
+/// A chat message with the MCP tool offered, as an app given the test MCP server offers it.
+fn chat_with_tools(port: u16, message: &str) -> serde_json::Value {
+    let body = serde_json::json!({
+        "model": "gpt-test",
+        "messages": [{"role": "user", "content": message}],
+        "tools": [{"type": "function", "function": {"name": "mcp__sv_lookup"}}],
+    });
+    serde_json::from_str(&call(
+        port,
+        "POST",
+        "/v1/chat/completions",
+        &body.to_string(),
+    ))
+    .expect("a chat completion")
+}
+
 fn seen(port: u16, tag: &str) -> serde_json::Value {
     serde_json::from_str(&call(port, "GET", &format!("/_sv/seen/{tag}"), "")).unwrap()
 }
@@ -330,6 +346,51 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     );
     assert_eq!(seen(port, "4e4f")["received"], true);
     assert_eq!(seen(port, "4e4f")["hangs"], 1);
+
+    // C9.1.1 (ADR-064): an MCPHANG message has the model ask for `sv_lookup`, and the MCP server
+    // takes that call and answers nothing for the hold, then closes it; while it holds, the call
+    // is recorded as made and not yet let go, and afterwards as let go.
+    let asked = chat_with_tools(port, "Look it up SV-PROBE-MCPHANG-5e5f");
+    assert_eq!(
+        asked["choices"][0]["message"]["tool_calls"][0]["function"]["name"], "mcp__sv_lookup",
+        "{asked}"
+    );
+    let rpc = serde_json::json!({
+        "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+        "params": {"name": "sv_lookup", "arguments": {"q": "5e5f"}},
+    })
+    .to_string();
+    let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(10)))
+        .unwrap();
+    write!(
+        stream,
+        "POST /mcp HTTP/1.0\r\nHost: sv-model\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{rpc}",
+        rpc.len()
+    )
+    .unwrap();
+    let started = Instant::now();
+    // Read while the call is still held: made, and not let go.
+    std::thread::sleep(Duration::from_millis(300));
+    let during = seen(port, "5e5f");
+    assert_eq!(during["mcp_called"], true, "{during}");
+    assert_ne!(during["mcp_released"], true, "{during}");
+    let mut got = Vec::new();
+    let _ = stream.read_to_end(&mut got);
+    let held = started.elapsed();
+    assert!(got.is_empty(), "{}", String::from_utf8_lossy(&got));
+    assert!(
+        held >= Duration::from_millis(900) && held < Duration::from_secs(9),
+        "held for {held:?}, not the second it was set to"
+    );
+    assert_eq!(seen(port, "5e5f")["mcp_released"], true);
+    // The control: an MCPPLAIN call is answered at once, with its result, and never held.
+    chat_with_tools(port, "Look it up SV-PROBE-MCPPLAIN-6e6f");
+    let plain = call(port, "POST", "/mcp", &rpc.replace("5e5f", "6e6f"));
+    assert!(plain.contains("SV-MCPRESULT-6e6f"), "{plain}");
+    assert_eq!(seen(port, "6e6f")["mcp_called"], true);
+    assert_ne!(seen(port, "6e6f")["mcp_released"], true);
 
     // C9.1.2: MCPLOOP asks for the tool again after every result until 40 have come back, then
     // answers, and says how many came back.

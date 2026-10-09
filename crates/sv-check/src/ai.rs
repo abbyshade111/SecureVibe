@@ -248,6 +248,18 @@ const AGENT_UNBOUNDED: Rule = Rule {
           answer when it is spent.",
 };
 
+/// C9.1.1: only ever credited, and in part (ADR-064), so its impact and fix are never shown in a
+/// finding; they say what the credit stands for.
+const TOOL_TIMEOUT: Rule = Rule {
+    rule_id: "probe.ai-tool-timeout",
+    requirement_ids: &["C9.1.1"],
+    cwe: &["CWE-400"],
+    impact: "A tool that stops answering holds the message that called it for as long as the tool \
+             does, so one stuck tool leaves the person waiting and ties up what is serving them.",
+    fix: "Give every tool call a time limit of its own, a few seconds for most tools, and when it \
+          runs out answer the model, or the person, that the tool did not answer.",
+};
+
 const SESSION_LOG: Rule = Rule {
     rule_id: "probe.ai-call-log-session",
     requirement_ids: &["C12.1.1"],
@@ -358,6 +370,9 @@ struct Seen {
     tool_requested: bool,
     /// Whether the test MCP server was called for this tag.
     mcp_called: bool,
+    /// For an MCPHANG message, whether the test MCP server's hold on the call has ended: an answer
+    /// read before it came while the tool still held the call.
+    mcp_released: bool,
     /// What the app sent the model back as the tool's result, when it sent anything.
     tool_result: String,
     /// Every marker for this tag the message carried, in order: `LONG` and `LONGEND` when a long
@@ -424,6 +439,7 @@ fn seen(http: &mut dyn Http, tag: &str) -> Option<Seen> {
             .unwrap_or_default(),
         tool_requested: flag("tool_requested"),
         mcp_called: flag("mcp_called"),
+        mcp_released: flag("mcp_released"),
         tool_result: value
             .get("tool_result")
             .and_then(serde_json::Value::as_str)
@@ -1102,6 +1118,16 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
                 (true, true, true) => "the app called it, and its result reached the model",
             }
         ));
+        if !plain_seen.tool_requested || !plain_seen.mcp_called || !result_of(&plain, &plain_seen) {
+            say(
+                "C9.1.1",
+                "Whether the app puts a time limit on its tools: the test MCP tool, which would \
+                 have held its answer, was not first called and answered as it should be, so it \
+                 was not asked."
+                    .to_owned(),
+                &mut out,
+            );
+        }
         if !plain_seen.tool_requested {
             say(
                 MCP_IDS,
@@ -1197,6 +1223,7 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
                 }
             }
             agent_limit(http, &mut probe, &mut out);
+            tool_timeout(http, &mut probe, &mut out);
         }
     } else {
         say(
@@ -1754,6 +1781,110 @@ where
 {
     let (tag, answer, seen) = probe(http, 33, "MCPLOOP");
     judge_tool_loop(http, tag, answer, seen, "the MCP tool", out);
+}
+
+/// C9.1.1, in part (ADR-064): the test model asks for the MCP tool, and the tool holds the call for
+/// `HANG_HOLD` seconds without answering.
+///
+/// The app answering the message by itself within `ANSWER_WAIT`, while the call is shown to have
+/// reached the tool and to be held still, is a time limit on that tool: credited, in part, since
+/// execution time is one of the five things C9.1.1 names and one tool was tried. An answer carrying
+/// a trace is not credited (the trace is V16.5.1's question, asked elsewhere). No answer says
+/// nothing either way, as for the held AI message: a longer limit cannot be told from none. The
+/// hold is waited out whenever the app may still be waiting on it.
+fn tool_timeout<F>(http: &mut dyn Http, probe: &mut F, out: &mut Outcome)
+where
+    F: FnMut(&mut dyn Http, u32, &str) -> (String, Option<ProbeResponse>, Seen),
+{
+    let started = http.now();
+    let (_, answer, seen) = probe(http, 36, "MCPHANG");
+    let held = seen.mcp_called && !seen.mcp_released;
+    let traced = answer
+        .as_ref()
+        .is_some_and(|r| !crate::probes::trace_markers_in(&decoded(&r.body)).is_empty());
+    out.steps.push(format!(
+        "had the test MCP tool take a call and answer nothing for {HANG_HOLD} seconds: {}",
+        match (&answer, seen.mcp_called) {
+            (_, false) => format!("the app never called it ({})", status(&answer)),
+            (None, true) => {
+                format!("the app gave no answer within the {ANSWER_WAIT} seconds sv waits")
+            }
+            (Some(_), true) if held => format!(
+                "the app answered by itself while the tool still held the call ({})",
+                status(&answer)
+            ),
+            (Some(_), true) => format!(
+                "the app answered only after the tool had let the call go ({})",
+                status(&answer)
+            ),
+        }
+    ));
+    if seen.mcp_called && (answer.is_none() || !held) {
+        let left = (HANG_HOLD + 5).saturating_sub(http.now().saturating_sub(started));
+        if left > 0 {
+            http.wait(left);
+            out.steps.push(format!(
+                "waited {left} seconds more, until the test MCP tool had closed the call it held, \
+                 so an app still waiting on it is free for the checks after this one"
+            ));
+        }
+    }
+    if !seen.mcp_called {
+        out.not_assessed.push((
+            "C9.1.1".to_owned(),
+            format!(
+                "Whether the app puts a time limit on its tools: it did not call the test MCP tool \
+                 this time, though it had for the control, so nothing is shown ({}).",
+                status(&answer)
+            ),
+        ));
+    } else if answer.is_none() {
+        out.not_assessed.push((
+            "C9.1.1".to_owned(),
+            format!(
+                "Whether the app puts a time limit on its tools: the test MCP tool held its call, \
+                 and the app gave no answer within the {ANSWER_WAIT} seconds sv waits on any \
+                 request. An app whose own limit is longer than that cannot be told from one with \
+                 none."
+            ),
+        ));
+    } else if held && !traced {
+        out.verified.push(
+            crate::Verified::new(
+                TOOL_TIMEOUT.rule_id,
+                TOOL_TIMEOUT.requirement_ids,
+                format!(
+                    "a tool call that was not answering: the test MCP tool held the call, and the \
+                     app answered the message by itself within {ANSWER_WAIT} seconds ({}), without \
+                     a trace; execution time only, for one tool, of the quotas C9.1.1 names",
+                    status(&answer)
+                ),
+            )
+            .in_part(),
+        );
+        out.not_assessed.push((
+            "C9.1.1".to_owned(),
+            "Whether the app limits its tools' use of CPU, memory, disk and network: those happen \
+             inside the app or the tool, where a check from outside cannot see them, so C9.1.1 is \
+             checked in part."
+                .to_owned(),
+        ));
+    } else {
+        out.not_assessed.push((
+            "C9.1.1".to_owned(),
+            format!(
+                "Whether the app puts a time limit on its tools: the test MCP tool held its call, \
+                 and the app's answer ({}) {}, which says nothing about a limit of its own.",
+                status(&answer),
+                if held {
+                    "carried a trace of the failure"
+                } else {
+                    "came only after the tool had let the call go"
+                }
+            ),
+        ));
+    }
+    crate::verified::unless_credited(TOOL_TIMEOUT.rule_id, &out.verified);
 }
 
 /// The rounds a loop question ran, judged: the same rules whichever tool the test model kept asking
