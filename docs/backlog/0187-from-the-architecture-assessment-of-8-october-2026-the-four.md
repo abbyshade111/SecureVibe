@@ -194,6 +194,10 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    to `sbom/cyclonedx.rs`. Nothing `sv` does changes, and the census and credit lines, which name a file and line,
    are checked after the move. Confirmed on `main` just before this claim: both files are whole, and no other session
    holds this part.
+   **That half done the same day** (`docs/design/0319-ast-rs-and-sbom-rs-along-their-seams-9-october.md`; ADR-018 and
+   ADR-054, Later, 9 October 2026): five files beside the two modules, the code in them unchanged, `ast.rs` from 4,584
+   lines to 2,087 and `sbom.rs` from 1,560 to 739. The census of credits, which names a file and a line, read the same
+   checks crediting the same requirements after the move.
 12. **Smaller seams in the pipeline.** `Signature.condition` in `sv-scan` is a `String` skipped at run time when
    unknown (`sv-scan/src/lib.rs:297`), where the `Condition` enum refuses unknown names everywhere else: type it
    (ADR-015 governs both data files; one line). `not_for_tests` (`main.rs:4492-4510`) decides an applicability
