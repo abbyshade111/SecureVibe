@@ -502,6 +502,15 @@ listed apart, below this item.
    (`docs/design/0328-a-report-read-back-is-fenced-as-a-tool-s-result-is-9-october.md`; ADR-066, Later, accepted):
    `report.html`, `compliance.md`, and `security.md` come back fenced whole; `report.json` and `findings.sarif` as
    written. Found on the way: two runs making the report key at once (backlog 0220, fixed on its own).
+   **(e) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
+   you merge"), in branch `claude/securevibe-e2-marks`: an instruction file the AI coding tool reads (`CLAUDE.md`,
+   `AGENTS.md`, `.cursorrules`, a skill, and the rest `sv` already reads for hidden characters) that names one of
+   `sv`'s own marks (`Written by: owner`, `by = "owner"`, `[[finding-review]]`, `not-the-app`, `Sealed by sv review`)
+   is noted in the report's section on the AI tool's files, with the line, for the owner to read: a line can tell
+   the tool to write a mark that is the owner's alone, or just as well tell it never to. A note, never a finding,
+   and counted toward nothing, as the section's other notes are. **`Status: proposed`: ADR-049, Later, 9 October
+   2026** (what is read in the AI tool's files). Read on `main` and the open pull requests just before this claim: no
+   other session had claimed (e).
 
 
 23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no
