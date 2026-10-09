@@ -23,6 +23,11 @@ listed apart, below this item.
    half stays open. **`Status: proposed`: ADR-018, Later, 9 October 2026** (a requirement is not credited from a
    rule that cannot see how the app builds its queries). Confirmed on `main` just before this claim: V1.2.4 is
    credited for an app whose only queries go through knex's `whereRaw`, and no other session holds this finding.
+   **The second half done the same day** (`docs/design/0321-a-rule-that-cannot-see-an-orm-s-queries-credits-nothing-9.md`;
+   ADR-018, Later, 9 October 2026, accepted): `unreadPackages` on `ast.sql-built-by-hand`, read against the names the
+   app's lockfiles list and its manifests declare, and a gap naming the package and its calls. The knex app now reads
+   V1.2.4 *not verified*. Held by `crates/sv-cli/tests/orm_held_back.rs`, broken four ways. Not done: the first half,
+   teaching the rule each ORM's raw calls, which takes that ORM off the list.
 2. **Dependencies in .NET, Dart, Swift, Elixir, and Deno are invisible, and V15.2.1 is credited anyway.**
    (`docs/GAP-ANALYSIS.md`, 1.5.) Detect `*.csproj`, `packages.lock.json`, `pubspec.yaml`/`.lock`,
    `Package.swift`/`.resolved`, `mix.exs`, and `deno.json`/`.lock` as ecosystems `sv` does not read, so they hold
