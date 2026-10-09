@@ -51,6 +51,12 @@
 //           argument; the MCP server here (`POST /mcp`) answers that call with a clean result, one
 //           that breaks the tool's declared output schema, or one carrying an injected
 //           instruction; and whatever the app then sends back as the tool's result is recorded
+//   SMUGGLE, ODDCHARS
+//           record, as `arrived`, which of the characters the message was sent with reached the model
+//           in the person's text: an instruction spelled in invisible tag letters (`tag letters`, or
+//           `some tag letters` when only part of it came), a zero-width space and joiner, and a
+//           right-to-left override for SMUGGLE; control characters and a private-use character for
+//           ODDCHARS (ADR-065)
 //   MCPHANG asks for `sv_lookup` as MCPPLAIN does, and the MCP server takes the call and answers
 //           nothing, holding it for HANG_SECONDS and then closing it unanswered, as a tool that has
 //           stopped responding does; `mcp_called` in what was seen says the call arrived, and
@@ -261,6 +267,24 @@ function misfit(schema, bad, root, depth = 0) {
   }
 }
 
+// The word a SMUGGLE message spells in tag letters, as `SMUGGLED` in `sv_check::ai`.
+const SMUGGLED = 'SVTAGGED';
+
+// Which of the characters a SMUGGLE or ODDCHARS message is sent with are in `text` (ADR-065).
+function arrivedIn(text) {
+  const found = [];
+  const tags = [...text].filter((c) => c.codePointAt(0) >= 0xe0000 && c.codePointAt(0) <= 0xe007f);
+  const spelled = tags.map((c) => String.fromCharCode(c.codePointAt(0) - 0xe0000)).join('');
+  if (spelled.includes(SMUGGLED)) found.push('tag letters');
+  else if (tags.length) found.push('some tag letters');
+  if (text.includes('\u200b')) found.push('a zero-width space');
+  if (text.includes('\u200d')) found.push('a zero-width joiner');
+  if (text.includes('\u202e')) found.push('a right-to-left override');
+  if (/[\u0001-\u0008\u001b]/.test(text)) found.push('control characters');
+  if (text.includes('\ue000')) found.push('a private-use character');
+  return found;
+}
+
 // A reply is text, or `{ tool, args }` for a tool call.
 function reply(api, body, usage) {
   const { system, user, bounded, tools, results } = read(api, body);
@@ -321,6 +345,10 @@ function reply(api, body, usage) {
     const found = [...new Set([...JSON.stringify(body).matchAll(/SV-PRIVATE-[0-9a-f]+/g)].map((m) => m[0]))];
     record.private_seen = found;
     return found.length ? `${marker} Your notes mention ${found.join(' ')}.` : `${marker} I found nothing.`;
+  }
+  if (kind === 'SMUGGLE' || kind === 'ODDCHARS') {
+    record.arrived = arrivedIn(user);
+    return `${marker} Hello from the test model.`;
   }
   if (kind === 'HANG') {
     record.hangs = (before.hangs || 0) + 1;
