@@ -549,6 +549,44 @@ refused, `..` and symbolic links included. And it never starts your app or runs 
 tools — each of those runs code, and that stays your decision at a terminal (`sv report --run --tools`).
 The results say both were not done, the same way the written report does.
 
+## On each pull request: the GitHub Action
+
+If your app's code is on GitHub, `sv` can check every pull request. Add this file to the app's repository as
+`.github/workflows/stackvet.yml`:
+
+```yaml
+name: StackVet
+on: [pull_request]
+permissions:
+  contents: read
+  security-events: write   # to show the findings in the Security tab
+jobs:
+  sv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: abbyshade111/StackVet@main
+        with:
+          path: .           # the folder holding the app's stackvet.toml
+```
+
+Each run checks the image it pulls against its signature, then runs `sv report` with no network and
+without write access to your code. What it found appears in three places: GitHub's code scanning (the
+Security tab, and notes on the pull request's changed lines), a summary on the run's page, and the whole
+report folder kept with the run as an artifact.
+
+- **It fails the check only when a check could not run.** To fail it on findings too, add
+  `fail-on: attention` (or `attention:high` for high and critical only).
+- **Code scanning is free on a public repository.** On a private one it needs GitHub's paid code security,
+  so the Action skips the upload there unless you set `upload-sarif: 'true'`; the summary and the report
+  are kept either way. A pull request from a fork cannot upload either, since its token cannot write.
+- **It never starts your app and never runs other people's tools** (`--run` and `--tools`): on a pull
+  request, that would run code you have not read yet. Run those at a terminal.
+- **The app needs its `stackvet.toml` committed.** Without one, the Action stops and says how to make it.
+- **It sees only the history the checkout fetched.** `actions/checkout` fetches one commit unless told
+  otherwise (`fetch-depth: 0` for all of it), and the check for secrets files committed in the past reads
+  that history.
+
 ## Building
 
 Rust 1.95 or newer.

@@ -83,3 +83,7 @@ pull requests just before this claim: no other session had claimed part 4 or par
 **Part 4 done the same day** (`docs/design/0341-the-published-image-signed-9-october-2026.md`, ADR-080 accepted): the
 `publish` job signs the image it pushes with `actions/attest` and pushes the signed statement beside it; the README
 says how to check it with `gh attestation verify`. No binary is published, so none is signed.
+**Part 6 done the same day** (`docs/design/0342-a-github-action-that-runs-sv-on-an-app-s-pull-requests-9.md`, ADR-081 accepted): `action.yml`, used as
+`abbyshade111/StackVet@main` (the owner's choice: `v1` is the archived branch), checks the published image's signature,
+runs `sv report` without a network on a read-only checkout, uploads `findings.sarif` to code scanning where it can,
+and keeps the report with the run. CI runs it on an example app with the image each change builds.

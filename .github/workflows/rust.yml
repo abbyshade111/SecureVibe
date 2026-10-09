@@ -107,6 +107,40 @@ jobs:
       - name: Drive the image as an AI coding tool would
         run: python3 tools/image_smoke.py stackvet/sv --native target/release/sv --commit ${{ github.sha }}
 
+      # The GitHub Action (action.yml, ADR-081), run as an app's workflow would run it, on the image just built:
+      # one example app it should report on, and one folder with no stackvet.toml, where it should stop and say so.
+      # Nothing is uploaded to code scanning from here; the report is kept with the run like any other.
+      - name: Run the GitHub Action on an example app
+        id: action
+        uses: ./
+        with:
+          path: examples/flask-booking
+          image: stackvet/sv
+          upload-sarif: 'false'
+          artifact-name: action-trial-report
+
+      - name: Run the GitHub Action where there is no stackvet.toml
+        id: no-manifest
+        continue-on-error: true
+        uses: ./
+        with:
+          path: docs
+          image: stackvet/sv
+          upload-sarif: 'false'
+          artifact-name: action-trial-no-manifest
+
+      - name: Check what the Action did
+        env:
+          CODE: ${{ steps.action.outputs.exit-code }}
+          DIR: ${{ steps.action.outputs.report-dir }}
+          NO_MANIFEST: ${{ steps.no-manifest.outcome }}
+        run: |
+          test "$CODE" = 0 || { echo "the example app's report exited $CODE"; exit 1; }
+          for f in findings.sarif security.md report.json report.html; do
+            test -s "$DIR/$f" || { echo "the Action wrote no $f"; exit 1; }
+          done
+          test "$NO_MANIFEST" = failure || { echo "the Action ran on a folder with no stackvet.toml"; exit 1; }
+
   publish:
     # Publishes the image to GitHub's container registry, at the owner's decision (26 September
     # 2026), as ghcr.io/abbyshade111/stackvet-sv: `latest`, and the commit it was built from. Only

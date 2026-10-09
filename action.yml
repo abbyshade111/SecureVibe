@@ -1,0 +1,153 @@
+# StackVet's GitHub Action (ADR-081): `sv report` over an app on each pull request, from the published image, with
+# what it found shown in code scanning and the whole report kept with the run.
+#
+#   - uses: abbyshade111/StackVet@main
+#     with:
+#       path: .            # the folder holding the app's stackvet.toml
+#
+# What it does not do, by the owner's decision of 9 October 2026: run the outside tools (`--tools`; the image carries
+# none) or start the app (`--run`; that would run the code in the pull request, a stranger's on one from a fork). It
+# fails the check only when a check could not run (exit 2), unless `fail-on` asks for more.
+#
+# The image is checked before it runs: the published one carries a signed statement of what built it (ADR-080), and
+# `gh attestation verify` refuses an image this repository's workflow did not build. It runs with no network, as the
+# person the runner runs as, and sees the repository read-only; it writes only the report folder.
+
+name: StackVet
+description: Check an app against the OWASP ASVS with sv on each pull request, and show what it finds in code scanning.
+author: abbyshade111
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  path:
+    description: The folder holding the app's stackvet.toml, relative to the repository root.
+    default: .
+  fail-on:
+    description: >
+      Passed to `sv report --fail-on`: `attention` (or `attention:high`) to fail on findings, `not-assessed`, or
+      `any`. Empty, the default, fails only when a check could not run.
+    default: ''
+  upload-sarif:
+    description: >
+      Upload findings.sarif to code scanning: `auto` (the default) uploads for a public repository and not for a pull
+      request from a fork, whose token cannot write; `true` always, for a private repository with GitHub's code
+      security; `false` never. Uploading needs `security-events: write` in the workflow.
+    default: auto
+  artifact-name:
+    description: The name the report folder is kept under with the run; change it to run the Action twice in one job.
+    default: stackvet-report
+  image:
+    description: >
+      The image to run. The published one is checked against its signature before it runs; any other, such as one
+      built from this repository's Dockerfile, is run as given.
+    default: ghcr.io/abbyshade111/stackvet-sv:latest
+
+outputs:
+  exit-code:
+    description: "sv report's exit status: 0 finished, 1 needs attention (only with fail-on), 2 not assessed, 3 sv failed."
+    value: ${{ steps.run.outputs.exit-code }}
+  report-dir:
+    description: The folder the report was written to.
+    value: ${{ steps.run.outputs.report-dir }}
+
+runs:
+  using: composite
+  steps:
+    - name: Find the app
+      id: app
+      shell: bash
+      env:
+        APP_PATH: ${{ inputs.path }}
+      run: |
+        app=$(realpath -m -- "$GITHUB_WORKSPACE/$APP_PATH")
+        case "$app/" in
+          "$GITHUB_WORKSPACE"/*) ;;
+          *) echo "::error title=StackVet::path must name a folder inside the repository, not $APP_PATH"; exit 3 ;;
+        esac
+        if [ ! -f "$app/stackvet.toml" ] && [ ! -f "$app/securevibe.toml" ]; then
+          echo "::error title=StackVet: no stackvet.toml::There is no stackvet.toml in ${APP_PATH}. It says what the app is and which level of the ASVS it aims for, and sv does not guess it. Run \`sv init\` and hand what it prints to your AI coding tool, or write it by hand (https://github.com/abbyshade111/StackVet#readme), then commit it."
+          exit 3
+        fi
+        echo "dir=$app" >> "$GITHUB_OUTPUT"
+
+    - name: Check the image's signature
+      id: image
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        case "$IMAGE" in
+          ghcr.io/abbyshade111/stackvet-sv|ghcr.io/abbyshade111/stackvet-sv:*|ghcr.io/abbyshade111/stackvet-sv@*)
+            docker pull --quiet "$IMAGE" > /dev/null
+            ref=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE")
+            # Built by this repository's own workflow (whose publish job runs only on main), and nowhere else.
+            gh attestation verify "oci://$ref" --repo abbyshade111/StackVet \
+              --signer-workflow abbyshade111/StackVet/.github/workflows/rust.yml
+            ;;
+          *)
+            echo "::notice title=StackVet::$IMAGE is not the published image, so it is run without a signature check"
+            ref=$IMAGE
+            ;;
+        esac
+        echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+    - name: Run sv report
+      id: run
+      shell: bash
+      env:
+        APP: ${{ steps.app.outputs.dir }}
+        REF: ${{ steps.image.outputs.ref }}
+        FAIL_ON: ${{ inputs.fail-on }}
+      run: |
+        out="$RUNNER_TEMP/stackvet-report-$GITHUB_RUN_ATTEMPT-$RANDOM"
+        mkdir -p "$out"
+        echo "report-dir=$out" >> "$GITHUB_OUTPUT"
+        args=(report "$APP" --out "$out")
+        if [ -n "$FAIL_ON" ]; then args+=(--fail-on "$FAIL_ON"); fi
+        set +e
+        # HOME inside the container only: sv makes the key it seals reports with there, which is thrown away with
+        # the container, as sealing matters only to sv's MCP server on the owner's own computer.
+        docker run --rm --network none --user "$(id -u):$(id -g)" -e HOME=/tmp \
+          -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE:ro" -v "$out:$out" -w "$APP" "$REF" "${args[@]}"
+        code=$?
+        set -e
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        if [ -f "$out/findings.sarif" ]; then echo "sarif=$out/findings.sarif" >> "$GITHUB_OUTPUT"; fi
+
+    - name: Write the summary
+      if: always() && steps.run.outputs.report-dir != ''
+      shell: bash
+      env:
+        OUT: ${{ steps.run.outputs.report-dir }}
+      run: |
+        if [ -f "$OUT/security.md" ]; then
+          # GitHub keeps 1 MiB of summary a step; a report that long is cut, and the whole of it is with the run.
+          head -c 900000 "$OUT/security.md" >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+    - name: Upload the findings to code scanning
+      if: >-
+        always() && steps.run.outputs.sarif != '' && (
+          inputs.upload-sarif == 'true' ||
+          (inputs.upload-sarif == 'auto' && github.event.repository.private == false &&
+           (github.event.pull_request == null || github.event.pull_request.head.repo.full_name == github.repository)))
+      uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+      with:
+        sarif_file: ${{ steps.run.outputs.sarif }}
+        category: stackvet
+
+    - name: Keep the report with the run
+      if: always() && steps.run.outputs.report-dir != ''
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.run.outputs.report-dir }}
+
+    - name: Pass sv's answer on
+      shell: bash
+      env:
+        CODE: ${{ steps.run.outputs.exit-code }}
+      run: exit "$CODE"
