@@ -1,8 +1,8 @@
 # The trials, 5 to 8 October 2026
 
 After the cut-off, the project turned from building `sv` to asking whether it changes what an AI coding tool builds.
-Ten trials were run in four days: **485 builds, $156.69** of the owner's API credit (the tenth, on 8 October, added
-here that day). Each was run to a protocol
+Eleven trials were run in four days: **505 builds and 20 blind-tester runs, $160.26** of the owner's API credit (the
+tenth and eleventh, on 8 October, added here that day). Each was run to a protocol
 written before any build, and each has its own write-up, results files, scripts and scorers in `docs/prompts/`. This
 file brings them together for the paper; `figure-trials.html` shows every pasted-prompt comparison, and is made from
 the trials' committed results by `trials/make_figure.py`, so it cannot drift from them. Where a result was corrected
@@ -13,7 +13,7 @@ record. They also fall after the paper's cut-off (`157ddc3`), so nothing in the 
 
 ## How a trial is made
 
-- **The builder:** Claude Code, run headless in a fresh folder, with Claude Sonnet 5.5 or Claude Haiku 4.5 (and, in the tenth, Claude Haiku 5.5), told the
+- **The builder:** Claude Code, run headless in a fresh folder, with Claude Sonnet 5.5 or Claude Haiku 4.5 (and, in the tenth and eleventh, Claude Haiku 5.5), told the
   owner is away so it should not stop to ask. Nobody answered it during a build.
 - **The brief:** a short description an owner might write. Until the recipe trial, a club app (sign-in, private
   notes, a booking, an AI assistant, an admin page) in Python's standard library; from the recipe trial, a recipe
@@ -41,7 +41,8 @@ record. They also fall after the paper's cut-off (`157ddc3`), so nothing in the 
 | Recipe trial | 7 Oct | 40 | $18.09 | A Flask brief that tempts the prompts never fairly tried | `library-trial/recipe.md` |
 | Three sentences | 7 Oct | 30 | $10.59 | Do the three sentences added from the trials work? | `library-trial/sentences.md` |
 | Haiku 5.5 | 8 Oct | 21 | $6.16 | Does Claude Haiku 5.5 build apps that can be tested, where Haiku 4.5 could not? (20 builds and a smoke build) | `library-trial/haiku55.md` |
-| **All** | | **485** | **$156.69** | | |
+| With and without `sv` | 8 Oct | 20 | $3.57 | Built from the same request, does an app built with `sv` attached have fewer security problems than one built without it? (and 20 blind-tester runs) | `loop-compare/results.md` |
+| **All** | | **505** | **$160.26** | | |
 
 ## What they found
 
@@ -93,6 +94,27 @@ do not exist, a settings section in the wrong form, seed scripts that crashed); 
 with an argument it does not have. With nothing pasted, Haiku 5.5 had none of the twelve problems the recipe brief
 tempts, so there was nothing for a prompt arm to fix. The trial also found `sv`'s SQL code rule flagging safe code in
 every Haiku 5.5 app (a sort column chosen from a fixed list), fixed the same day (backlog 215, ADR-018, Later).
+
+## The eleventh trial: apps built with `sv` and without it (8 October)
+
+The question the loop trials could not answer (backlog 38): built from the same request by Claude Haiku 5.5, does an
+app built with `sv` attached have fewer security problems than one built without `sv` at all? Ten builds of each, on
+the recipe brief with its line about SecureVibe taken out, and every app's settings file written by one tester from
+the code alone, so the comparison is of the apps, as the owner chose on 5 October (`loop-compare/protocol.md`).
+
+| | without `sv` | with `sv` |
+|---|---|---|
+| Apps that started | 10 of 10 | 6 of 10 |
+| Running-app findings per app (middle) | 10 to 14 (12) | 2 to 5 (3.5) |
+| Own-code findings at high or critical (middle) | 2 to 3 (2) | 0 to 5 (0.5) |
+
+**Running-app findings: fewer with `sv`, by the loop protocol's rule**, every app built with it that started below every
+app built without; the gap is broad (security headers, the server's version, common passwords, private pages cached,
+sessions after sign-out, limits on wrong passwords). Own-code findings: no difference by the rule. **The harm:** four
+apps built with `sv` did not start, three because the builder pinned a version of the password package `sv`'s prompt
+names that does not exist (the prompt gives the right one), so the measure rests on the six that started. The tester
+was not fully blind: eight of the ten copies built with `sv` still named it in a file the protocol left in place,
+though `sv` signed in to every app that started in both arms. The builds with `sv` used it, 5 to 21 tool calls each.
 
 ## What they changed in `sv`
 
