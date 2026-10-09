@@ -315,6 +315,32 @@ known vulnerability) or when you ask for it: `sv check . --fail-on attention:hig
 anything high or critical is found. Without `--fail-on`, findings alone never fail it. The README says
 exactly what each number covers.
 
+### An image of your own
+
+`install = true` downloads Python packages (from `requirements.txt`) and Node packages (from `package.json`)
+only. An app in another language, or one that needs something else installed first, can instead start from
+an image of its own: a ready-made box that already holds the language and the packages. You make it once,
+with Docker, and name it in `stackvet.toml`.
+
+Do not put the download in `build` (for example `build = "pip install -r requirements.txt"` or
+`build = "npm ci"`). The build step runs inside the same fence as the app, with no internet, so it fails, and
+`sv preflight` says so before you try.
+
+To make the image, ask your AI tool to write a file named `Dockerfile` in the app's folder that starts from the
+language's own image and installs the packages, and nothing more. For a Python app it reads:
+
+```
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+```
+
+Then, in a terminal in the app's folder, run `docker build -t my-app-packages .` (any name will do), and in
+`stackvet.toml` name it under `[stack.run]`: `image = "my-app-packages"`, with no `install = true` line. StackVet
+still puts the app's own files in and runs it behind the fence; the image only brings the packages. Build the
+image again whenever the list of packages changes, since StackVet runs whatever the image holds.
+
 ### All your apps on one page
 
 Once each app has a report, `sv dashboard` puts them on one page you open in a browser: every app in alphabetical
