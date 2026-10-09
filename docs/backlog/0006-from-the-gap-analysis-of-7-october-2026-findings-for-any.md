@@ -165,7 +165,7 @@ listed apart, below this item.
    warning changes no evidence, so no record is proposed. Read on `main` and the open pull requests just before this
    claim: no other session had claimed it.
    **That part done the same day**
-   (`docs/design/0327-a-build-step-that-downloads-packages-said-before-the-run-9-october-2026.md`): the preflight's
+   (`docs/design/0326-a-build-step-that-downloads-packages-said-before-the-run-9.md`): the preflight's
    `build-install` item, and "An image of your own" in `docs/GETTING-STARTED.md`. Finding 9 is done.
 10. **Supabase and Firebase access rules are never read.** (`docs/GAP-ANALYSIS.md`, 3.2.) Rules files
    (`firestore.rules`, `storage.rules`, `database.rules.json`: `if true`, no `request.auth`, no owner check);
