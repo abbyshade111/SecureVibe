@@ -266,6 +266,14 @@ listed apart, below this item.
    `ast.request-body-passed-whole` in Python, JavaScript, and TypeScript, only ever a finding, with the fields picked
    out or the body checked by a schema left alone; four guards broken in turn, each caught. Every part of this finding
    is now done.
+   **The `none` algorithm claimed 9 October 2026 by session securevibe-e9** ("please continue to work through and
+   pick up new items as you merge"), in branch `claude/stackvet-e9-token-none`. The part of this finding still open:
+   the running check (`probe.app-token-alg-none`) and Semgrep speak to it, and plain `sv check` does not. It adds a code
+   rule, `ast.token-none-algorithm`, citing V9.1.2 and only ever a finding, for a token check whose list of accepted
+   algorithms includes `none`. That covers PyJWT and python-jose's `algorithms=[...]`, jsonwebtoken's
+   `algorithms: [...]`, golang-jwt's `WithValidMethods` and `UnsafeAllowNoneSignatureType`, and ruby-jwt's
+   `algorithm:`. A list without `none`, or `none` in an unrelated setting, is not reported. Read on `main` and the
+   open pull requests just before this claim: no other session had claimed it.
 12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
    Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
    and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
