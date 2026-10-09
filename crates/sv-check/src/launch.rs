@@ -432,7 +432,10 @@ static ADDRESS_GIVEN: LazyLock<Regex> = LazyLock::new(|| {
 /// name with no dot never leave it. A name with no dot is `localhost`, a service on the same Docker
 /// network, or one built at run time (`${HOST}`), which is not judged.
 fn leaves_the_network(address: &str) -> bool {
-    let rest = &address["http://".len()..];
+    // Only plain HTTP: the patterns match nothing else, and this holds even if one is widened.
+    let Some(rest) = address.strip_prefix("http://") else {
+        return false;
+    };
     let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
     let authority = authority.rsplit('@').next().unwrap_or("");
     let host = if let Some(inner) = authority.strip_prefix('[') {
@@ -489,7 +492,7 @@ fn plain_http_finding(file: &str, line: usize, address: &str) -> Finding {
         bundled_library: None,
         outranked: None,
         also_on_this_line: Vec::new(),
-        rule_id: MCP_PLAIN_HTTP.into(),
+        rule_id: "config.mcp-transport-unencrypted".into(),
         title: "An MCP server on another computer is reached over plain HTTP".into(),
         severity: Severity::Medium,
         confidence: Confidence::Medium,
@@ -1309,12 +1312,14 @@ mod tests {
             fs::remove_file(dir.join(f)).unwrap();
         }
         let clean = run(&dir);
-        assert!(found(&clean, MCP_PLAIN_HTTP).is_empty(), "{:?}", clean.findings);
         assert!(
-            !clean
-                .passed
-                .iter()
-                .any(|v| v.check_id == MCP_PLAIN_HTTP || v.requirement_ids.iter().any(|q| q == "C10.3.1")),
+            found(&clean, MCP_PLAIN_HTTP).is_empty(),
+            "{:?}",
+            clean.findings
+        );
+        assert!(
+            !clean.passed.iter().any(|v| v.check_id == MCP_PLAIN_HTTP
+                || v.requirement_ids.iter().any(|q| q == "C10.3.1")),
             "{:?}",
             clean.passed
         );
