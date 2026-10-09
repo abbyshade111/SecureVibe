@@ -600,6 +600,18 @@ pub(super) const WEAK_SESSION_ID: Rule = Rule {
           cryptographically secure generator, rather than making them by hand.",
 };
 
+/// V7.2.2 (ADR-067): a session value that is the same at two sign-ins.
+pub(super) const STATIC_SESSION: Rule = Rule {
+    rule_id: "probe.session-token-static",
+    requirement_ids: &["V7.2.2"],
+    cwe: &["CWE-798"],
+    impact: "A session that is the same value at every sign-in, or the same for two people, is one \
+             fixed key: whoever sees it once (in a log, a shared computer, a browser extension) is \
+             signed in as that person for good, or as everybody.",
+    fix: "Make a new session token at every sign-in, with the framework's own session store or a \
+          signed token that names the user and expires, rather than handing out one fixed key.",
+};
+
 pub(super) const ALTERED_PASSWORD: Rule = Rule {
     rule_id: "probe.password-altered",
     requirement_ids: &["V6.2.8"],

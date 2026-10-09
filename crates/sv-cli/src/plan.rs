@@ -17,7 +17,7 @@ use sv_manifest::Manifest;
 /// One thing the app must give `sv run`, in `stackvet.toml`, so a check of the running app can be
 /// made rather than reported as not assessed.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct RunNeed {
+pub struct RunNeed {
     /// The table it goes in, such as `[stack.run.users]`.
     pub table: &'static str,
     /// The key in that table, such as `login`.
@@ -30,7 +30,7 @@ pub(crate) struct RunNeed {
 
 /// A design-time prompt that bears on this app, and whether it has been shown to work.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PromptRef {
+pub struct PromptRef {
     pub id: String,
     pub title: String,
     pub status: &'static str,
@@ -40,7 +40,7 @@ pub(crate) struct PromptRef {
 
 /// A requirement that will apply.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Applies {
+pub struct Applies {
     pub id: String,
     pub level: u8,
     pub chapter: String,
@@ -49,14 +49,14 @@ pub(crate) struct Applies {
 
 /// A question only the person can answer.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Decision {
+pub struct Decision {
     pub id: String,
     pub title: String,
 }
 
 /// A threat the brief's answers raise.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Threat {
+pub struct Threat {
     pub id: String,
     pub description: String,
     /// `not-verified`, or `cannot-place` when an unanswered question decides whether it applies.
@@ -65,7 +65,7 @@ pub(crate) struct Threat {
 
 /// The plan, in the order a builder needs it.
 #[derive(Debug, Clone)]
-pub(crate) struct Plan {
+pub struct Plan {
     pub app: String,
     pub level: u8,
     pub requirements: Vec<Applies>,
@@ -79,7 +79,7 @@ pub(crate) struct Plan {
 /// What `sv run` needs for each answer of the brief, in the order the spec describes them. A table
 /// and key that the spec does not describe is refused by a test, so the plan cannot ask for a setting
 /// that does not exist.
-pub(crate) fn run_needs(manifest: &Manifest) -> Vec<RunNeed> {
+pub fn run_needs(manifest: &Manifest) -> Vec<RunNeed> {
     let run = &manifest.stack.run;
     let users = run.users.as_ref();
     let caps = &manifest.capabilities;
@@ -236,7 +236,7 @@ fn status_word(status: sv_check::prompts::Status) -> &'static str {
 }
 
 /// The plan for an app, from its report, its brief, and the design-time prompts.
-pub(crate) fn from_report(
+pub fn from_report(
     report: &sv_report::Report,
     manifest: &Manifest,
     design_prompts: &sv_check::prompts::Prompts,
@@ -323,7 +323,7 @@ fn threat_json(t: &Threat) -> Value {
 }
 
 /// The fields of the structured plan that every part of it carries (`crate::parts`).
-pub(crate) fn always_json(plan: &Plan) -> serde_json::Map<String, Value> {
+pub fn always_json(plan: &Plan) -> serde_json::Map<String, Value> {
     let mut out = serde_json::Map::new();
     out.insert("app".to_owned(), json!(plan.app));
     out.insert("level".to_owned(), json!(plan.level));
@@ -332,7 +332,7 @@ pub(crate) fn always_json(plan: &Plan) -> serde_json::Map<String, Value> {
 }
 
 /// The plan as data, for the MCP tool's structured result.
-pub(crate) fn to_json(plan: &Plan) -> Value {
+pub fn to_json(plan: &Plan) -> Value {
     json!({
         "app": plan.app,
         "level": plan.level,
@@ -347,13 +347,13 @@ pub(crate) fn to_json(plan: &Plan) -> Value {
 }
 
 /// The plan as Markdown, for a person or the AI coding tool.
-pub(crate) fn markdown(plan: &Plan) -> String {
+pub fn markdown(plan: &Plan) -> String {
     markdown_with(plan, &sv_report::fence::Fence::none())
 }
 
 /// The same, with the app's own text, its name and the threats its brief raises (which name the
 /// parts of the app it describes), put through `fence`, for the AI coding tool (deep review R9).
-pub(crate) fn markdown_with(plan: &Plan, fence: &sv_report::fence::Fence) -> String {
+pub fn markdown_with(plan: &Plan, fence: &sv_report::fence::Fence) -> String {
     sections_with(plan, fence)
         .iter()
         .map(crate::parts::Section::text)
@@ -361,7 +361,7 @@ pub(crate) fn markdown_with(plan: &Plan, fence: &sv_report::fence::Fence) -> Str
 }
 
 /// The names of the plan's sections, in the order of the whole plan, for `stackvet_plan`'s `section`.
-pub(crate) const SECTIONS: &[&str] = &[
+pub const SECTIONS: &[&str] = &[
     "summary",
     "requirements",
     "decide",
@@ -372,7 +372,7 @@ pub(crate) const SECTIONS: &[&str] = &[
 
 /// The sections the MCP tool's first answer starts with: what to decide and what `sv run` needs come before
 /// the long lists, since they are what a builder acts on first.
-pub(crate) const FIRST: &[&str] = &[
+pub const FIRST: &[&str] = &[
     "summary",
     "decide",
     "run",
@@ -383,10 +383,7 @@ pub(crate) const FIRST: &[&str] = &[
 
 /// The plan in its sections, each line with the item of the structured plan it shows: the whole plan is
 /// these joined, and `stackvet_plan` gives them in parts (`crate::parts`).
-pub(crate) fn sections_with(
-    plan: &Plan,
-    fence: &sv_report::fence::Fence,
-) -> Vec<crate::parts::Section> {
+pub fn sections_with(plan: &Plan, fence: &sv_report::fence::Fence) -> Vec<crate::parts::Section> {
     use crate::parts::{Item, Section};
     // The name comes from the app's folder, so its line breaks and invisible characters are
     // written as escapes, as everywhere else text from the app reaches the AI coding tool.

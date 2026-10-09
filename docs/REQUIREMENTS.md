@@ -36,9 +36,9 @@ decided per app, from its `stackvet.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 119 can be checked, 50 can only be found failing, 10 where a check helps but a person decides, and 166 with no check.
+345 requirements: 120 can be checked, 50 can only be found failing, 10 where a check helps but a person decides, and 165 with no check.
 
-### Level 1 (70 requirements, 43 can be checked, 14 can only be found failing)
+### Level 1 (70 requirements, 44 can be checked, 14 can only be found failing)
 
 #### V1 Encoding and Sanitization
 
@@ -114,7 +114,7 @@ decided per app, from its `stackvet.toml` and its code.
 | Requirement | Coverage | Checks |
 |---|---|---|
 | **V7.2.1** Verify that the application performs all session token verification using a trusted, backend service. | Can be checked | Signed in: `probe.session-token-unverified`, if it fails: A session value this check invented opened a private page, so the app is believing the cookie rather than checking it. Anybody can make one up. |
-| **V7.2.2** Verify that the application uses either self-contained or reference tokens that are dynamically generated for session management, i.e. not using static API secrets and keys. | No check | – |
+| **V7.2.2** Verify that the application uses either self-contained or reference tokens that are dynamically generated for session management, i.e. not using static API secrets and keys. | Can be checked | Signed in: `probe.session-token-static`, if it fails: A session that is the same value at every sign-in, or the same for two people, is one fixed key: whoever sees it once (in a log, a shared computer, a browser extension) is signed in as that person for good, or as everybody. |
 | **V7.2.3** Verify that if reference tokens are used to represent user sessions, they are unique and generated using a cryptographically secure pseudo-random number generator (CSPRNG) and possess at least 128 bits of entropy. | Can only be found failing | Signed in: `probe.session-id-weak`, if it fails: A session id short enough, or repeated, can be guessed, and a guessed session id is a signed-in session. (found failing only) |
 | **V7.2.4** Verify that the application generates a new session token on user authentication, including re-authentication, and terminates the current session token. | Can be checked | Signed in: `probe.session-not-renewed`, if it fails: The session id a visitor had before signing in keeps working after, so somebody who planted that id in their browser is signed in as them too. |
 | **V7.4.1** Verify that when session termination is triggered (such as logout or expiration), the application disallows any further use of the session. For reference tokens or stateful sessions, this means invalidating the session data at the application backend. Applications using self-contained tokens will need a solution such as maintaining a list of terminated tokens, disallowing tokens produced before a per-user date and time or rotating a per-user signing key. | Can be checked | Signed in: `probe.logout-keeps-session`, if it fails: Signing out does not end the session: a copied cookie, or a shared computer, still has the account after the person has left. |

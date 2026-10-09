@@ -12,6 +12,17 @@ listed apart, below this item.
    `DB::select`/`whereRaw` as static calls, Django `.extra`/`RawSQL`, Supabase filter strings, MongoDB `$where`),
    and do not credit V1.2.4 while the bill of materials shows an ORM whose raw calls the rule does not read. The
    second half changes what counts as evidence: a record (ADR-018, Later).
+   **The second half claimed 9 October 2026 by session securevibe-e2**, from the roadmap (Phase 4, item 4, the first
+   open finding in its list), in branch `claude/securevibe-e2-orm-held-back`: a rule may name, per ecosystem, the
+   packages whose own query calls it does not read (a new `AstRule` field, listed in `data/README.md`), and while the
+   bill of materials shows one, the rule's credit is held back with a reason that names the package, as a broken file
+   holds back the rules it could hide something from. `ast.sql-built-by-hand` names the ORMs this finding lists whose
+   raw calls it does not read today: knex, TypeORM, Sequelize, Drizzle, Mongoose and the MongoDB driver, and Supabase's
+   client (npm); Django, PyMongo, and Supabase's client (Python); GORM and the MongoDB driver (Go); and Laravel
+   (PHP). Each ORM's raw calls taught later comes off the list in the pull request that teaches them; the first
+   half stays open. **`Status: proposed`: ADR-018, Later, 9 October 2026** (a requirement is not credited from a
+   rule that cannot see how the app builds its queries). Confirmed on `main` just before this claim: V1.2.4 is
+   credited for an app whose only queries go through knex's `whereRaw`, and no other session holds this finding.
 2. **Dependencies in .NET, Dart, Swift, Elixir, and Deno are invisible, and V15.2.1 is credited anyway.**
    (`docs/GAP-ANALYSIS.md`, 1.5.) Detect `*.csproj`, `packages.lock.json`, `pubspec.yaml`/`.lock`,
    `Package.swift`/`.resolved`, `mix.exs`, and `deno.json`/`.lock` as ecosystems `sv` does not read, so they hold

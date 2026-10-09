@@ -12,7 +12,7 @@ use super::*;
 
 /// The stages of a report that `assemble_report_saying` names as it starts each, in order. The MCP
 /// server passes them on, so a long check does not look stuck.
-pub(crate) const REPORT_STAGES: [&str; 7] = [
+pub const REPORT_STAGES: [&str; 7] = [
     "Reading the app's files",
     "Recognizing its languages and frameworks",
     "Listing the packages it uses",
@@ -97,41 +97,41 @@ struct Scene<'a> {
 }
 
 /// What the advisory comparison came to.
-struct Advisories {
-    findings: Vec<sv_check::Finding>,
-    verified: Vec<sv_check::Verified>,
-    gaps: Vec<sv_report::Gap>,
+pub struct Advisories {
+    pub findings: Vec<sv_check::Finding>,
+    pub verified: Vec<sv_check::Verified>,
+    pub gaps: Vec<sv_report::Gap>,
 }
 
 /// What the outside tools came to.
-struct Tools {
-    verified: Vec<sv_check::Verified>,
-    gaps: Vec<sv_report::Gap>,
+pub struct Tools {
+    pub verified: Vec<sv_check::Verified>,
+    pub gaps: Vec<sv_report::Gap>,
 }
 
 /// What running the app came to, or why it was not run.
-struct Run {
-    status: sv_report::RunStatus,
-    note: Option<String>,
-    steps: Vec<String>,
-    test_output: Option<sv_check::suite::FailingOutput>,
-    tests_examined: sv_report::Examined,
-    probe_verified: Vec<sv_check::Verified>,
-    test_verified: Vec<sv_check::Verified>,
+pub struct RunningApp {
+    pub status: sv_report::RunStatus,
+    pub note: Option<String>,
+    pub steps: Vec<String>,
+    pub test_output: Option<sv_check::suite::FailingOutput>,
+    pub tests_examined: sv_report::Examined,
+    pub probe_verified: Vec<sv_check::Verified>,
+    pub test_verified: Vec<sv_check::Verified>,
 }
 
 /// The owner's word, from the notes, the decisions file, and the manifest's design and hand-check
 /// answers: what it credits, and the catalogs the report prints the questions from.
-struct OwnersWord {
-    verified: Vec<sv_check::Verified>,
-    notes_catalog: sv_check::notes::Catalog,
-    design_questions: sv_check::design::Questions,
-    human_checks: sv_check::human::HumanChecks,
-    decisions_text: Option<String>,
+pub struct PersonsWord {
+    pub verified: Vec<sv_check::Verified>,
+    pub notes_catalog: sv_check::notes::Catalog,
+    pub design_questions: sv_check::design::Questions,
+    pub human_checks: sv_check::human::HumanChecks,
+    pub decisions_text: Option<String>,
 }
 
 /// `assemble_report`, calling `starting` with each stage's number (from 0) and name as it begins.
-pub(crate) fn assemble_report_saying(
+pub fn assemble_report_saying(
     app_dir: &Path,
     options: &ReportOptions,
     loaded: &Loaded,
@@ -642,7 +642,7 @@ fn running_app(
     scene: &Scene,
     findings: &mut Vec<sv_check::Finding>,
     gaps: &mut Vec<sv_report::Gap>,
-) -> Run {
+) -> RunningApp {
     let Scene {
         app_dir,
         options,
@@ -993,7 +993,7 @@ fn running_app(
             ),
         });
     }
-    Run {
+    RunningApp {
         status: run_status,
         note: run_note,
         steps: run_steps,
@@ -1413,7 +1413,7 @@ fn the_owners_word(
     scene: &Scene,
     findings: &mut Vec<sv_check::Finding>,
     gaps: &mut Vec<sv_report::Gap>,
-) -> Result<OwnersWord> {
+) -> Result<PersonsWord> {
     let Scene {
         app_dir,
         options,
@@ -1938,7 +1938,7 @@ fn the_owners_word(
     verified.extend(attested);
     verified.extend(by_hand);
     verified.extend(stated);
-    Ok(OwnersWord {
+    Ok(PersonsWord {
         verified,
         notes_catalog,
         design_questions,
@@ -1970,18 +1970,18 @@ fn coding_rules_cited(
 }
 
 /// Everything the stages gathered, for the last one.
-struct Gathered {
-    findings: Vec<sv_check::Finding>,
-    verified: Vec<sv_check::Verified>,
-    gaps: Vec<sv_report::Gap>,
-    examined: Vec<sv_report::Examined>,
-    manual_only: std::collections::BTreeSet<String>,
-    named_in_tests: std::collections::BTreeSet<String>,
-    not_for_tests: std::collections::BTreeSet<String>,
-    coding_rules_cited: std::collections::BTreeSet<String>,
-    run: Run,
-    word: OwnersWord,
-    run_record: sv_report::RunRecord,
+pub struct Gathered {
+    pub findings: Vec<sv_check::Finding>,
+    pub verified: Vec<sv_check::Verified>,
+    pub gaps: Vec<sv_report::Gap>,
+    pub examined: Vec<sv_report::Examined>,
+    pub manual_only: std::collections::BTreeSet<String>,
+    pub named_in_tests: std::collections::BTreeSet<String>,
+    pub not_for_tests: std::collections::BTreeSet<String>,
+    pub coding_rules_cited: std::collections::BTreeSet<String>,
+    pub run: RunningApp,
+    pub word: PersonsWord,
+    pub run_record: sv_report::RunRecord,
 }
 
 /// The last stage: what was examined completed, what a person set aside applied, the safe defaults
@@ -2051,7 +2051,7 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
         word,
         run_record,
     } = gathered;
-    let Run {
+    let RunningApp {
         status: run_status,
         note: run_note,
         steps: run_steps,
@@ -2059,7 +2059,7 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
         tests_examined,
         ..
     } = run;
-    let OwnersWord {
+    let PersonsWord {
         notes_catalog,
         design_questions,
         human_checks,

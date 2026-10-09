@@ -1748,13 +1748,6 @@ mod tests {
             ),
             (
                 Flaws {
-                    same_session_id: true,
-                    ..Default::default()
-                },
-                WEAK_SESSION_ID.rule_id,
-            ),
-            (
-                Flaws {
                     case_folded: true,
                     ..Default::default()
                 },
