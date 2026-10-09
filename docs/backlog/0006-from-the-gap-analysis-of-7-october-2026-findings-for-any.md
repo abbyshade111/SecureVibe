@@ -156,6 +156,14 @@ listed apart, below this item.
    real backend. The starter's `build` example no longer suggests `pip install`, and an app whose build step tries
    one is told about `install = true`. Still open from the "Now" part: `examples/flask-booking`, the preflight
    warning, and the guide's page on building your own image.
+   **The rest of the "Now" part claimed 9 October 2026 by session securevibe-e2** ("please continue to work through
+   and pick up new items as you merge"), in branch `claude/securevibe-e2-build-install`: `sv preflight` warns, before
+   any run, when `build` installs packages (`pip install`, `npm install` or `ci`, `yarn`, `pnpm install`, and the
+   like), naming `install = true` and the image as the two ways that work; and `docs/GETTING-STARTED.md` says how to
+   build an image of your own that holds the packages and name it in `image`. `examples/flask-booking` is already
+   fixed (`install = true`; its `127.0.0.1` is kept on purpose for the preflight's own test), so it wants no build. A
+   warning changes no evidence, so no record is proposed. Read on `main` and the open pull requests just before this
+   claim: no other session had claimed it.
 10. **Supabase and Firebase access rules are never read.** (`docs/GAP-ANALYSIS.md`, 3.2.) Rules files
    (`firestore.rules`, `storage.rules`, `database.rules.json`: `if true`, no `request.auth`, no owner check);
    Supabase migrations (a table without `enable row level security`, grants to `anon`); a secret, service-role, or
