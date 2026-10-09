@@ -233,6 +233,12 @@ through `sv review` is given as the report gives it and never as the owner's. Br
 failed its new test; the rule broken failed that test and the new one in `crates/sv-report/src/whose_word_tests.rs`,
 where before nothing in the report crate had failed.
 
+**Part 1, item 8 claimed on 9 October 2026 by session stackvet-e9**, under the owner's "continue to work off the
+backlog", in branch `claude/stackvet-e9-history-honest`: `#[serde(default)]` on the dashboard's `Run`, so a field
+added later does not hide every older run, and the page saying how many runs it could not read, each with a test
+that fails without it. Open pull requests (#1302, #1304, #1305) and the branches of the last few hours read first:
+none touches `crates/sv-cli/src/history.rs` or `crates/sv-report/src/dashboard.rs`.
+
 **Part 1, items 3 and 7 done the same day** (`docs/design/0344-the-build-loop-record-read-a-line-at-a-time-and-said-when.md`):
 the record is read as bytes and decoded a line at a time, so a byte that is not UTF-8 costs its line, counted as
 unreadable, and not the whole record; and `BuildLoop::full` says when the record reached its 4 MB limit, which the

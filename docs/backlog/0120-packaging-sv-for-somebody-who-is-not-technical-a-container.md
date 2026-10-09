@@ -296,3 +296,14 @@ have differed from the one committed. Every tool now says UTF-8, and writes Unix
 `write_text` helper that works on any Python 3 (the Mac's own may be 3.9). Run with `-X warn_default_encoding` and
 that warning made an error, the old `coverage.py --check` and `merge_main.py --self-test` fail and the new ones pass;
 `crates/sv-cli/tests/tools_text.rs` holds every tool to the explicit form.
+Ninth Windows finding, the same day: the report lock. Windows enforces a file lock, where macOS and Linux leave it
+advisory, so a second run could not read who held a folder from the locked file; and outside Unix the check that a lock
+file was still this run's compared only sizes, so a run stopped with Ctrl-C could have removed another run's lock.
+The holder's record now also goes into `.stackvet-report.holder`, which is never locked, and outside Unix a run knows
+its own lock by that record (ADR-041, Later).
+Tenth Windows finding, the same day: with the tools reading UTF-8, three census tests still failed on Windows, now
+saying every credit log "holds no credit". The log names each place in the code as Rust writes it there, with `\`,
+and `tools/coverage.py` keyed the files that ship by `str(path)`, also with `\` there, while the tests write `/`; so no
+logged place matched a file. Both sides are now compared with `/` (`shipping_lines`, `logged_place`), and
+`crates/sv-check/tests/census_windows_paths.rs` holds a place written with `\` to read exactly as the same place with
+`/`, for the credit check and the withheld count.
