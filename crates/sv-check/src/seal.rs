@@ -853,6 +853,27 @@ pub fn hand_check_fields(requirement: &str, h: &sv_manifest::HandCheck) -> Vec<S
     ]
 }
 
+/// The fields `[scope-review]` is sealed over: who and when first, then the audience, then whether
+/// the data list was answered and each category as written (ADR-024, Later, 9 October 2026). The
+/// list's length varies, so it comes last, after a field saying whether it is there: no category
+/// can be read as `by` or `on`, and an unanswered list never seals the same as an empty one.
+pub fn scope_review_fields(entry: &sv_manifest::ScopeReview) -> Vec<String> {
+    let mut fields = vec![
+        "scope-review".to_owned(),
+        entry.by.trim().to_owned(),
+        entry.on.trim().to_owned(),
+        entry.audience.trim().to_owned(),
+    ];
+    match &entry.categories {
+        None => fields.push("unanswered".to_owned()),
+        Some(listed) => {
+            fields.push("listed".to_owned());
+            fields.extend(listed.iter().map(|c| c.trim().to_owned()));
+        }
+    }
+    fields
+}
+
 /// The fields a section of the security notes is sealed over: its requirement and its answer, as
 /// the report reads it.
 pub fn notes_fields(requirement: &str, prose: &str) -> Vec<String> {

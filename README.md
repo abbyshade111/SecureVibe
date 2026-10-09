@@ -248,6 +248,12 @@ may hold a key), and asks for your name, or `owner`. What you record is written 
 `stackvet.toml` with the date and a *seal*. Your AI coding tool may write entries too, as proposals
 (`by = "ai-tool"`), and the report lists them, but a proposal counts for nothing.
 
+Last, it shows the two answers that set the app's level, who uses the app (`[app] audience`) and what it
+holds about people (`[data] categories`), and asks you to confirm them. Your AI coding tool usually writes
+both. Once you have, the report says the level rests on answers you confirmed, and when; change either
+answer later and it says they are unconfirmed again until you run `sv review` once more. Confirming them
+never changes the level: it says whose word the level rests on.
+
 Why the extra step: the tool rewrites code until a warning stops, and writing `by = "owner"` into the
 file is the easiest way to stop one. `sv review` runs only in a terminal someone is typing in, which an
 AI coding tool does not have, and *signs* each entry with a key of its own, kept in your own settings

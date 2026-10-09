@@ -144,8 +144,9 @@ fn what_a_person_records_counts_and_the_report_says_where_its_seal_was_checked()
     let run = Command::new("python3")
         .arg("-c")
         .arg(PTY)
-        // No passphrase on the key it makes, then the owner's name.
-        .arg("none\nowner\n")
+        // No passphrase on the key it makes, the owner's name, then Enter: the answers that set
+        // the level left unconfirmed.
+        .arg("none\nowner\n\n")
         .arg(env!("CARGO_BIN_EXE_sv"))
         .arg("review")
         .arg(&app)
@@ -316,7 +317,7 @@ fn a_link_at_a_file_it_writes_is_refused_before_anything_is_asked() {
         manifest,
         "the setup: the link reads as the manifest"
     );
-    let run = review_typing("none\nowner\n", &app, &config);
+    let run = review_typing("none\nowner\n\n", &app, &config);
     let said = String::from_utf8_lossy(&run.stdout);
     assert!(!run.status.success(), "it went through: {said}");
     assert!(said.contains("is a link to somewhere else"), "{said}");
@@ -346,7 +347,7 @@ fn a_link_at_a_file_it_writes_is_refused_before_anything_is_asked() {
         "keep me\n",
         "the setup: the link reads as the notes file"
     );
-    let run = review_typing("none\nowner\n", &app, &config);
+    let run = review_typing("none\nowner\n\n", &app, &config);
     let said = String::from_utf8_lossy(&run.stdout);
     assert!(!run.status.success(), "it went through: {said}");
     assert!(said.contains("is a link to somewhere else"), "{said}");
@@ -362,7 +363,7 @@ fn a_link_at_a_file_it_writes_is_refused_before_anything_is_asked() {
 
     // Without the links, it records as it always did, leaving no staging file behind.
     std::fs::remove_file(app.join("security-notes.md")).unwrap();
-    let run = review_typing("none\nowner\n", &app, &config);
+    let run = review_typing("none\nowner\n\n", &app, &config);
     let said = String::from_utf8_lossy(&run.stdout);
     assert!(run.status.success(), "{said}");
     assert!(said.contains("Recorded 1 of 1"), "{said}");
