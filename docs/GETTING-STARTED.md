@@ -12,6 +12,11 @@ the questions only you can answer.
 
 It takes about fifteen minutes to set up, once.
 
+**Or let your AI coding tool do steps 1 to 3.** [The setup prompt](prompts/setup.md) asks it to check Docker, fetch
+StackVet, put the folder in git, and write the settings file with the paths already filled in, asking you before
+it installs or changes anything outside the folder. It is new and has not yet been tried in any AI coding tool, so
+the steps below are still the way that is known to work.
+
 ## What StackVet will and will not tell you
 
 It never says your app is secure. It says what it checked, what it found, and, first of all, what it
@@ -53,6 +58,16 @@ reported as *not assessed*.
 Your AI tool talks to StackVet over MCP, a standard way for AI tools to use other programs. You add
 one small file to the app's folder. In each example, replace `/Users/you/code/my-app` with your app
 folder's full path, in all three places. On a Mac, `pwd` in a terminal in that folder prints it.
+
+StackVet can print the file for you with the paths already right. In a terminal in the app's folder (put
+`claude`, `vscode`, or `cursor` for your tool):
+
+```bash
+docker run --rm --network none -v "$PWD":"$PWD" -w "$PWD" ghcr.io/abbyshade111/stackvet-sv connect claude --docker "$(command -v docker)"
+```
+
+It prints the settings and the name of the file they go in, and writes nothing itself. On Linux, add
+`--user "$(id -u):$(id -g)"` at the end. The examples below show what it prints.
 
 ### Claude (the desktop app and Claude Code)
 
