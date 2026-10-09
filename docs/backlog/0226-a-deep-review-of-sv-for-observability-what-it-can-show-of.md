@@ -208,3 +208,10 @@ are not yet asked.
 **Part 1, item 1 claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please go ahead"), in branch
 `claude/crash-line-redacted`: the app's crash line and a failed install's tail put through `redact_text` before they
 leave `sv-run`, with a test that plants a key built from pieces in each and fails when it reaches the report.
+
+**Found while `main` was red, 9 October 2026, and done the same day** (part 1, item 12): when the fence's gateway
+check could not run its container, `gateway_verdict` (`crates/sv-run/src/docker.rs`) dropped what Docker printed
+and said only "the check did not run"; every pull request's `test` failed at `host_cookie` with the cause hidden,
+and the image-download limits that were blamed were not it, since the runs fetching through Google's mirror failed
+the same way. The reason now carries the last lines Docker or the container printed, cut to 300 characters, and
+the exit code. Breaks: the old words put back failed all three tests in `crates/sv-run/src/gateway_said_tests.rs`.
