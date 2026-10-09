@@ -471,3 +471,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     detail may be recorded elsewhere. One kind of safety decision, the injection screen, is seen. **Record, `Status:
     proposed`: ADR-074.** Checked just before this claim: not on `main`, in no open pull request, and in no recent
     branch. The kill-switch log (C12.4.3) is left: the second copy's output is not read by anything yet.
+    **Done on 9 October 2026** (DESIGN, "Why and when a caught prompt injection was stopped (9 October 2026)";
+    ADR-074, accepted). `probe.ai-safety-decision-detailed` credits C12.1.2 in part when the line recording the caught
+    injection says why and when, and says what was not seen otherwise; it never finds. Not done: other safety
+    decisions, and the kill-switch log (C12.4.3).

@@ -3284,6 +3284,86 @@ const CALL_LOG: Rule = Rule {
 
 const INJECTION_LOGGED: &str = "probe.ai-injection-logged";
 
+/// C12.1.2 (ADR-074): only ever credited, and in part.
+const SAFETY_DETAIL: Rule = Rule {
+    rule_id: "probe.ai-safety-decision-detailed",
+    requirement_ids: &["C12.1.2"],
+    cwe: &["CWE-778"],
+    impact: "A record that something was blocked, without why or when, cannot be audited, cannot \
+             show a filter that blocks too much, and cannot be laid beside other events in an \
+             investigation.",
+    fix: "Write each safety decision as one structured record: what was decided, the rule or \
+          category that decided it, when, and for which user and session.",
+};
+
+/// Field names that say why a safety decision was made.
+const REASON_FIELDS: &[&str] = &["reason", "category", "rule", "policy", "score", "label"];
+
+/// C12.1.2: the line recording the textbook injection as caught, read for why and when. Credited in
+/// part when it carries both a reason field and a time; the credit says whether it also names the
+/// user or a session. Never a finding: the detail may be recorded elsewhere. `line` is `None` when
+/// no line recorded the injection as caught.
+fn safety_detail(markers: &LogMarkers, line: Option<&str>, out: &mut Outcome) {
+    let say = |why: String, out: &mut Outcome| {
+        out.not_assessed.push(("C12.1.2".to_owned(), why));
+    };
+    let Some(line) = line else {
+        say(
+            "Whether safety decisions are logged in detail: no line of the app's output recorded the \
+             textbook prompt injection as caught, so there was no decision to read."
+                .to_owned(),
+            out,
+        );
+        return;
+    };
+    let lower = line.to_lowercase();
+    let field = |f: &str| lower.contains(&format!("\"{f}\"")) || lower.contains(&format!("{f}="));
+    let reason = REASON_FIELDS.iter().find(|f| field(f));
+    let timed = crate::logs::has_timestamp(line);
+    let whose = markers
+        .who
+        .as_ref()
+        .is_some_and(|who| lower.contains(&who.to_lowercase()))
+        || SESSION_FIELDS.iter().any(|f| field(f));
+    match reason {
+        Some(reason) if timed => out.verified.push(
+            crate::Verified::new(
+                SAFETY_DETAIL.rule_id,
+                SAFETY_DETAIL.requirement_ids,
+                format!(
+                    "the line recording the textbook prompt injection as caught carries why (a \
+                     `{reason}` field) and when{}; one kind of safety decision, the injection screen",
+                    if whose {
+                        ", and whose request it was"
+                    } else {
+                        ", but not whose request it was"
+                    }
+                ),
+            )
+            .in_part(),
+        ),
+        _ => {
+            let mut missing = Vec::new();
+            if reason.is_none() {
+                missing.push("why (a reason, category, rule, policy, score or label field)");
+            }
+            if !timed {
+                missing.push("when (a timestamp)");
+            }
+            say(
+                format!(
+                    "Whether safety decisions are logged in detail: the line recording the textbook \
+                     prompt injection as caught does not say {}. That is not a finding: the detail \
+                     may be recorded elsewhere.",
+                    missing.join(" or ")
+                ),
+                out,
+            );
+        }
+    }
+    crate::verified::unless_credited(SAFETY_DETAIL.rule_id, &out.verified);
+}
+
 /// Field names that tie a record to a user or a session.
 const SESSION_FIELDS: &[&str] = &[
     "user",
@@ -3511,6 +3591,9 @@ pub fn logged(markers: &LogMarkers, log: &str, out: &mut Outcome) {
         if markers.call.is_some() {
             token_attribution(markers, None, out);
         }
+        if markers.injection.is_some() {
+            safety_detail(markers, None, out);
+        }
         return;
     }
 
@@ -3603,10 +3686,12 @@ pub fn logged(markers: &LogMarkers, log: &str, out: &mut Outcome) {
     // the injection's own tag with a word for stopping it. An app that writes every message down
     // as it came has noticed nothing, and the probe's tag (`INJECT-`) is not one of those words.
     if let Some(tag) = &markers.injection {
-        let caught = log.lines().any(|line| {
+        let caught_line = log.lines().find(|line| {
             NAMED.iter().any(|w| has_word(line, w))
                 || (line.contains(tag.as_str()) && CAUGHT.iter().any(|w| has_word(line, w)))
         });
+        let caught = caught_line.is_some();
+        safety_detail(markers, caught_line, out);
         out.steps.push(format!(
             "the app's output {} the prompt injection as caught",
             if caught { "recorded" } else { "did not record" }
