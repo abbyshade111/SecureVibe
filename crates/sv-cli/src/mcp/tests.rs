@@ -1,5 +1,6 @@
 //! The server's tests, as they were in `mcp.rs` before it became this folder (8 October 2026).
 use super::*;
+use sv_frameworks::paths::Canonical;
 
 fn examples() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples")
@@ -536,7 +537,7 @@ fn the_check_is_the_report_and_not_a_summary_of_it() {
     let server = Server::new(&examples()).unwrap();
     let result = call(&server, "stackvet_check", json!({ "path": "tested-notes" }));
     let report = crate::assemble_report(
-        &examples().join("tested-notes").canonicalize().unwrap(),
+        &examples().join("tested-notes").canonical().unwrap(),
         &crate::ReportOptions::reading_only("a test"),
         &crate::Loaded::load().unwrap(),
     )
@@ -2313,7 +2314,7 @@ fn a_written_report_is_offered_as_resources_and_reads_back_as_written() {
     }
     let resources = listed(&server);
     assert_eq!(resources.len(), 2 * REPORT_FILES.len(), "{resources:#?}");
-    let canonical = root.canonicalize().unwrap();
+    let canonical = root.canonical().unwrap();
     for resource in &resources {
         let uri = resource["uri"].as_str().unwrap();
         let path = path_from_uri(uri).unwrap_or_else(|| panic!("{uri} does not read back"));
@@ -2368,7 +2369,7 @@ fn the_files_offered_are_the_files_a_report_is_written_as() {
     let report = Server::new(&root)
         .unwrap()
         .report_for(
-            &root.join("app").canonicalize().unwrap(),
+            &root.join("app").canonical().unwrap(),
             &Progress {
                 token: None,
                 tell: &|_| {},
@@ -2423,7 +2424,7 @@ fn nothing_but_the_files_of_a_report_sv_wrote_can_be_read_as_a_resource() {
     let server = Server::new(&root).unwrap();
     let written = call(&server, "stackvet_write_report", json!({ "path": "app" }));
     assert_eq!(written["isError"], false, "{}", text(&written));
-    let app = root.canonicalize().unwrap().join("app");
+    let app = root.canonical().unwrap().join("app");
     let report = app.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR);
 
     // A folder sv did not mark, holding a file of a report's name.
@@ -3434,7 +3435,7 @@ fn a_bundle_is_written_beside_the_app_inside_the_root_and_holds_no_secret() {
     let server = Server::new(&root).unwrap();
     let result = call(&server, "stackvet_bundle", json!({ "path": "app" }));
     assert_eq!(result["isError"], false, "{}", text(&result));
-    let zip = root.canonicalize().unwrap().join("app-stackvet-bundle.zip");
+    let zip = root.canonical().unwrap().join("app-stackvet-bundle.zip");
     assert_eq!(
         result["structuredContent"]["zip"],
         zip.display().to_string()
@@ -3962,7 +3963,7 @@ fn refused(server: &Server, folder: &Path, name: &str) -> Option<String> {
 fn a_report_is_offered_as_svs_only_when_its_seal_shows_sv_wrote_it() {
     let root = scratch_app("resources-sealed", "flask-booking");
     let server = Server::new(&root).unwrap();
-    let app = root.canonicalize().unwrap().join("app");
+    let app = root.canonical().unwrap().join("app");
     let written = call(&server, "stackvet_write_report", json!({ "path": "app" }));
     assert_eq!(written["isError"], false, "{}", text(&written));
     assert!(

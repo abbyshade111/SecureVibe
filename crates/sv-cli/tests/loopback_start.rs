@@ -33,12 +33,10 @@ fn app(name: &str, start: &str) -> PathBuf {
     dir
 }
 
+/// Asked as `sv` asks it: Docker that answers and runs Linux containers (Docker set to Windows
+/// containers is not a backend, and `sv` says so rather than run).
 fn docker_ok() -> bool {
-    Command::new("docker")
-        .args(["info", "--format", "{{.ServerVersion}}"])
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
+    sv_run::detect().is_ok()
 }
 
 /// `sv run` on the app, to the end: what it printed to standard output and to standard error, and

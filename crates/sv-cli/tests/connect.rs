@@ -4,6 +4,7 @@
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
+use sv_frameworks::paths::Canonical;
 
 fn sv(folder: &Path, args: &[&str], in_container: bool) -> Output {
     let mut command = Command::new(env!("CARGO_BIN_EXE_sv"));
@@ -23,7 +24,7 @@ fn folder(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("sv-connect-{name}-{}", std::process::id()));
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
-    dir.canonicalize().unwrap()
+    dir.canonical().unwrap()
 }
 
 fn parsed(out: &Output) -> Value {
@@ -138,9 +139,7 @@ fn without_docker_an_installed_copy_names_its_own_real_place() {
     let block = parsed(&out);
     let server = &block["servers"]["stackvet"];
     assert_eq!(server["type"], "stdio");
-    let program = PathBuf::from(env!("CARGO_BIN_EXE_sv"))
-        .canonicalize()
-        .unwrap();
+    let program = PathBuf::from(env!("CARGO_BIN_EXE_sv")).canonical().unwrap();
     assert_eq!(server["command"], program.display().to_string());
     assert_eq!(
         strings(&server["args"]),

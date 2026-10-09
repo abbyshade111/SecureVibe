@@ -258,3 +258,15 @@ coming from one cause, randomness read from `/dev/urandom`, which Windows lacks;
 on every system (ADR-043, Later). The rest are grouped for the next pull request: the container tests, which need
 Linux containers the Windows runner does not have; file names Windows refuses (`os error 123`); and a few others.
 
+Sixth Windows finding, the same day: about twenty-five of the failures were the container tests, and the cause was
+not `sv`'s but the runner's: GitHub's Windows machines run Docker set to Windows containers, and every container
+`sv` starts is a Linux one, so each was refused in words that read like a fault of the app's ("could not find plugin
+bridge", "read-only mode is not supported"). A person on Windows with Docker Desktop set the same way would have met
+the same. `sv` now asks Docker which kind it runs (`docker info --format {{.OSType}}`) and, when it is not Linux, says
+there is no backend it can use and what to change ("Switch to Linux containers"), so the run is not assessed rather
+than failed; the tests that start containers ask the same way. Under it was a fault of `sv`'s own: on Windows the
+standard library gives a folder's real place in the long form, `\\?\C:\...`, and `sv` handed that to Docker, which
+refuses it as an "invalid spec", and wrote it into the history. Every real place now comes from one helper,
+`sv_frameworks::paths::canonical`, which gives the short form wherever it names the same place, and a test fails on
+any other way of asking. With Linux containers on a Windows computer, which the runner does not have, none of this has
+been tried yet.

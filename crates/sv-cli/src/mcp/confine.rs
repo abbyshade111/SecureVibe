@@ -2,6 +2,7 @@
 //! is made one level at a time with a link refused at every level.
 
 use super::*;
+use sv_frameworks::paths::Canonical;
 
 impl Server {
     /// Resolves a path a tool was given against the root, and refuses anything outside it.
@@ -25,7 +26,7 @@ impl Server {
                 self.root.display()
             )
         };
-        let resolved = joined.canonicalize().map_err(|_| refused())?;
+        let resolved = joined.canonical().map_err(|_| refused())?;
         if !resolved.starts_with(&self.root) {
             return Err(refused());
         }

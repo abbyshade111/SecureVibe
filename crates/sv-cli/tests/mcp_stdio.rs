@@ -53,7 +53,7 @@ fn a_whole_session_over_stdio() {
     // What the tool is told to have the person run names this very `sv` by its full path, so it
     // works at a terminal whether or not `sv` was ever put on the search path (the owner's first
     // build met `command not found`).
-    let program = std::fs::canonicalize(env!("CARGO_BIN_EXE_sv")).unwrap();
+    let program = sv_frameworks::paths::canonical(env!("CARGO_BIN_EXE_sv")).unwrap();
     let instructions = replies[0]["result"]["instructions"].as_str().unwrap();
     assert!(
         instructions.contains(&format!("`{} report ", program.display())),

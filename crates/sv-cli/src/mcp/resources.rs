@@ -2,6 +2,7 @@
 //! file URIs they are named by.
 
 use super::*;
+use sv_frameworks::paths::Canonical;
 
 impl Server {
     /// Every report `sv` has written below the root, each of its files a resource.
@@ -92,7 +93,7 @@ impl Server {
         };
         let folder = path
             .parent()
-            .and_then(|p| p.canonicalize().ok())
+            .and_then(|p| p.canonical().ok())
             .ok_or_else(|| not_found("no such folder"))?;
         if !folder.starts_with(&self.root) {
             return Err(not_found(
