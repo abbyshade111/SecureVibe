@@ -357,6 +357,13 @@ listed apart, below this item.
    **(b), the stored record's half, done the same day**
    (`docs/design/0328-saved-text-written-into-a-page-unencoded-9-october-2026.md`): `probe.stored-unencoded`. The
    test model's half stays open.
+   **(b), the test model's half, claimed 9 October 2026 by session securevibe-e9** ("please continue to work through
+   and pick up new items as you merge"), in branch `claude/stackvet-e9-model-html`: a new test-model reply kind whose
+   reply carries an `<img src=x onerror=...>` tag with a marker. When the app's answer to the chat is HTML and holds
+   that tag as it is, the model's reply was written into the page unencoded: a finding citing V1.2.1, only ever a
+   finding. An answer in JSON is not judged, since the page drawing it decides, which the browser checks ask. The new
+   kind is a Later entry on ADR-042, written with the build. Read on `main` and the open pull requests just before
+   this claim: no other session had claimed it.
 14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
    `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
    `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
