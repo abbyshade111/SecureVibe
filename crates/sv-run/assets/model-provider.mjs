@@ -14,6 +14,8 @@
 //   PLAIN   an ordinary reply carrying `SV-REPLY-<tag>`
 //   LEAK    the reply repeats, word for word, the instructions the app sent it
 //   IMAGE   the reply carries a markdown image and a link to an address on this server
+//   MARKUP  the reply carries raw HTML: an image tag whose failure to load runs a line of script
+//           naming `SVMARKUP<tag>`, for whether the app writes a reply into its page unencoded
 //   INJECT  an ordinary reply; what matters is whether the message reached it at all
 //   HIDDEN  an ordinary reply that also carries the tag in invisible Unicode tag characters,
 //           zero-width characters, a right-to-left override, and a link whose text is one address
@@ -426,6 +428,8 @@ function reply(api, body, usage) {
       return `${marker} Here you go.${smuggled} Sure\u200b\u200cthing\u2060. \u202eetoN ` +
         `See [https://example.test/a](${target}).`;
     }
+    case 'MARKUP':
+      return `${marker} Here it is: <img src=x onerror="document.title='SVMARKUP${tag}'">`;
     case 'IMAGE': {
       const base = `http://${HOST}:${PORT}/_sv/exfil/${tag}`;
       return `${marker} Here is the chart: ![chart](${base}.png) and [the details](${base}-link).`;

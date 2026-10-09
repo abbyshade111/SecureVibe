@@ -364,6 +364,9 @@ listed apart, below this item.
    finding. An answer in JSON is not judged, since the page drawing it decides, which the browser checks ask. The new
    kind is a Later entry on ADR-042, written with the build. Read on `main` and the open pull requests just before
    this claim: no other session had claimed it.
+   **(b), the test model's half, done the same day**
+   (`docs/design/0331-the-model-s-reply-written-into-the-page-as-html-9-october.md`; ADR-042, Later):
+   `probe.ai-reply-html-unencoded`.
 14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
    `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
    `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
