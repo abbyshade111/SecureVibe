@@ -124,7 +124,7 @@ evidence-tier rule without its number), and ADR-012 is also cited by number in `
 | [ADR-078](ADR-078.md) | CodeQL for Ruby, and for Java only where it reads the code without building it or reaching the network |
 | [ADR-079](ADR-079.md) | An input flagged as an attack, and whether the flag stopped it (C11.4.2) |
 | [ADR-080](ADR-080.md) | The published image signed with GitHub's own keyless signing, and what it was built from published with it |
-| [ADR-081](ADR-081.md) | A GitHub Action that runs the published image on an app's pull requests (proposed) |
+| [ADR-081](ADR-081.md) | A GitHub Action that runs the published image on an app's pull requests |
 
 ## Where v1's records disagree with what v1 built
 
