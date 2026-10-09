@@ -4323,6 +4323,12 @@ fn a_caught_injection_logged_with_why_and_when_is_credited_in_part_and_nothing_e
             "2026-10-09 12:00:01 WARN refused abc123 rule=override session_id=s-1",
             "and whose request it was",
         ),
+        // Named by address alone, with no user or session field.
+        (
+            signed_in.clone(),
+            "{\"time\":\"2026-10-09T12:00:01Z\",\"event\":\"prompt injection blocked\",\"label\":\"override\",\"by\":\"sv-b-4f2a91@example.test\"}",
+            "and whose request it was",
+        ),
     ] {
         let mut o = Outcome::default();
         logged(&markers, line, &mut o);
@@ -4333,7 +4339,10 @@ fn a_caught_injection_logged_with_why_and_when_is_credited_in_part_and_nothing_e
             .unwrap_or_else(|| panic!("{line}: {:?}", o.not_assessed));
         assert!(credit.in_part, "{credit:?}");
         assert!(credit.scope.contains(said), "{}", credit.scope);
-        assert!(credited(&o).contains(&INJECTION_LOGGED), "the same line credits C12.2.1");
+        assert!(
+            credited(&o).contains(&INJECTION_LOGGED),
+            "the same line credits C12.2.1"
+        );
     }
     // Said, never found nor credited.
     for (line, words) in [
@@ -4345,7 +4354,10 @@ fn a_caught_injection_logged_with_why_and_when_is_credited_in_part_and_nothing_e
             "2026-10-09T12:00:01Z prompt injection blocked",
             "does not say why (a reason",
         ),
-        ("2026-10-09T12:00:01Z GET /api/chat 200", "no line of the app's output recorded"),
+        (
+            "2026-10-09T12:00:01Z GET /api/chat 200",
+            "no line of the app's output recorded",
+        ),
         ("", "no line of the app's output recorded"),
     ] {
         let mut o = Outcome::default();

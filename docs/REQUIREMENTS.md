@@ -631,7 +631,7 @@ decided per app, from its `stackvet.toml` and its code.
 
 ## OWASP AISVS 1.0
 
-191 requirements: 24 can be checked, 19 can only be found failing, 0 where a check helps but a person decides, and 148 with no check.
+191 requirements: 25 can be checked, 19 can only be found failing, 0 where a check helps but a person decides, and 147 with no check.
 
 ### Level 1 (51 requirements, 16 can be checked, 8 can only be found failing)
 
@@ -741,7 +741,7 @@ decided per app, from its `stackvet.toml` and its code.
 | **C12.5.1** Verify that dataset lineage records each dataset and its components, including all transformations, augmentations, and merges. | No check | – |
 | **C12.5.2** Verify that all labeling activities are recorded in logs. | No check | – |
 
-### Level 2 (95 requirements, 7 can be checked, 10 can only be found failing)
+### Level 2 (95 requirements, 8 can be checked, 10 can only be found failing)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -883,7 +883,7 @@ decided per app, from its `stackvet.toml` and its code.
 
 | Requirement | Coverage | Checks |
 |---|---|---|
-| **C12.1.2** Verify that safety filtering and policy decisions are logged with sufficient detail to support audit, debugging, and forensic analysis of content moderation systems. | No check | – |
+| **C12.1.2** Verify that safety filtering and policy decisions are logged with sufficient detail to support audit, debugging, and forensic analysis of content moderation systems. | Can be checked | The running app: `probe.ai-safety-decision-detailed`, if it fails: A record that something was blocked, without why or when, cannot be audited, cannot show a filter that blocks too much, and cannot be laid beside other events in an investigation. (credited only, and only ever in part) |
 | **C12.1.3** Verify that log entries for AI inference events follow a structured, interoperable schema that includes at least the model identifier, token usage (input and output), provider name, and operation type. | Can be checked | The running app: `probe.ai-call-log-incomplete`, if it fails: A record of each model call that leaves out which model, how many tokens, which service, or what kind of call cannot answer the questions it is kept for: what a bill was for, which model said something, or when usage changed. |
 | **C12.1.4** Verify that RAG pipeline retrieval events are logged, including the query, documents retrieved, and knowledge source. | No check | – |
 | **C12.2.2** Verify that behavioral anomaly detection identifies unusual conversation patterns, excessive retry attempts, or probing behaviors. | No check | – |
