@@ -64,6 +64,14 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    needs every page judged to pass. `probe.private-page-headers` asks the same four headers of each private page
    the signed-in run opens. Five guards broken in turn, each caught. Not done: the cookies a signed-in page sets,
    which `probe.session-cookie-attributes` already judges at sign-in, and pages the run does not ask for.
+   **The rest of part 3 claimed 9 October 2026 by session securevibe-e9**, from the roadmap (Phase 1, item 3, its
+   first open part), in branch `claude/stackvet-e9-page-cookies`: when a private page, opened with the signed-in
+   session, sets a cookie that was shown to carry that session (one sign-in set, which the page was refused
+   without), it is judged as at sign-in, HttpOnly and SameSite, and a page that sets it again without them is a
+   finding naming the page. Cookies that do not carry the session are not held to HttpOnly. "Pages the run does not
+   ask for" gets a done note rather than a build: a page nobody asks for cannot be judged, and the credit already
+   names the pages it covers. Confirmed on `main` just before this claim: only the sign-in answer's cookies are
+   judged (`sessions.rs`, `session_checks`), and no other session had claimed this part.
 4. **Sign-in tokens the app issues itself (V9.1.1, V9.1.2, V9.2.1, V9.1.3; all level 1).** When the token the
    app hands the test user is a JWT, send it back altered with the same signature, with `alg: none`, past its
    expiry, and naming a key the probe controls (`jku`, `kid`). The real token opening the page is the control, so
