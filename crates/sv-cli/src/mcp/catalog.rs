@@ -409,6 +409,85 @@ pub(super) fn tool_list() -> Value {
     });
     json!([
         {
+            "name": "stackvet_spec",
+            "title": "How to describe the app",
+            "description": "The stackvet.toml the app needs before it can be checked, with instructions for filling it in. Write it into the app's folder: before any code, for the app as it will be, decided with the person; once there is code, from what the app really does. A claim the code contradicts is reported, and requirements only ever apply more because of it, never less.",
+            "inputSchema": { "type": "object", "properties": {} },
+            "annotations": { "readOnlyHint": true, "openWorldHint": false }
+        },
+        {
+            "name": "stackvet_prompts",
+            "title": "Prompts for the person to give you",
+            "description": "Prompts from StackVet's library that ask an AI coding tool for something StackVet checks, such as keeping the app in git from the first file or building every database query with placeholders, and design-time prompts for what to decide before any code is written (who may do what, limits, logging, sign-in), each with the requirements it targets and, for a design-time prompt, the Secure by Design controls it helps the person answer. Each says whether it has been shown to work: an app built with it passed its check and the same app built without it failed. The others say whether they were tried and not shown to work, or not tried yet. Offer them to the person; following one is not evidence of anything, so check the app afterwards.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "requirement": {
+                        "type": "string",
+                        "description": "Only the prompts for this requirement or Secure by Design control, such as V1.2.4 or SBD-AC-03. Leave it out for all of them."
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "The app's folder. Give it for only the prompts for what the app's last report (stackvet-report/report.json, written by stackvet_write_report) shows unproven: a finding, nothing shown, or only an answer given by the person or the AI tool, with nothing checked, each prompt saying which of those requirements it is for. With no report there yet, write one first."
+                    }
+                }
+            },
+            "annotations": { "readOnlyHint": true, "openWorldHint": false }
+        },
+        {
+            "name": "stackvet_plan",
+            "title": "Plan the app before writing it",
+            "description": "The plan for the app from its stackvet.toml, before any code and at any time after: the requirements that will apply, the design-time prompts to work through before each feature, the questions only the person can answer, the tests worth writing named by requirement id, what the app must give `sv run` in stackvet.toml so it can be tested running, and the threats the answers raise. Built from the same report as stackvet_check, so the two agree. A plan credits nothing and never says a requirement is met. Reads files only; never starts the app. A plan too long to take in whole (over about 40,000 characters) comes in parts: the first answer gives what to decide and what `sv run` needs, and ends with a list of every section and how to ask for each with `section` and `page`. Nothing is left out.",
+            "inputSchema": { "type": "object", "properties": {
+                "path": path.clone(),
+                "section": section(crate::plan::SECTIONS),
+                "page": page.clone(),
+            } },
+            "annotations": { "readOnlyHint": true, "openWorldHint": false }
+        },
+        {
+            "name": "stackvet_before",
+            "title": "Before building one feature",
+            "description": "Before building one feature (sign-in, admin pages, uploads, payments, email, an AI feature, fetching a web address): the requirements it brings that apply to this app, the design-time prompts for the decisions to make first, the coding rules on the topics it touches and the coding prompts shown to work for its requirements, the tests to write named by requirement id, and the settings `sv run` needs in stackvet.toml to test it, quoted from the spec. Built from the same report as stackvet_plan. Asked before stackvet.toml exists, it gives everything the feature can bring, its decisions, prompts, rules, and settings, and says which requirements apply, and the tests, wait for the file (`waiting`). A brief credits nothing. Reads files only; never starts the app.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": path.clone(),
+                    "feature": {
+                        "type": "string",
+                        "enum": ["sign-in", "sign-in-elsewhere", "admin", "uploads", "payments", "email", "ai", "fetch"],
+                        "description": "The feature about to be built."
+                    }
+                },
+                "required": ["feature"]
+            },
+            "annotations": { "readOnlyHint": true, "openWorldHint": false }
+        },
+        {
+            "name": "stackvet_guidance",
+            "title": "Rules to follow while coding",
+            "description": "The security rules to follow while you write this app, adapted from OWASP AISVS 1.0 Appendix C (AI-assisted secure coding), with its attribution and license (CC BY-SA 4.0): keeping keys out of the chat, treating fetched text as data, checking after each feature, adding only packages that exist, never merging your own work, writing CI workflows that keep secrets from forks. Rules that do not apply to the app, by its stackvet.toml, are left out. Call it before you start, and with a topic before work in that area. With no topic it ends with the prompts shown to work that are about the whole app. They are instructions, not a check: following them is not evidence of anything.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": path.clone(),
+                    "topic": {
+                        "type": "string",
+                        "enum": ["secrets", "untrusted-content", "checking", "review", "dependencies", "agent-limits", "ci-workflows", "provenance", "incidents"],
+                        "description": "Only the rules on this topic. Leave it out for all of them."
+                    }
+                }
+            },
+            "annotations": { "readOnlyHint": true, "openWorldHint": false }
+        },
+        {
+            "name": "stackvet_preflight",
+            "title": "Will `sv run` be able to test it?",
+            "description": "Once there is code: reads the app's files against what stackvet.toml tells `sv run` (the start command, listening on 0.0.0.0 at $PORT, the seed reading the SV_ accounts, tables the app makes itself, every path and sign-in field the settings name), and says for each whether it looks right, needs a look, or could not be told. Also says what `sv run` will check once the app runs (a limit on wrong passwords, the security headers, the session cookie's SameSite, a screen on what an AI feature is sent) when nothing in the code reads like a way of handling it. Reads files only and runs nothing, so \"looks right\" means the text was found, not that it works. Credits nothing.",
+            "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
+            "annotations": { "readOnlyHint": true, "openWorldHint": false }
+        },
+        {
             "name": "stackvet_check",
             "title": "Check an app",
             "description": "Check the app against OWASP ASVS 5.0, AISVS 1.0 and the Secure by Design checklist: credentials in the code, configuration, rules that read the code, dependencies (listed, not compared with known vulnerabilities: that needs `--advisories` at a terminal), and which requirements apply. Reads files only; never starts the app. The result gives the counts, then what was NOT examined, then what needs attention with the file, line and fix. It never says a requirement passed, and nothing in it means the app is secure. A check too long to take in whole (over about 40,000 characters) comes in parts: the first answer gives what was not examined and the findings, and ends with a list of every section and how to ask for each with `section` and `page`. Nothing is left out.",
@@ -417,6 +496,13 @@ pub(super) fn tool_list() -> Value {
                 "section": section(CHECK_SECTIONS),
                 "page": page.clone(),
             } },
+            "annotations": { "readOnlyHint": true, "openWorldHint": false }
+        },
+        {
+            "name": "stackvet_questions",
+            "title": "Questions for the owner",
+            "description": "The questions about the app that only a person can answer: how it is built, the rules it follows, and what to check by hand. Ask the person them one at a time, offering what you know of the code as a tip, and record their answers as the result says. Answers you give yourself are recorded as yours and reported as weaker than the person's.",
+            "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
             "annotations": { "readOnlyHint": true, "openWorldHint": false }
         },
         {
@@ -431,40 +517,6 @@ pub(super) fn tool_list() -> Value {
                 }
             },
             "annotations": { "readOnlyHint": false, "destructiveHint": false, "openWorldHint": false }
-        },
-        {
-            "name": "stackvet_bundle",
-            "title": "Bundle the app and its report",
-            "description": "Write one zip beside the app (never inside it) holding the app's files, the full report, the bill of materials and a SHA-256 for every file, for the person to keep or hand on. It leaves out anything that could hold a secret (files the credential scan flagged, environment files, keys, databases, links, editor folders, files it could not read) and lists each with the reason. Offer it once the report is written, only if the person wants it. It cannot tell which files hold data about the app's people. The app must be a folder below the one this server was started for, since the zip goes beside it: with no `path`, it is refused.",
-            // Its own `path`, required: the zip goes beside the app, so the server's own folder, the
-            // default everywhere else, is always refused here (the documentation review, item 5).
-            "inputSchema": {
-                "type": "object",
-                "properties": { "path": {
-                    "type": "string",
-                    "description": "The app's folder, relative to the folder this server was started for, and below it: the zip is written beside the app, so that folder itself cannot be bundled."
-                } },
-                "required": ["path"]
-            },
-            "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false }
-        },
-        {
-            "name": "stackvet_explain",
-            "title": "Explain a requirement",
-            "description": "What a requirement asks for, in its framework's own words, with its level and where the level comes from. Takes an id such as V1.2.4, C9.5.4, AC.4.1 or SBD-AC-05.",
-            "inputSchema": {
-                "type": "object",
-                "properties": { "id": { "type": "string", "description": "The requirement id." } },
-                "required": ["id"]
-            },
-            "annotations": { "readOnlyHint": true, "openWorldHint": false }
-        },
-        {
-            "name": "stackvet_questions",
-            "title": "Questions for the owner",
-            "description": "The questions about the app that only a person can answer: how it is built, the rules it follows, and what to check by hand. Ask the person them one at a time, offering what you know of the code as a tip, and record their answers as the result says. Answers you give yourself are recorded as yours and reported as weaker than the person's.",
-            "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
-            "annotations": { "readOnlyHint": true, "openWorldHint": false }
         },
         {
             "name": "stackvet_notes_file",
@@ -489,83 +541,31 @@ pub(super) fn tool_list() -> Value {
             "annotations": { "readOnlyHint": false, "destructiveHint": true, "idempotentHint": true, "openWorldHint": false }
         },
         {
-            "name": "stackvet_guidance",
-            "title": "Rules to follow while coding",
-            "description": "The security rules to follow while you write this app, adapted from OWASP AISVS 1.0 Appendix C (AI-assisted secure coding), with its attribution and license (CC BY-SA 4.0): keeping keys out of the chat, treating fetched text as data, checking after each feature, adding only packages that exist, never merging your own work, writing CI workflows that keep secrets from forks. Rules that do not apply to the app, by its stackvet.toml, are left out. Call it before you start, and with a topic before work in that area. With no topic it ends with the prompts shown to work that are about the whole app. They are instructions, not a check: following them is not evidence of anything.",
+            "name": "stackvet_explain",
+            "title": "Explain a requirement",
+            "description": "What a requirement asks for, in its framework's own words, with its level and where the level comes from. Takes an id such as V1.2.4, C9.5.4, AC.4.1 or SBD-AC-05.",
             "inputSchema": {
                 "type": "object",
-                "properties": {
-                    "path": path.clone(),
-                    "topic": {
-                        "type": "string",
-                        "enum": ["secrets", "untrusted-content", "checking", "review", "dependencies", "agent-limits", "ci-workflows", "provenance", "incidents"],
-                        "description": "Only the rules on this topic. Leave it out for all of them."
-                    }
-                }
+                "properties": { "id": { "type": "string", "description": "The requirement id." } },
+                "required": ["id"]
             },
             "annotations": { "readOnlyHint": true, "openWorldHint": false }
         },
         {
-            "name": "stackvet_prompts",
-            "title": "Prompts for the person to give you",
-            "description": "Prompts from StackVet's library that ask an AI coding tool for something StackVet checks, such as keeping the app in git from the first file or building every database query with placeholders, and design-time prompts for what to decide before any code is written (who may do what, limits, logging, sign-in), each with the requirements it targets and, for a design-time prompt, the Secure by Design controls it helps the person answer. Each says whether it has been shown to work: an app built with it passed its check and the same app built without it failed. The others say whether they were tried and not shown to work, or not tried yet. Offer them to the person; following one is not evidence of anything, so check the app afterwards.",
+            "name": "stackvet_bundle",
+            "title": "Bundle the app and its report",
+            "description": "Write one zip beside the app (never inside it) holding the app's files, the full report, the bill of materials and a SHA-256 for every file, for the person to keep or hand on. It leaves out anything that could hold a secret (files the credential scan flagged, environment files, keys, databases, links, editor folders, files it could not read) and lists each with the reason. Offer it once the report is written, only if the person wants it. It cannot tell which files hold data about the app's people. The app must be a folder below the one this server was started for, since the zip goes beside it: with no `path`, it is refused.",
+            // Its own `path`, required: the zip goes beside the app, so the server's own folder, the
+            // default everywhere else, is always refused here (the documentation review, item 5).
             "inputSchema": {
                 "type": "object",
-                "properties": {
-                    "requirement": {
-                        "type": "string",
-                        "description": "Only the prompts for this requirement or Secure by Design control, such as V1.2.4 or SBD-AC-03. Leave it out for all of them."
-                    },
-                    "path": {
-                        "type": "string",
-                        "description": "The app's folder. Give it for only the prompts for what the app's last report (stackvet-report/report.json, written by stackvet_write_report) shows unproven: a finding, nothing shown, or only an answer given by the person or the AI tool, with nothing checked, each prompt saying which of those requirements it is for. With no report there yet, write one first."
-                    }
-                }
+                "properties": { "path": {
+                    "type": "string",
+                    "description": "The app's folder, relative to the folder this server was started for, and below it: the zip is written beside the app, so that folder itself cannot be bundled."
+                } },
+                "required": ["path"]
             },
-            "annotations": { "readOnlyHint": true, "openWorldHint": false }
-        },
-        {
-            "name": "stackvet_spec",
-            "title": "How to describe the app",
-            "description": "The stackvet.toml the app needs before it can be checked, with instructions for filling it in. Write it into the app's folder: before any code, for the app as it will be, decided with the person; once there is code, from what the app really does. A claim the code contradicts is reported, and requirements only ever apply more because of it, never less.",
-            "inputSchema": { "type": "object", "properties": {} },
-            "annotations": { "readOnlyHint": true, "openWorldHint": false }
-        },
-        {
-            "name": "stackvet_plan",
-            "title": "Plan the app before writing it",
-            "description": "The plan for the app from its stackvet.toml, before any code and at any time after: the requirements that will apply, the design-time prompts to work through before each feature, the questions only the person can answer, the tests worth writing named by requirement id, what the app must give `sv run` in stackvet.toml so it can be tested running, and the threats the answers raise. Built from the same report as stackvet_check, so the two agree. A plan credits nothing and never says a requirement is met. Reads files only; never starts the app. A plan too long to take in whole (over about 40,000 characters) comes in parts: the first answer gives what to decide and what `sv run` needs, and ends with a list of every section and how to ask for each with `section` and `page`. Nothing is left out.",
-            "inputSchema": { "type": "object", "properties": {
-                "path": path.clone(),
-                "section": section(crate::plan::SECTIONS),
-                "page": page.clone(),
-            } },
-            "annotations": { "readOnlyHint": true, "openWorldHint": false }
-        },
-        {
-            "name": "stackvet_preflight",
-            "title": "Will `sv run` be able to test it?",
-            "description": "Once there is code: reads the app's files against what stackvet.toml tells `sv run` (the start command, listening on 0.0.0.0 at $PORT, the seed reading the SV_ accounts, tables the app makes itself, every path and sign-in field the settings name), and says for each whether it looks right, needs a look, or could not be told. Also says what `sv run` will check once the app runs (a limit on wrong passwords, the security headers, the session cookie's SameSite, a screen on what an AI feature is sent) when nothing in the code reads like a way of handling it. Reads files only and runs nothing, so \"looks right\" means the text was found, not that it works. Credits nothing.",
-            "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
-            "annotations": { "readOnlyHint": true, "openWorldHint": false }
-        },
-        {
-            "name": "stackvet_before",
-            "title": "Before building one feature",
-            "description": "Before building one feature (sign-in, admin pages, uploads, payments, email, an AI feature, fetching a web address): the requirements it brings that apply to this app, the design-time prompts for the decisions to make first, the coding rules on the topics it touches and the coding prompts shown to work for its requirements, the tests to write named by requirement id, and the settings `sv run` needs in stackvet.toml to test it, quoted from the spec. Built from the same report as stackvet_plan. Asked before stackvet.toml exists, it gives everything the feature can bring, its decisions, prompts, rules, and settings, and says which requirements apply, and the tests, wait for the file (`waiting`). A brief credits nothing. Reads files only; never starts the app.",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "path": path.clone(),
-                    "feature": {
-                        "type": "string",
-                        "enum": ["sign-in", "sign-in-elsewhere", "admin", "uploads", "payments", "email", "ai", "fetch"],
-                        "description": "The feature about to be built."
-                    }
-                },
-                "required": ["feature"]
-            },
-            "annotations": { "readOnlyHint": true, "openWorldHint": false }
+            "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false }
         }
     ])
 }
