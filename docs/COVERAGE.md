@@ -36,7 +36,7 @@ What each kind of check needs before it can run:
 | Framework | Requirements | Can settle | Can be credited | Supporting only | Nothing |
 |---|---|---|---|---|---|
 | OWASP ASVS 5.0 | 345 | 174 (50%) | 122 (35%) | 10 | 161 |
-| OWASP AISVS 1.0 | 191 | 42 (22%) | 23 (12%) | 0 | 149 |
+| OWASP AISVS 1.0 | 191 | 43 (23%) | 24 (13%) | 0 | 148 |
 | AISVS Appendix C | 68 | 3 (4%) | 2 (3%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 0 (0%) | 12 | 24 |
 
@@ -332,9 +332,9 @@ does not reach.
 | C9 Orchestration & Agentic Security | 34 | 8 | 5 | 0 | 26 |
 | C10 Model Context Protocol (MCP) Security | 23 | 10 | 7 | 0 | 13 |
 | C11 Adversarial Robustness | 17 | 2 | 1 | 0 | 15 |
-| C12 Monitoring, Logging & Anomaly Detection | 21 | 3 | 3 | 0 | 18 |
+| C12 Monitoring, Logging & Anomaly Detection | 21 | 4 | 4 | 0 | 17 |
 
-20 of these 45 can only ever be marked *needs attention*: a check can
+20 of these 46 can only ever be marked *needs attention*: a check can
 show the control missing, and finding nothing does not show it present, so a clean run credits
 none of them. Most are `sv`'s own checks: rules that read the code, and questions asked of the
 running app (`--run`, with an `ai` section). The rest are semgrep's and CodeQL's, and need `--tools`.
@@ -383,6 +383,7 @@ running app (`--run`, with an `ai` section). The rest are semgrep's and CodeQL's
 - C12.1.3: settled by `probe.ai-call-log-incomplete`.
 - AC.12.2: settled by `config.workflow-checkout-keeps-token`.
 - C12.2.1: settled by `probe.ai-injection-logged`.
+- C12.2.5: checked in part only, by `probe.ai-token-use-attributed`.
 - AC.12.3: found failing by sv's `config.workflow-secrets-with-fork-code`.
 
 ## Secure by Design checklist 0.5.0 by domain

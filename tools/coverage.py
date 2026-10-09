@@ -131,6 +131,7 @@ RUST_CHECKS = {
     "probe.ai-hidden-input": ("running", ["C2.1.2"]),
     "probe.ai-input-charset-unrestricted": ("running", ["C2.1.5"]),
     "probe.ai-call-log-session": ("running", ["C12.1.1"]),
+    "probe.ai-token-use-attributed": ("running", ["C12.2.5"]),
     "probe.ai-tool-reads-others-records": ("signed-in", ["C9.5.3"]),
     "probe.ai-retrieval-ignores-user": ("signed-in", ["C5.2.2", "C8.1.3"]),
     "probe.ai-reply-carries-others-data": ("signed-in", ["C5.2.4"]),
@@ -388,6 +389,7 @@ RUST_FINDINGS_ONLY = {
 # The other way round: checks in RUST_CHECKS that only ever credit their requirement. What they
 # would find missing may be met some way the check cannot see, so it is left not assessed.
 RUST_CREDITS_ONLY = {
+    "probe.ai-token-use-attributed",
     "probe.ai-service-failure-logged",
     "probe.password-change-ends-sessions",
     "probe.password-change-notified",
@@ -399,8 +401,9 @@ RUST_CREDITS_ONLY = {
 # C9.1.1 names five quotas, and a check from outside the app can time only one (ADR-064); C2.1.2's
 # smuggling is tried in one family of characters, not in encodings or look-alike letters (ADR-065).
 # V1.3.11's mail header injection is tried in one field of one kind of mail, the reset (ADR-069); V16.3.4's
-# logged error is one service's failure, found in the app's output (ADR-071).
-RUST_IN_PART = {"probe.ai-tool-timeout", "probe.ai-hidden-input", "probe.mail-header-injected", "probe.ai-service-failure-logged"}
+# logged error is one service's failure, found in the app's output (ADR-071); C12.2.5's token use is seen tied
+# per user and per session, not per feature or team (ADR-073).
+RUST_IN_PART = {"probe.ai-tool-timeout", "probe.ai-hidden-input", "probe.mail-header-injected", "probe.ai-service-failure-logged", "probe.ai-token-use-attributed"}
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are
 # parsed, a requirement named only to say it is not assessed, and the three ids `sv init` prints as

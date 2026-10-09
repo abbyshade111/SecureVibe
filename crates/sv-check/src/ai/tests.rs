@@ -4240,9 +4240,15 @@ fn token_use_tied_to_a_user_or_a_session_is_credited_in_part_and_nothing_else_is
     };
     let base = "{\"provider\":\"openai\",\"operation\":\"chat\",\"model\":\"gpt-test\",\"input_tokens\":4321,\"output_tokens\":1234";
     for (extra, said) in [
-        (",\"user\":\"sv-b-4f2a91@example.test\"}", "ties them per user;"),
+        (
+            ",\"user\":\"sv-b-4f2a91@example.test\"}",
+            "ties them per user;",
+        ),
         (",\"session_id\":\"s-77\"}", "ties them per session;"),
-        (",\"user_id\":7,\"conversation_id\":\"c-9\"}", "per user and per session"),
+        (
+            ",\"user_id\":7,\"conversation_id\":\"c-9\"}",
+            "per user and per session",
+        ),
     ] {
         let mut o = Outcome::default();
         logged(&signed_in, &format!("{base}{extra}"), &mut o);
@@ -4253,18 +4259,34 @@ fn token_use_tied_to_a_user_or_a_session_is_credited_in_part_and_nothing_else_is
             .unwrap_or_else(|| panic!("{extra}: {:?}", o.not_assessed));
         assert!(credit.in_part, "{credit:?}");
         assert!(credit.scope.contains(said), "{}", credit.scope);
-        assert!(credit.scope.contains("per feature endpoint"), "{}", credit.scope);
+        assert!(
+            credit.scope.contains("per feature endpoint"),
+            "{}",
+            credit.scope
+        );
     }
     // Said, never found nor credited.
     for (markers, log, words) in [
-        (&signed_in, format!("{base}}}"), "names no user and no session"),
+        (
+            &signed_in,
+            format!("{base}}}"),
+            "names no user and no session",
+        ),
         (
             &call_markers(),
             format!("{base},\"user\":\"sv-b-4f2a91@example.test\"}}"),
             "without signing in",
         ),
-        (&signed_in, "GET /api/chat 200".to_owned(), "no line of the app's output carried"),
-        (&signed_in, String::new(), "no line of the app's output carried"),
+        (
+            &signed_in,
+            "GET /api/chat 200".to_owned(),
+            "no line of the app's output carried",
+        ),
+        (
+            &signed_in,
+            String::new(),
+            "no line of the app's output carried",
+        ),
     ] {
         let mut o = Outcome::default();
         logged(markers, &log, &mut o);

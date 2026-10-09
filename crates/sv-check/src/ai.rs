@@ -3315,8 +3315,10 @@ const TOKENS_ATTRIBUTED: Rule = Rule {
 /// counts.
 fn token_attribution(markers: &LogMarkers, line: Option<&str>, out: &mut Outcome) {
     let say = |why: &str, out: &mut Outcome| {
-        out.not_assessed
-            .push(("C12.2.5".to_owned(), format!("Whether token use is tracked per user: {why}")));
+        out.not_assessed.push((
+            "C12.2.5".to_owned(),
+            format!("Whether token use is tracked per user: {why}"),
+        ));
     };
     let Some(line) = line else {
         say(
