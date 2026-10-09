@@ -1041,8 +1041,8 @@ fn every_codeql_query_the_map_counts_is_in_the_suite_its_adapter_runs() {
             checked += 1;
         }
     }
-    // The setup: both adapters were read, and their maps are not empty.
-    assert_eq!(adapters, 2);
+    // The setup: all three adapters were read (Ruby's since ADR-078), and their maps are not empty.
+    assert_eq!(adapters, 3);
     assert!(checked > 50, "{checked}");
 }
 
