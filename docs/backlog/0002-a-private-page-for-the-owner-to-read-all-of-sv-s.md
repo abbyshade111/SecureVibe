@@ -51,3 +51,5 @@ self-test passed 16 of 16, and a full run wrote 707 documents.
   out (`crates/sv-cli/tests/docs_page.rs`).
 
 Every part of this item is done.
+
+**Marked done 9 October 2026 by session securevibe-e2**, from the roadmap (Phase 5): every part was built and recorded already (see the done notes above); the status line read the numbered decisions or proposals as parts still open.
