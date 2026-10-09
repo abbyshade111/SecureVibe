@@ -3297,6 +3297,88 @@ const SESSION_FIELDS: &[&str] = &[
     "trace_id",
 ];
 
+/// C12.2.5 (ADR-073): only ever credited, and in part.
+const TOKENS_ATTRIBUTED: Rule = Rule {
+    rule_id: "probe.ai-token-use-attributed",
+    requirement_ids: &["C12.2.5"],
+    cwe: &["CWE-778"],
+    impact: "Token use nobody can tie to a user or a session cannot show who ran up a bill, or which \
+             account is being used to drain the app's credit.",
+    fix: "Write the user, the session, and the feature beside the token counts in the record of \
+          every model call, and add them up per user and per feature where the bill is watched.",
+};
+
+/// C12.2.5: whether the line recording the model call, which carries its token counts, also says
+/// whose call it was: the signed-in test user named, or a user field (per user), or a session field
+/// (per session). Credited in part, since per feature endpoint and per team are not seen; never a
+/// finding, since the counts may be attributed elsewhere. `line` is `None` when no line carried the
+/// counts.
+fn token_attribution(markers: &LogMarkers, line: Option<&str>, out: &mut Outcome) {
+    let say = |why: &str, out: &mut Outcome| {
+        out.not_assessed
+            .push(("C12.2.5".to_owned(), format!("Whether token use is tracked per user: {why}")));
+    };
+    let Some(line) = line else {
+        say(
+            "no line of the app's output carried the token counts of its model call, so how they \
+             are attributed cannot be seen here.",
+            out,
+        );
+        return;
+    };
+    let Some(who) = &markers.who else {
+        say(
+            "the AI feature was asked without signing in, so there was no user to look for beside \
+             the token counts.",
+            out,
+        );
+        return;
+    };
+    let lower = line.to_lowercase();
+    let local = who.split('@').next().unwrap_or(who).to_lowercase();
+    let named = lower.contains(&who.to_lowercase()) || (local.len() >= 6 && lower.contains(&local));
+    let has = |fields: &[&str]| {
+        fields
+            .iter()
+            .any(|f| lower.contains(&format!("\"{f}\"")) || lower.contains(&format!("{f}=")))
+    };
+    let mut per = Vec::new();
+    if named || has(&["user", "user_id", "userid"]) {
+        per.push("per user");
+    }
+    if has(&[
+        "session",
+        "session_id",
+        "sessionid",
+        "conversation_id",
+        "conversationid",
+    ]) {
+        per.push("per session");
+    }
+    if per.is_empty() {
+        say(
+            "the line carrying the token counts of the model call a signed-in test user's message \
+             made names no user and no session. That is not a finding: they may be attributed in \
+             another record.",
+            out,
+        );
+    } else {
+        out.verified.push(
+            crate::Verified::new(
+                TOKENS_ATTRIBUTED.rule_id,
+                TOKENS_ATTRIBUTED.requirement_ids,
+                format!(
+                    "the line recording one model call carries its token counts and ties them {}; \
+                     per feature endpoint and per team or workspace were not seen",
+                    per.join(" and ")
+                ),
+            )
+            .in_part(),
+        );
+    }
+    crate::verified::unless_credited(TOKENS_ATTRIBUTED.rule_id, &out.verified);
+}
+
 /// C12.1.1: whether the line recording the model call also says whose session it was in. Credited
 /// only when the AI feature was asked signed in and the line names that user, or carries a field
 /// for a user or session.
@@ -3424,6 +3506,9 @@ pub fn logged(markers: &LogMarkers, log: &str, out: &mut Outcome) {
                 .to_owned(),
             out,
         );
+        if markers.call.is_some() {
+            token_attribution(markers, None, out);
+        }
         return;
     }
 
@@ -3452,6 +3537,7 @@ pub fn logged(markers: &LogMarkers, log: &str, out: &mut Outcome) {
                     ),
                     out,
                 );
+                token_attribution(markers, None, out);
             }
             Some(line) => {
                 let lower = line.to_lowercase();
@@ -3468,6 +3554,7 @@ pub fn logged(markers: &LogMarkers, log: &str, out: &mut Outcome) {
                     missing.push("the kind of call");
                 }
                 session_context(markers, line, out);
+                token_attribution(markers, Some(line), out);
                 out.steps.push(format!(
                     "found the line recording the model call ({}){}",
                     format.unwrap_or("not structured"),
