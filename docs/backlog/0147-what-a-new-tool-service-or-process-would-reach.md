@@ -236,3 +236,5 @@ report shows beside V12.1.2, naming testssl.sh and SSL Labs' online test.
 
 Items 2, 3, and 6 are containers on the fenced network, so they keep `sv`'s rule that nothing
 reaches outside; only item 8 does, and only to the owner's own address.
+
+**The owner's decision, 9 October 2026**, asked by session securevibe-e2 with a recommendation for each open choice: **yes to part 7's leftover, reading a CodeQL SARIF file from the owner's own CI, as recommended:** a clean result is credited only when the file's commit is the commit of the code being checked; any other file is reported and credits nothing. Not claimed yet.

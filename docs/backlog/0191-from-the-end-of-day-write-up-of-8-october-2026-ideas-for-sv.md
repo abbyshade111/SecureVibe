@@ -59,3 +59,5 @@ there, is item 8 of "From the architecture assessment of 8 October 2026" and is 
    `report.html`: the command answers where the person reads the report.
 6. **A GitHub Action wrapping the image**, so `sv report --tools` runs on each pull request of an owner's app with
    the SARIF uploaded to code scanning. Adoption more than capability; the image and the SARIF writer exist.
+
+**The owner's decision, 9 October 2026**, asked by session securevibe-e2 with a recommendation for each open choice: **yes to part 3** (fuzzing the readers of untrusted input, weekly in CI), **yes to part 4** (signed releases: the image signed and the binary's provenance published, with GitHub's own keyless signing, which costs nothing), and **yes to part 6, as recommended, after part 4** (a GitHub Action wrapping the signed image). None claimed yet.
