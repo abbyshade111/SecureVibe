@@ -494,6 +494,10 @@ listed apart, below this item.
    says whose word it rests on. **`Status: proposed`: ADR-024, Later, 9 October 2026** (on whose word the level
    rests), with ADR-043's seals unchanged. Read on `main` and the open pull requests just before this claim: no other
    session had claimed it. With it, finding 17 is done.
+   **That part done the same day** (`docs/design/0335-the-owner-confirms-the-answers-that-set-the-level-9-october.md`;
+   ADR-024, Later, accepted): `sv review` asks last for the owner to confirm the audience and the data list and seals
+   `[scope-review]`; the level line says they were confirmed, and when, or that they changed since, or that a
+   confirmation does not count here. Finding 17 is done.
 18. **The AI tool's "when to bring in a person" text is shown as the owner's.** (`docs/GAP-ANALYSIS.md`, 4.2.) A
    `design-decisions.md` section the AI tool wrote saying no outside review is needed comes out as "Your
    design-decisions.md says …" in every report file (`main.rs`, near the escalation text). Name who wrote it, and

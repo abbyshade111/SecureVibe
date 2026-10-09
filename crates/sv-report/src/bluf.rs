@@ -219,11 +219,26 @@ pub fn held_to(report: &Report) -> String {
 /// and at level 1 the report says what level 2 would bring, so a level resting on an unconfirmed
 /// "only I use it" does not read as settled.
 fn level_why_sentence(level: u8, why: &crate::LevelWhy) -> String {
-    let mut said = format!(
-        "Level {level} because {}: answers in stackvet.toml, which your AI coding tool usually \
-         writes and nobody has confirmed, so check them.",
-        why.because
-    );
+    let whose = match &why.confirmed {
+        None => {
+            "answers in stackvet.toml, which your AI coding tool usually writes and nobody has \
+                 confirmed, so check them, and confirm them with `sv review`."
+                .to_owned()
+        }
+        Some(crate::ScopeConfirmed::Confirmed { by, on, sealed }) => format!(
+            "answers in stackvet.toml that {} confirmed through `sv review` on {on}{sealed}.",
+            sv_check::review::who_said(by)
+        ),
+        Some(crate::ScopeConfirmed::Changed { by, on }) => format!(
+            "answers in stackvet.toml that have changed since {} confirmed them on {on}, so they \
+             are unconfirmed again: check them, and confirm them with `sv review`.",
+            sv_check::review::who_said(by)
+        ),
+        Some(crate::ScopeConfirmed::NotCounted { why }) => format!(
+            "answers in stackvet.toml whose confirmation does not count here: {why}. Check them."
+        ),
+    };
+    let mut said = format!("Level {level} because {}: {whose}", why.because);
     if level == 1 && why.level_two_more > 0 {
         said.push_str(&format!(
             " At level 2, {} more requirement{} would apply.",

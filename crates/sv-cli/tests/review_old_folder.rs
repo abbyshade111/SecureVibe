@@ -47,7 +47,7 @@ fn review(dir: &Path) -> String {
     let run = Command::new("python3")
         .arg("-c")
         .arg(PTY)
-        .arg("none\n")
+        .arg("none\n\n")
         .arg(env!("CARGO_BIN_EXE_sv"))
         .arg("review")
         .arg(dir.join("app"))

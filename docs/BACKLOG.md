@@ -83,8 +83,8 @@ confirm what the AI coding tool said", "False alarms, part 2" and "part 3", the 
 for the running app", the paper's three items ("Eight places where the paper's earlier files disagree with the
 record", "Two more analyses for the paper", "Two analyses for the paper, and a stale count"), and "Evaluate Opengrep
 against semgrep", whose title says it was done on 29 September while its parts read as open: read it and either
-write its done notes or close it. "Research: could the Kaspa blockchain" is the owner's own question and waits for
-them.
+write its done notes or close it. "Research: could the Kaspa blockchain" was the owner's own question, answered by a
+session on 8 October 2026 and closed at the owner's word the next day.
 
 **After the roadmap, in this order, asked for by the owner on 9 October 2026:** "Test a build with Cursor, once the
 backlog is worked off" (0222), "Test the weekly decision-record review from end to end" (0223), and "Mock-ups of the

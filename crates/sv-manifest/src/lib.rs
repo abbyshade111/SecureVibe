@@ -28,6 +28,18 @@ pub enum Audience {
     Public,
 }
 
+impl Audience {
+    /// The audience as stackvet.toml writes it.
+    pub fn name(self) -> &'static str {
+        match self {
+            Audience::JustMe => "just-me",
+            Audience::MyTeam => "my-team",
+            Audience::Customers => "customers",
+            Audience::Public => "public",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum Deployment {
@@ -1202,6 +1214,48 @@ pub struct Manifest {
     /// See `sv-check::review`.
     #[serde(default, rename = "finding-review")]
     pub finding_review: Vec<FindingReview>,
+    /// The two answers that set the level, as a person confirmed them through `sv review`
+    /// (ADR-024, Later, 9 October 2026). `None` until somebody has.
+    #[serde(default)]
+    pub scope_review: Option<ScopeReview>,
+}
+
+/// The two answers that set the level, the audience and the data list, as a person confirmed them
+/// through `sv review`, as `[scope-review]` in stackvet.toml (ADR-024, Later, 9 October 2026).
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct ScopeReview {
+    /// The audience as it was when confirmed, as stackvet.toml writes it.
+    pub audience: String,
+    /// The data categories as they were when confirmed; left out when the list was unanswered.
+    #[serde(default)]
+    pub categories: Option<Vec<String>>,
+    /// Who confirmed them: `owner`, as `sv review` writes it.
+    pub by: String,
+    /// When, as YYYY-MM-DD.
+    pub on: String,
+    /// What `sv review` writes. Without one that holds, the answers are unconfirmed. See
+    /// `sv-check::seal`.
+    #[serde(default)]
+    pub seal: Option<String>,
+}
+
+impl ScopeReview {
+    /// Whether these are still the answers `manifest` gives: the same audience, and the same data
+    /// categories, compared as the level reads them (case and spaces aside, in any order), with an
+    /// unanswered list never the same as an empty one.
+    pub fn still_holds_for(&self, manifest: &Manifest) -> bool {
+        let names = |list: &Option<Vec<String>>| {
+            list.as_ref().map(|l| {
+                let mut names: Vec<String> = l.iter().map(|c| category_name(c)).collect();
+                names.sort();
+                names.dedup();
+                names
+            })
+        };
+        self.audience == manifest.app.audience.name()
+            && names(&self.categories) == names(&manifest.data.categories)
+    }
 }
 
 /// One finding set aside, as `[[finding-review]]` in stackvet.toml.

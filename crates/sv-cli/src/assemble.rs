@@ -2193,6 +2193,7 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
             .filter(|id| frameworks.get(id.as_str()).is_some_and(|r| r.level == 2))
             .count(),
         hints: level_hints(manifest, listing, &scan_report.set_apart),
+        confirmed: scope_confirmed(manifest, seals),
     };
     let mut report = sv_report::build(sv_report::Inputs {
         on_the_internet: manifest.app.deployment == sv_manifest::Deployment::Internet,
@@ -2306,5 +2307,35 @@ fn level_hints(
             listed: manifest.data.listed(),
         },
         set_apart,
+    )
+}
+
+/// Whether the answers that set the level were confirmed through `sv review`, and whether that
+/// still holds here (ADR-024, Later, 9 October 2026): the seal must hold on this computer, and
+/// the answers must be the ones confirmed. `None` when nobody has confirmed them.
+fn scope_confirmed(
+    manifest: &sv_manifest::Manifest,
+    seals: &sv_check::seal::Checker,
+) -> Option<sv_report::ScopeConfirmed> {
+    let entry = manifest.scope_review.as_ref()?;
+    let fields = sv_check::seal::scope_review_fields(entry);
+    Some(
+        match seals.recorded(entry.seal.as_deref(), &sv_check::seal::as_strs(&fields)) {
+            Err(why) => sv_report::ScopeConfirmed::NotCounted { why: why.why() },
+            Ok(_) if !entry.still_holds_for(manifest) => sv_report::ScopeConfirmed::Changed {
+                by: entry.by.clone(),
+                on: entry.on.clone(),
+            },
+            Ok(sealed) => sv_report::ScopeConfirmed::Confirmed {
+                by: entry.by.clone(),
+                on: entry.on.clone(),
+                sealed: match sealed {
+                    sv_check::seal::Sealed::Here => " on this computer".to_owned(),
+                    sv_check::seal::Sealed::Signed { key, from, lock } => {
+                        format!(", {}", sv_check::seal::signed_with(&key, from, lock))
+                    }
+                },
+            },
+        },
     )
 }

@@ -10,6 +10,15 @@ there, is item 8 of "From the architecture assessment of 8 October 2026" and is 
    the baseline, so a team can adopt `sv` on an app with a hundred existing findings without setting them all
    aside. The history the dashboard work keeps has the data. A day, and a decision record: an exit code is a default
    that changes a conclusion (ADR-029 governs the exit codes).
+   **Claimed 9 October 2026 by session securevibe-e2**, from the roadmap (Phase 4, item 6, the first unclaimed part
+   in its order), in branch `claude/securevibe-e2-baseline`: `sv report` and `sv check` take `--baseline <older
+   report folder>`, read that folder's `report.json`, and with `--fail-on attention[:SEVERITY]` exit 1 only for a
+   finding at or above the bar that the baseline does not hold, matched by its fingerprint or an earlier one. Every
+   finding is still listed and counted as it is today, each one the baseline holds marked so in every report file;
+   nothing is set aside, and exit 2 (a check that could not run) and 3 (`sv` failed) are unchanged. A baseline folder
+   with no readable `report.json`, or one made for another app, stops the run with exit 3 and says which, rather than
+   quietly comparing against nothing. **`Status: proposed`: ADR-029, Later, 9 October 2026** (what exit 1 means with
+   a baseline). Read on `main` and the open pull requests just before this claim: no other session had claimed it.
 2. **A corpus of known verdicts as a regression test.** The example apps and the trial apps already scored, with
    their expected counts per requirement checked in, run nightly and compared with the night before: the honesty
    rule turned into a measurement, so a change that credits more or finds less has to say why. Builds on the
