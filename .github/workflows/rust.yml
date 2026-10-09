@@ -53,20 +53,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Fetch Docker Hub's images through Google's mirror
-        # Docker Hub refuses downloads past its limits, signed in or not (ADR-051, Later, 9 October
-        # 2026). Docker's own setting sends a Docker Hub image to mirror.gcr.io, Google's copy of
-        # Docker Hub, and falls back to Docker Hub when the mirror cannot answer. Every image here is
-        # asked for by fingerprint or checked against one, so the mirror can only hand over the same
-        # bytes. The Dockerfile keeps Docker Hub's names, so Dependabot and a build by hand are as
-        # they were.
-        run: |
-          (sudo cat /etc/docker/daemon.json 2>/dev/null || echo '{}') \
-            | jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' > "$RUNNER_TEMP/daemon.json"
-          sudo cp "$RUNNER_TEMP/daemon.json" /etc/docker/daemon.json
-          sudo systemctl restart docker
-          docker info --format 'Registry mirrors: {{.RegistryConfig.Mirrors}}'
-
       # No cache step. Caching would mean pinning another third-party action, and this workspace builds from
       # scratch in well under a minute — a smaller supply-chain surface is worth more here than the seconds.
       - name: Use the toolchain this workspace needs
@@ -79,6 +65,30 @@ jobs:
 
       - name: Lints
         run: cargo clippy --all-targets -- -D warnings
+
+      - name: Sign in to Docker Hub
+        # The tests start containers from Docker Hub's images (the app's own, busybox, node, python). Signed out, every pull counts against Docker Hub's limit for the runner's shared
+        # address, and on 9 October 2026 that limit ("429 Too Many Requests") turned main red for hours.
+        # The owner's token (secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN, given 9 October
+        # 2026), handed to this step alone; where the secrets are not given (a fork's pull request),
+        # it says so and the pulls go unsigned, as before.
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "::warning::No Docker Hub sign-in here; pulls are held to the anonymous limit."
+          else
+            # Three tries, then on without it: Docker Hub itself can fail a sign-in (a 500 on 9 October
+            # 2026), and that is no reason to stop the run; the warning says the pulls went unsigned.
+            for wait in 5 15 0; do
+              if printf '%s' "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin; then
+                exit 0
+              fi
+              sleep "$wait"
+            done
+            echo "::warning::Docker Hub refused the sign-in three times; pulls are held to the anonymous limit."
+          fi
 
       - name: Tests
         # The fence tests need a container backend. GitHub's runners have Docker, so they run for real here;
@@ -98,6 +108,10 @@ jobs:
         # listed. By 6 October 2026, 23 checks had been counted as crediting when none ever did.
         run: python3 tools/coverage.py --credits "$RUNNER_TEMP/credits.log"
 
+      - name: Sign out of Docker Hub
+        if: always()
+        run: docker logout
+
   image:
     # The container for somebody who is not going to install Rust (the Dockerfile). Built from
     # scratch here, where Docker Hub is reachable, and driven over MCP the way an AI coding tool
@@ -112,42 +126,28 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Fetch Docker Hub's images through Google's mirror
-        # As in the test job above (ADR-051, Later, 9 October 2026).
-        run: |
-          (sudo cat /etc/docker/daemon.json 2>/dev/null || echo '{}') \
-            | jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' > "$RUNNER_TEMP/daemon.json"
-          sudo cp "$RUNNER_TEMP/daemon.json" /etc/docker/daemon.json
-          sudo systemctl restart docker
-          docker info --format 'Registry mirrors: {{.RegistryConfig.Mirrors}}'
-
-      - name: Fetch the Dockerfile's base images before the build
-        # Through the mirror, by their pinned fingerprints, so the build finds them here and does not
-        # ask Docker Hub at all. Before the sign-in below: signed in, the first runs could not fetch
-        # them in a second, and a fetch that fails here leaves the build to try for itself, signed in.
-        run: |
-          for image in $(awk '/^FROM/ {print $2}' Dockerfile); do
-            docker pull "$image" || echo "::warning::Could not fetch $image ahead of the build; the build will try."
-          done
-
-      - name: Sign in to Docker Hub, when this run has the repository's token
-        # The base images come from Docker Hub, which limits anonymous downloads: from 20:48 UTC on
-        # 9 October 2026 every image build failed in seconds, refused with "too many requests"
-        # (ADR-051, Later, 9 October 2026). A read-only token for public images, saved by the owner
-        # as DOCKERHUB_USERNAME and DOCKERHUB_TOKEN, raises the limit. A run that is not given them
-        # (a fork's pull request) downloads anonymously, as before. The token goes in on standard
-        # input, so it is never on a command line.
+      - name: Sign in to Docker Hub
+        # The image is built from Docker Hub's `rust` and `debian` images. Signed out, every pull counts against Docker Hub's limit for the runner's shared
+        # address, and on 9 October 2026 that limit ("429 Too Many Requests") turned main red for hours.
+        # The owner's token (secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN, given 9 October
+        # 2026), handed to this step alone; where the secrets are not given (a fork's pull request),
+        # it says so and the pulls go unsigned, as before.
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
-            # Docker Hub can refuse a sign-in too (one did, on #1289); the build then goes on
-            # anonymously, as it would without the token, rather than failing here.
-            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin \
-              || echo "::warning::Docker Hub refused the sign-in: the base images are downloaded anonymously."
+          if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "::warning::No Docker Hub sign-in here; pulls are held to the anonymous limit."
           else
-            echo "No Docker Hub token in this run: the base images are downloaded anonymously."
+            # Three tries, then on without it: Docker Hub itself can fail a sign-in (a 500 on 9 October
+            # 2026), and that is no reason to stop the run; the warning says the pulls went unsigned.
+            for wait in 5 15 0; do
+              if printf '%s' "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin; then
+                exit 0
+              fi
+              sleep "$wait"
+            done
+            echo "::warning::Docker Hub refused the sign-in three times; pulls are held to the anonymous limit."
           fi
 
       - name: Build the image
@@ -233,37 +233,28 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Fetch Docker Hub's images through Google's mirror
-        # As in the test job above (ADR-051, Later, 9 October 2026).
-        run: |
-          (sudo cat /etc/docker/daemon.json 2>/dev/null || echo '{}') \
-            | jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' > "$RUNNER_TEMP/daemon.json"
-          sudo cp "$RUNNER_TEMP/daemon.json" /etc/docker/daemon.json
-          sudo systemctl restart docker
-          docker info --format 'Registry mirrors: {{.RegistryConfig.Mirrors}}'
-
-      - name: Fetch the Dockerfile's base images before the build
-        # Through the mirror, by their pinned fingerprints, so the build finds them here and does not
-        # ask Docker Hub at all. Before the sign-in below: signed in, the first runs could not fetch
-        # them in a second, and a fetch that fails here leaves the build to try for itself, signed in.
-        run: |
-          for image in $(awk '/^FROM/ {print $2}' Dockerfile); do
-            docker pull "$image" || echo "::warning::Could not fetch $image ahead of the build; the build will try."
-          done
-
-      - name: Sign in to Docker Hub, when this run has the repository's token
-        # As in the image job above (ADR-051, Later, 9 October 2026).
+      - name: Sign in to Docker Hub
+        # The image is built from Docker Hub's `rust` and `debian` images. Signed out, every pull counts against Docker Hub's limit for the runner's shared
+        # address, and on 9 October 2026 that limit ("429 Too Many Requests") turned main red for hours.
+        # The owner's token (secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN, given 9 October
+        # 2026), handed to this step alone; where the secrets are not given (a fork's pull request),
+        # it says so and the pulls go unsigned, as before.
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
-            # Docker Hub can refuse a sign-in too (one did, on #1289); the build then goes on
-            # anonymously, as it would without the token, rather than failing here.
-            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin \
-              || echo "::warning::Docker Hub refused the sign-in: the base images are downloaded anonymously."
+          if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "::warning::No Docker Hub sign-in here; pulls are held to the anonymous limit."
           else
-            echo "No Docker Hub token in this run: the base images are downloaded anonymously."
+            # Three tries, then on without it: Docker Hub itself can fail a sign-in (a 500 on 9 October
+            # 2026), and that is no reason to stop the run; the warning says the pulls went unsigned.
+            for wait in 5 15 0; do
+              if printf '%s' "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin; then
+                exit 0
+              fi
+              sleep "$wait"
+            done
+            echo "::warning::Docker Hub refused the sign-in three times; pulls are held to the anonymous limit."
           fi
 
       - name: Build the image
@@ -303,8 +294,10 @@ jobs:
           push-to-registry: true
           create-storage-record: false
 
-      - name: Log out of the registries
+      - name: Log out of the registry
         if: always()
-        run: |
-          docker logout ghcr.io
-          docker logout
+        run: docker logout ghcr.io
+
+      - name: Sign out of Docker Hub
+        if: always()
+        run: docker logout

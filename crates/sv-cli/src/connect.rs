@@ -24,6 +24,7 @@
 use anyhow::{Context, Result, bail};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
+use sv_frameworks::paths::Canonical;
 
 /// The AI coding tools `sv connect` knows the settings file of.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -134,7 +135,7 @@ pub fn command(args: &[String]) -> Result<String> {
     let tool = tool.with_context(|| format!("name the AI coding tool: {}", Tool::NAMES))?;
     let folder = folder.unwrap_or_else(|| PathBuf::from("."));
     let folder = folder
-        .canonicalize()
+        .canonical()
         .with_context(|| format!("{} is not a folder `sv` can open", folder.display()))?;
     if !folder.is_dir() {
         bail!("{} is not a folder", folder.display());
@@ -168,7 +169,7 @@ pub fn command(args: &[String]) -> Result<String> {
                 );
             }
             let program = std::env::current_exe()
-                .and_then(|p| p.canonicalize())
+                .and_then(|p| p.canonical())
                 .context("could not find where this copy of `sv` is")?;
             Runner::Installed(program)
         }

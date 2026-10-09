@@ -230,7 +230,7 @@ pub fn command(args: &[String]) -> Result<()> {
             }
         }
         ["forget", app] => {
-            let app = std::fs::canonicalize(app).unwrap_or_else(|_| PathBuf::from(app));
+            let app = sv_frameworks::paths::canonical(app).unwrap_or_else(|_| PathBuf::from(app));
             match history.map(|h| app_folder(&h, &app)).filter(|f| f.exists()) {
                 Some(f) => {
                     std::fs::remove_dir_all(&f)

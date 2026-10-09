@@ -11,11 +11,12 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use sv_frameworks::paths::Canonical;
 
 fn repo() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
-        .canonicalize()
+        .canonical()
         .unwrap()
 }
 

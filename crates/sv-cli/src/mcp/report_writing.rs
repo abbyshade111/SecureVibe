@@ -2,6 +2,7 @@
 //! sequence `sv report` keeps (`report_folder`).
 
 use super::*;
+use sv_frameworks::paths::Canonical;
 
 impl Server {
     pub(super) fn write_report(&self, args: &Value, progress: &Progress) -> Result<Value> {
@@ -55,7 +56,7 @@ impl Server {
         progress: &Progress,
     ) -> Result<Value> {
         let resolved = out_dir
-            .canonicalize()
+            .canonical()
             .with_context(|| format!("{} cannot be opened", out_dir.display()))?;
         anyhow::ensure!(
             resolved.starts_with(app_dir),

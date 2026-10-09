@@ -3,6 +3,7 @@
 
 use super::*;
 use std::os::unix::fs::PermissionsExt;
+use sv_frameworks::paths::Canonical;
 
 fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("sv-program-{name}-{}", std::process::id()));
@@ -29,8 +30,8 @@ fn a_program_is_found_through_path_outside_the_app_and_refused_inside_it() {
     let app = dir.join("app");
     let outside = program(&dir, "bin/tool");
     let inside = program(&dir, "app/.venv/bin/tool");
-    let real_outside = outside.canonicalize().unwrap();
-    let real_inside = inside.canonicalize().unwrap();
+    let real_outside = outside.canonical().unwrap();
+    let real_inside = inside.canonical().unwrap();
     // Outside first: found there.
     assert_eq!(
         located(
@@ -107,7 +108,7 @@ fn a_relative_path_entry_is_never_used_and_is_named_when_it_is_the_only_way() {
     both.push(dir.join("bin"));
     assert_eq!(
         located("tool", &app, Some(&both)),
-        Located::At(outside.canonicalize().unwrap())
+        Located::At(outside.canonical().unwrap())
     );
     // A relative entry naming nothing is simply nowhere.
     std::fs::remove_file(app.join("tool")).unwrap();

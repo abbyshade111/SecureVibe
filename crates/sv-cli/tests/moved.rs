@@ -3,6 +3,7 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use sv_frameworks::paths::Canonical;
 
 /// A scratch folder of this test's own.
 fn scratch(name: &str) -> PathBuf {
@@ -28,7 +29,7 @@ fn copy_tree(from: &Path, to: &Path) {
 fn repository_data() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../data")
-        .canonicalize()
+        .canonical()
         .unwrap()
 }
 
@@ -73,9 +74,7 @@ fn a_copy_of_sv_reads_the_data_beside_it_and_checks_an_app_with_it() {
 
     assert_eq!(
         Path::new(&said),
-        home.join("data")
-            .canonicalize()
-            .unwrap_or(home.join("data")),
+        home.join("data").canonical().unwrap_or(home.join("data")),
         "the copy read some other data"
     );
     assert!(
@@ -287,9 +286,7 @@ fn the_install_script_puts_sv_and_its_data_in_a_folder_of_their_own() {
     assert!(first.status.success(), "{first:?}");
     assert_eq!(
         Path::new(&said),
-        home.join("data")
-            .canonicalize()
-            .unwrap_or(home.join("data"))
+        home.join("data").canonical().unwrap_or(home.join("data"))
     );
     assert!(again.status.success(), "{again:?}");
     assert!(!left_over, "an older install's data was kept");

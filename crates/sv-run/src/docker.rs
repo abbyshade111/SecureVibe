@@ -296,6 +296,33 @@ impl DockerBackend {
     }
 }
 
+/// What `docker info --format {{.OSType}}` answered, read: a daemon that runs Linux containers is a
+/// backend, and one that runs Windows containers is not. Every container `sv` starts is a Linux one
+/// (the app's image, the probe sidecar, the install step), and Docker on Windows set to Windows
+/// containers refuses each in a way that reads like a fault of the app's (`could not find plugin
+/// bridge`, `read-only mode is not supported`). Said here instead, with what to change (backlog 0120).
+pub(crate) fn linux_containers(code: i32, answer: &str) -> Result<(), CannotRun> {
+    if code != 0 {
+        return Err(CannotRun::NoBackend {
+            checked: format!("`docker info` failed: {}", first_line(answer)),
+        });
+    }
+    match answer.trim() {
+        "linux" => Ok(()),
+        "windows" => Err(CannotRun::NoBackend {
+            checked: "Docker here runs Windows containers, and every container `sv` starts is a \
+                      Linux one; in Docker Desktop, choose \"Switch to Linux containers\""
+                .to_owned(),
+        }),
+        other => Err(CannotRun::NoBackend {
+            checked: format!(
+                "`docker info` did not say it runs Linux containers (it said `{}`)",
+                first_line(other)
+            ),
+        }),
+    }
+}
+
 impl Backend for DockerBackend {
     fn name(&self) -> String {
         "Docker".to_owned()
@@ -304,11 +331,8 @@ impl Backend for DockerBackend {
     fn available(&self) -> Result<(), CannotRun> {
         // `docker info` and not `docker --version`: the version prints happily with no daemon
         // behind it, and a backend that cannot run anything is not a backend.
-        match self.docker(&["info", "--format", "{{.ServerVersion}}"]) {
-            Ok((0, _)) => Ok(()),
-            Ok((_, detail)) => Err(CannotRun::NoBackend {
-                checked: format!("`docker info` failed: {}", first_line(&detail)),
-            }),
+        match self.docker(&["info", "--format", "{{.OSType}}"]) {
+            Ok((code, answer)) => linux_containers(code, &answer),
             Err(e) => Err(CannotRun::NoBackend {
                 checked: format!("`docker` could not be started: {e}"),
             }),
@@ -4720,3 +4744,6 @@ mod at_once_tests {
         assert!(!is_docker_time("2026-10-06") && is_docker_time("2026-10-06T05:00:00.1Z"));
     }
 }
+
+#[cfg(test)]
+mod backend_tests;
