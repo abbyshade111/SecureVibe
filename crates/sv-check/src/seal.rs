@@ -170,6 +170,13 @@ impl Key {
     }
 
     /// The key in `file` in `folder`, made as `load_or_make_in` makes the review key.
+    ///
+    /// Two runs can make it at once: the MCP server and a terminal command on a computer with no key
+    /// yet. Each writes its key whole to a file of its own, then links it into place with a call that
+    /// fails when the name is taken, so the name only ever holds a whole key, and the run that lost
+    /// uses the key that won rather than failing. Before 9 October 2026 the file was made under its
+    /// own name and written after: the loser's seal failed, its report was left unsealed and not
+    /// offered as `sv`'s, and a reader in between could find the file empty.
     pub fn load_or_make_named(folder: &Path, file: &str) -> Result<(Key, bool), String> {
         if let Some(key) = Key::load_named(folder, file)? {
             return Ok((key, false));
@@ -185,6 +192,11 @@ impl Key {
         make.create(folder)
             .map_err(|e| format!("{} could not be made ({e})", folder.display()))?;
         let path = folder.join(file);
+        let draft = folder.join(format!(
+            ".{file}.{}.{}",
+            std::process::id(),
+            hex(&Key::random()?.bytes[..8])
+        ));
         let mut open = std::fs::OpenOptions::new();
         open.write(true).create_new(true);
         #[cfg(unix)]
@@ -192,16 +204,33 @@ impl Key {
             use std::os::unix::fs::OpenOptionsExt;
             open.mode(0o600);
         }
-        {
+        let written = (|| {
             use std::io::Write;
-            let mut file = open
-                .open(&path)
-                .map_err(|e| format!("{} could not be made ({e})", path.display()))?;
-            file.write_all(format!("{}\n", hex(&key.bytes)).as_bytes())
-                .and_then(|()| file.sync_all())
-                .map_err(|e| format!("{} could not be written ({e})", path.display()))?;
+            let mut out = open
+                .open(&draft)
+                .map_err(|e| format!("{} could not be made ({e})", draft.display()))?;
+            out.write_all(format!("{}\n", hex(&key.bytes)).as_bytes())
+                .and_then(|()| out.sync_all())
+                .map_err(|e| format!("{} could not be written ({e})", draft.display()))
+        })();
+        let linked = written.and_then(|()| {
+            std::fs::hard_link(&draft, &path).map_err(|e| {
+                if e.kind() == std::io::ErrorKind::AlreadyExists {
+                    String::new()
+                } else {
+                    format!("{} could not be made ({e})", path.display())
+                }
+            })
+        });
+        let _ = std::fs::remove_file(&draft);
+        match linked {
+            Ok(()) => Ok((key, true)),
+            // Another run made it first, whole: use theirs.
+            Err(why) if why.is_empty() => Key::load_named(folder, file)?
+                .map(|key| (key, false))
+                .ok_or_else(|| format!("{} vanished as it was made", path.display())),
+            Err(why) => Err(why),
         }
-        Ok((key, true))
     }
 
     /// Sixteen hex characters naming the key, safe to print and to write beside a seal.

@@ -438,3 +438,12 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     accepted). `probe.ai-service-failure-logged` credits V16.3.4 in part when the test model's deliberate failure,
     by its own marker, is in the app's output, and says so when it is not; it never finds. Not done: other
     unexpected errors, and security control failures such as a backend TLS failure.
+19. **V16.4.2: the app's log files served to anybody who asks, from the running app. Not verified.** From
+    `docs/PARTIAL-CHECKS.md`, the running half: the addresses frameworks commonly leave logs at, asked for by
+    somebody not signed in, and judged by what comes back.
+    **Claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please continue to work through and
+    pick up new items as you merge"), in branch `claude/served-logs`: `probe.log-file-served`, only ever a finding,
+    when an answer of 200 carries lines that read as a log (a timestamp and a level, line after line), since a few
+    guessed addresses cannot show that no log is served. The static half (a log handler writing into a served
+    folder) is not part of this. **Record, `Status: proposed`: ADR-072.** Checked just before this claim: not on
+    `main`, in no open pull request, and in no recent branch.
