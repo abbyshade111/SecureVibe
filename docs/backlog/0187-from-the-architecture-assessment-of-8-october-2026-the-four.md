@@ -279,3 +279,9 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    (`docs/design/0322-the-plan-the-brief-and-the-preflight-in-the-library-the.md`): the plan, the brief, the
    preflight, and the answer in parts are the library's, with the prompt functions they reach; `cmd_plan`,
    `cmd_brief`, and `cmd_preflight` stay in `main.rs` and print. Step 3 remains.
+   **Its third step done the same day, and with it the library move**
+   (`docs/design/0323-the-mcp-server-in-the-library-the-library-move-s-last-step-9.md`): the MCP server and what it
+   still took from the binary (the report folder and its seal, the notes, the prompts and rules for an app) are the
+   library's, so the compiler holds the server to nothing of the command line; `main.rs` is 3,180 lines, from 5,039,
+   the arguments, the commands, and the printing. Of item 12, only its third part (`Verified::new` logging the kind of
+   run) is open, and it waits on a decision.

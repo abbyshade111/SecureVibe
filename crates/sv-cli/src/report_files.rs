@@ -10,7 +10,7 @@
 //! held together by a test.
 
 /// One file of a report.
-pub(crate) struct ReportFile {
+pub struct ReportFile {
     /// Its name in the report folder.
     pub name: &'static str,
     /// What kind of file it is, as the MCP server tells a client.
@@ -20,7 +20,7 @@ pub(crate) struct ReportFile {
 }
 
 /// The five files, in the order they are written and sealed.
-pub(crate) const REPORT_FILES: [ReportFile; 5] = [
+pub const REPORT_FILES: [ReportFile; 5] = [
     ReportFile {
         name: "report.html",
         mime: "text/html",
@@ -49,7 +49,7 @@ pub(crate) const REPORT_FILES: [ReportFile; 5] = [
 ];
 
 /// The names alone, in the same order.
-pub(crate) const NAMES: [&str; REPORT_FILES.len()] = {
+pub const NAMES: [&str; REPORT_FILES.len()] = {
     let mut names = [""; REPORT_FILES.len()];
     let mut i = 0;
     while i < REPORT_FILES.len() {

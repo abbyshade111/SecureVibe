@@ -15,7 +15,7 @@ use anyhow::Result;
 use std::path::Path;
 
 /// What writing a report folder came to.
-pub(crate) struct ReportFolder {
+pub struct ReportFolder {
     /// The report as written, a changed manifest noted in its gaps.
     pub report: sv_report::Report,
     /// The files written, with their text.
@@ -42,7 +42,7 @@ pub(crate) struct ReportFolder {
 /// reply. A step that fails leaves the folder as the claim found it: the marker goes if the claim
 /// wrote it, and the folder if the claim or the caller (`made_by_caller`) made it and it holds
 /// nothing else.
-pub(crate) fn write_report_folder(
+pub fn write_report_folder(
     app_dir: &Path,
     out_dir: &Path,
     command: &str,
