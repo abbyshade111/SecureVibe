@@ -87,11 +87,13 @@ fn gap_naming<'a>(gaps: &'a [(String, String)], package: &str) -> Option<&'a (St
         .find(|(what, why)| what.contains(RULE) && why.contains(&format!("uses {package} (")))
 }
 
-// knex, the package of the fault, is read now (`ast/orm_raw_tests.rs`); TypeORM's query builder is not,
-// so it stands in as the package the rule cannot see into.
-const TYPEORM_JS: &str = "const { AppDataSource } = require('./data');\n\
-    module.exports = (req, res) => AppDataSource.getRepository('User').createQueryBuilder('u')\
-    .where(\"u.name = '\" + req.query.name + \"'\").getMany().then(r => res.json(r));\n";
+// knex, the package of the fault, and TypeORM are read now (`ast/orm_raw_tests.rs`,
+// `ast/orm_npm_tests.rs`); Supabase's client and its filter text are not, so it stands in as the
+// package the rule cannot see into.
+const SUPABASE_JS: &str = "const { createClient } = require('@supabase/supabase-js');\n\
+    const supabase = createClient(process.env.URL, process.env.KEY);\n\
+    module.exports = (req, res) => supabase.from('users').select('*')\
+    .or(`name.eq.${req.query.name}`).then(r => res.json(r.data));\n";
 
 #[test]
 fn a_package_declared_with_no_lockfile_holds_the_credit_back() {
@@ -101,31 +103,32 @@ fn a_package_declared_with_no_lockfile_holds_the_credit_back() {
         &[
             (
                 "package.json",
-                "{ \"name\": \"users\", \"dependencies\": { \"typeorm\": \"0.3.20\" } }\n",
+                "{ \"name\": \"users\", \"dependencies\": { \"@supabase/supabase-js\": \"2.45.0\" } }\n",
             ),
-            ("users.js", TYPEORM_JS),
+            ("users.js", SUPABASE_JS),
         ],
     );
     let (checked_by, gaps) = v124_and_gaps(&dir);
     std::fs::remove_dir_all(&dir).ok();
     assert!(
         !credited(&checked_by),
-        "V1.2.4 was checked by the rule for an app whose queries go through TypeORM: {checked_by:?}"
+        "V1.2.4 was checked by the rule for an app whose queries go through Supabase's client: {checked_by:?}"
     );
-    let gap = gap_naming(&gaps, "typeorm").expect("a gap says TypeORM held the rule back");
+    let gap = gap_naming(&gaps, "@supabase/supabase-js")
+        .expect("a gap says Supabase's client held the rule back");
     assert!(
-        gap.1.contains("`where`"),
+        gap.1.contains("`.or(...)`"),
         "the gap names the calls the rule does not read: {gap:?}"
     );
 }
 
 #[test]
 fn a_package_only_in_the_lockfile_holds_the_credit_back() {
-    // TypeORM arrives through another package: package.json does not declare it, the lockfile lists it.
+    // Supabase's client arrives through another package: package.json does not declare it, the lockfile lists it.
     let lock = "{ \"name\": \"users\", \"lockfileVersion\": 3, \"packages\": { \
         \"\": { \"name\": \"users\", \"dependencies\": { \"users-db\": \"1.0.0\" } }, \
         \"node_modules/users-db\": { \"version\": \"1.0.0\" }, \
-        \"node_modules/typeorm\": { \"version\": \"0.3.20\" } } }\n";
+        \"node_modules/@supabase/supabase-js\": { \"version\": \"2.45.0\" } } }\n";
     let dir = app(
         "lockfile",
         "javascript",
@@ -135,18 +138,18 @@ fn a_package_only_in_the_lockfile_holds_the_credit_back() {
                 "{ \"name\": \"users\", \"dependencies\": { \"users-db\": \"1.0.0\" } }\n",
             ),
             ("package-lock.json", lock),
-            ("users.js", TYPEORM_JS),
+            ("users.js", SUPABASE_JS),
         ],
     );
     let (checked_by, gaps) = v124_and_gaps(&dir);
     std::fs::remove_dir_all(&dir).ok();
     assert!(
         !credited(&checked_by),
-        "V1.2.4 was checked with TypeORM in the lockfile: {checked_by:?}"
+        "V1.2.4 was checked with Supabase's client in the lockfile: {checked_by:?}"
     );
     assert!(
-        gap_naming(&gaps, "typeorm").is_some(),
-        "no gap names typeorm: {gaps:?}"
+        gap_naming(&gaps, "@supabase/supabase-js").is_some(),
+        "no gap names supabase-js: {gaps:?}"
     );
 }
 

@@ -2186,3 +2186,6 @@ mod html_tests;
 
 #[cfg(test)]
 mod orm_raw_tests;
+
+#[cfg(test)]
+mod orm_npm_tests;

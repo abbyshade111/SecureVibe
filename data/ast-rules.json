@@ -159,8 +159,8 @@
       },
       "functionPatterns": {
         "python": "^(execute|executemany|executescript|raw|read_sql|read_sql_query)$",
-        "javascript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw)$",
-        "typescript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw)$",
+        "javascript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$",
+        "typescript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$",
         "go": "^(Query|QueryRow|Exec|Prepare|QueryContext|QueryRowContext|ExecContext|PrepareContext|Raw|Where|Or|Not|Order|Group|Having|Joins|Select|Find|First|Last|Take|FirstOrInit|FirstOrCreate)$",
         "ruby": "^(execute|exec_query|find_by_sql|select_all|select_rows|select_values|where|rewhere|order|reorder|having|group|joins|from|pluck|count_by_sql)$",
         "php": "^(query|exec|multi_query|real_query|prepare|mysqli_query|mysqli_real_query|mysqli_multi_query|pg_query|pg_send_query)$",
@@ -175,7 +175,9 @@
         "cpp": "^(?:std::(?:filesystem::)?|::)?(sqlite3_exec|mysql_query|mysql_real_query|PQexec)$"
       },
       "safeArgumentPatterns": {
-        "swift": "^literal\\s*:"
+        "swift": "^literal\\s*:",
+        "javascript": "^(?:sql|Prisma\\.sql)(?:`|\\.raw\\()",
+        "typescript": "^(?:sql|Prisma\\.sql)(?:`|\\.raw\\()"
       },
       "modulePatterns": {
         "shell": "^(-c|-e|--command|--execute|--query)$|\\.(db|sqlite3?)$"
@@ -201,10 +203,12 @@
       },
       "argumentsForCommonNames": {
         "javascript": {
-          "^(exec|prepare|all|get|run|each)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$"
+          "^(exec|prepare|all|get|run|each)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$",
+          "(?:^|\\.)(?:where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{"
         },
         "typescript": {
-          "^(exec|prepare|all|get|run|each)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$"
+          "^(exec|prepare|all|get|run|each)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$",
+          "(?:^|\\.)(?:where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{"
         },
         "java": {
           "^(query|queryFor\\w+|update|batchUpdate)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$"
@@ -222,9 +226,6 @@
       "boundParametersLowerConfidence": true,
       "unreadPackages": {
         "npm": {
-          "typeorm": "its query builder's `where`, `andWhere`, `orWhere`, and `orderBy`",
-          "sequelize": "`Sequelize.literal` and `where` built from text",
-          "drizzle-orm": "`sql.raw`",
           "mongoose": "a `$where` written into a query",
           "mongodb": "a `$where` written into a query",
           "@supabase/supabase-js": "filter text such as `.or(...)` and `.filter(...)`"
