@@ -248,3 +248,10 @@ backlog", in branch `claude/stackvet-e9-suite-steps`: the steps of the MCP-serve
 report and to `sv run`'s printout as the other suites' are, with a test that fails without it. Open pull requests
 (#1305, #1308, both this session's) and the branches of the last few hours read first: none touches
 `crates/sv-cli/src/assemble.rs`, `crates/sv-check/src/mcp_server.rs`, or `crates/sv-check/src/fetch.rs`.
+
+**Part 1, items 5 and 6 claimed on 9 October 2026 by session stackvet-e9**, under the owner's "continue to work off
+the backlog", in branch `claude/stackvet-e9-crash-and-gap`: a panic hook that says `sv` itself failed, where, and
+that nothing was assessed, and exits 3 (item 5); and a data file `sv` cannot read, `level-hints.json` first, made a
+gap in the report rather than a line on stderr, with the others of the same shape found while there (item 6); each
+with a test that fails without it. Open pull requests read first: #1311 changes `main.rs` far from `main()`, and
+#1310 (items 9 and 10, session paper-facts) touches only this file.
