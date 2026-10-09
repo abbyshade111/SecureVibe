@@ -299,6 +299,18 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
     here says truly what it unpacks to, so an app that trusts the stated sizes is credited).
     **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
     `claude/upload-names`.
+    **"An archive whose stated sizes are false" claimed 9 October 2026 by session securevibe-e2**, from the roadmap
+    (Phase 1, item 3, the first open part in its order with a build in it), in branch `claude/securevibe-e2-lying-zip`:
+    for an app that lists `"zip"` in `unpacks-archives`, one more zip after the others, whose headers say it unpacks to
+    an ordinary small size while its data unpacks to a mebibyte past `max-unpacked-bytes`, within the same 1 GiB and
+    `max-bytes` caps. It is judged as the others are: a refusal (4xx) is credited only with the ordinary file after it
+    accepted, an ordinary acceptance (2xx) is a finding that the app took a zip it had not checked, and a crash, a 5xx,
+    or no answer is held back as not assessed. Some readers (Python's `zipfile` among them) stop at the stated size
+    and then fail its checksum, so for them the lie unpacks nothing; such an app answers the zip with an error, which
+    is the refusal or the held-back answer above, never a finding. With it, V5.2.3's credit needs the lying zip
+    refused too. Tar, 7z, and rar stay open: tar compresses nothing of its own (a `.tar.gz` is the gzip already sent),
+    and 7z and rar each need a writer of their own. **Record, `Status: proposed`: a "Later" entry on ADR-046.**
+    Confirmed on `main` just before this claim: not done, and no other session had claimed it.
 16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
     **The owner's decision first:** it raises `sv probe`'s limit of four requests, which `CLAUDE.md` states.
     **Done on 3 October 2026** (DESIGN, "Old TLS versions on the live site"): one handshake offering only TLS 1.0
