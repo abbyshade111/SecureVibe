@@ -698,6 +698,28 @@ pub struct LevelWhy {
     /// owner, never a finding.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub hints: Vec<sv_check::level_hints::Hint>,
+    /// Whether a person confirmed those answers through `sv review`, and whether that still holds
+    /// (ADR-024, Later, 9 October 2026). `None` when nobody has tried: the answers are then
+    /// unconfirmed, as every report said before.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confirmed: Option<ScopeConfirmed>,
+}
+
+/// Whose word the answers that set the level are, from `[scope-review]`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "state", rename_all = "kebab-case")]
+pub enum ScopeConfirmed {
+    /// Confirmed through `sv review`, the seal holds here, and the answers are the same as then:
+    /// who, when, and what the seal shows, as every other recorded entry says it.
+    Confirmed {
+        by: String,
+        on: String,
+        sealed: String,
+    },
+    /// Confirmed, the seal holds, and an answer has changed since: unconfirmed again.
+    Changed { by: String, on: String },
+    /// An entry whose seal does not count here, and why, as the end of a sentence.
+    NotCounted { why: String },
 }
 
 #[derive(Debug, Clone, Serialize)]

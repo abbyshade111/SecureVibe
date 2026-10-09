@@ -374,6 +374,12 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 # verdict = "false-alarm"
 # why = "The next= value is looked up in a fixed list of our own paths on the line above."
 # by = "ai-tool"
+
+# The two answers that set the level, [app] audience and [data] categories, as the owner confirmed
+# them. Written only by `sv review`, which shows both and asks; never write it yourself. Until it
+# holds, the report says the level rests on answers nobody has confirmed, and an answer changed
+# after it was confirmed is unconfirmed again. It never changes the level.
+# [scope-review]
 "#;
 
 pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with the starter file above.

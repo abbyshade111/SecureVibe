@@ -39,6 +39,9 @@ enum Waiting {
     /// A section marked `Written by: AI coding tool`, offered for a person to confirm (ADR-022,
     /// Later): the same index, and the requirement.
     NotesConfirm(usize, String),
+    /// The two answers that set the level, the audience and the data list, offered for the owner
+    /// to confirm (ADR-024, Later, 9 October 2026).
+    Scope,
 }
 
 pub fn cmd_review(path: Option<PathBuf>) -> Result<()> {
@@ -359,6 +362,9 @@ fn review(
             );
         }
     }
+    // The answers that set the level are asked about last, apart from the entries above, until
+    // they are confirmed, and again once one of them changes (ADR-024, Later, 9 October 2026).
+    let scope_waiting = !counts(&manifest, &Waiting::Scope, &checker);
     for (which, (catalog, path)) in files.iter().enumerate() {
         if let Some(text) = notes_text(path)? {
             let answers = sv_check::notes::read_answers(catalog, &text);
@@ -399,6 +405,18 @@ fn review(
             manifest_path.display(),
             notes_catalog.file
         )?;
+        if scope_waiting {
+            confirm_scope(
+                &manifest,
+                &manifest_path,
+                &mut doc,
+                today,
+                &key,
+                &checker,
+                input,
+                out,
+            )?;
+        }
         return Ok(());
     }
     writeln!(
@@ -499,6 +517,7 @@ fn review(
                     None => None,
                 }
             }
+            Waiting::Scope => unreachable!("asked after the list, never in it"),
             Waiting::Notes(which, id) => {
                 let (catalog, path) = &files[which];
                 let text =
@@ -575,6 +594,18 @@ fn review(
             ""
         }
     )?;
+    if scope_waiting {
+        confirm_scope(
+            &manifest,
+            &manifest_path,
+            &mut doc,
+            today,
+            &key,
+            &checker,
+            input,
+            out,
+        )?;
+    }
     Ok(())
 }
 
@@ -677,6 +708,7 @@ fn sign_again(
                 set_seal(doc, "checked-by-hand", id, &seal)?;
                 in_manifest.push(which);
             }
+            Waiting::Scope => unreachable!("asked after the list, never in it"),
             Waiting::Notes(file, id) => {
                 let (catalog, path) = &files[*file];
                 let text =
@@ -1136,6 +1168,109 @@ fn record_notes_confirmation(
 }
 
 /// Puts `seal` on the answer to `id` in `section` of stackvet.toml, changing nothing else.
+/// The answers that set the level, asked about after every other entry, and saved when the owner
+/// confirms them.
+#[allow(clippy::too_many_arguments)]
+fn confirm_scope(
+    manifest: &sv_manifest::Manifest,
+    manifest_path: &Path,
+    doc: &mut toml_edit::DocumentMut,
+    today: Day,
+    key: &Signer,
+    checker: &Checker,
+    input: &mut dyn BufRead,
+    out: &mut dyn Write,
+) -> Result<()> {
+    writeln!(out, "\nLast, the answers that set the app's level.")?;
+    if let Some(entry) = record_scope(manifest, today, key, input, out)? {
+        set_scope(doc, &entry);
+        save(manifest_path, doc, &|m| counts(m, &Waiting::Scope, checker))?;
+    }
+    Ok(())
+}
+
+/// The answers that set the level, shown for the owner to confirm (ADR-024, Later, 9 October 2026):
+/// the entry to write, sealed, or `None` when they leave the answers as they are.
+fn record_scope(
+    manifest: &sv_manifest::Manifest,
+    today: Day,
+    key: &Signer,
+    input: &mut dyn BufRead,
+    out: &mut dyn Write,
+) -> Result<Option<sv_manifest::ScopeReview>> {
+    let categories = match &manifest.data.categories {
+        None => "not answered".to_owned(),
+        Some(listed) if listed.is_empty() => "[] (nothing about people)".to_owned(),
+        Some(listed) => format!("[{}]", listed.join(", ")),
+    };
+    writeln!(
+        out,
+        "The app is held to ASVS level {} because {}. These two answers in stackvet.toml decide \
+         it, and your AI coding tool usually writes them:\n  [app] audience = \"{}\"\n  [data] \
+         categories = {categories}\nIf either is wrong, change it in the file first: an answer \
+         confirmed here and changed later is unconfirmed again.",
+        manifest.target_level(),
+        manifest.level_because(),
+        manifest.app.audience.name(),
+    )?;
+    loop {
+        let Some(answer) = ask(
+            input,
+            out,
+            "Type `owner` if this is your app and both answers are right, to confirm them; or \
+             press Enter to leave them unconfirmed.\n> ",
+        )?
+        else {
+            return Ok(None);
+        };
+        if answer.is_empty() {
+            writeln!(out, "  Left unconfirmed.")?;
+            return Ok(None);
+        }
+        if !answer.eq_ignore_ascii_case(sv_check::design::OWNER) {
+            writeln!(
+                out,
+                "  Only the app's owner knows who uses it and what it holds. Type `owner` if that \
+                 is you."
+            )?;
+            continue;
+        }
+        let mut entry = sv_manifest::ScopeReview {
+            audience: manifest.app.audience.name().to_owned(),
+            categories: manifest.data.categories.clone(),
+            by: sv_check::design::OWNER.to_owned(),
+            on: today.show(),
+            seal: None,
+        };
+        entry.seal = Some(
+            key.seal(&sv_check::seal::as_strs(
+                &sv_check::seal::scope_review_fields(&entry),
+            ))
+            .map_err(anyhow::Error::msg)?,
+        );
+        writeln!(out, "  Confirmed as your answers.")?;
+        return Ok(Some(entry));
+    }
+}
+
+/// `[scope-review]`, written whole, in place of what was there.
+fn set_scope(doc: &mut toml_edit::DocumentMut, entry: &sv_manifest::ScopeReview) {
+    let mut table = toml_edit::Table::new();
+    table.insert("audience", toml_edit::value(&entry.audience));
+    if let Some(listed) = &entry.categories {
+        table.insert(
+            "categories",
+            toml_edit::value(listed.iter().collect::<toml_edit::Array>()),
+        );
+    }
+    table.insert("by", toml_edit::value(&entry.by));
+    table.insert("on", toml_edit::value(&entry.on));
+    if let Some(seal) = &entry.seal {
+        table.insert("seal", toml_edit::value(seal));
+    }
+    doc.insert("scope-review", toml_edit::Item::Table(table));
+}
+
 fn set_seal(doc: &mut toml_edit::DocumentMut, section: &str, id: &str, seal: &str) -> Result<()> {
     doc.get_mut(section)
         .and_then(toml_edit::Item::as_table_like_mut)
@@ -1202,6 +1337,13 @@ fn counts(manifest: &sv_manifest::Manifest, which: &Waiting, checker: &Checker) 
             .is_ok()
         }),
         Waiting::Notes(..) | Waiting::NotesConfirm(..) => false,
+        Waiting::Scope => manifest.scope_review.as_ref().is_some_and(|entry| {
+            let fields = sv_check::seal::scope_review_fields(entry);
+            entry.still_holds_for(manifest)
+                && checker
+                    .check(entry.seal.as_deref(), &sv_check::seal::as_strs(&fields))
+                    .is_ok()
+        }),
         Waiting::Confirmation { section, id } => {
             let c = match *section {
                 "design" => manifest.design.get(id).and_then(|a| a.confirmed.as_ref()),
@@ -1295,6 +1437,9 @@ mod confirm_notes_tests;
 
 #[cfg(test)]
 mod passphrase_tests;
+
+#[cfg(test)]
+mod scope_tests;
 
 #[cfg(test)]
 mod tests {
@@ -1990,7 +2135,13 @@ mod tests {
             "{out}"
         );
         assert!(out.contains("Recorded 0 of 1"), "{out}");
-        assert_eq!(s.manifest(), earlier);
+        // Nothing was asked about the entry, so the `owner` typed went to the last question, the
+        // answers that set the level (ADR-024, Later, 9 October 2026), which is all that was added.
+        assert!(out.contains("Confirmed as your answers"), "{out}");
+        assert_eq!(
+            s.manifest().split("\n[scope-review]\n").next(),
+            Some(earlier.as_str())
+        );
         // Today's form names the second line alone, and is recorded as it is.
         let mut second = vec![sv_check::finding::Finding {
             rule_id: "ast.open-redirect".into(),
