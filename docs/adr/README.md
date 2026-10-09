@@ -111,6 +111,7 @@ evidence-tier rule without its number), and ADR-012 is also cited by number in `
 | [ADR-065](ADR-065.md) | Hidden characters sent into the AI feature, for C2.1.2 and C2.1.5 |
 | [ADR-066](ADR-066.md) | The MCP server: what it does and does not do for an AI coding tool, and how its text is held |
 | [ADR-067](ADR-067.md) | A session that is one fixed key, found from three sign-ins (V7.2.2) (proposed) |
+| [ADR-068](ADR-068.md) | An MCP link to a remote server over plain HTTP, found in the app's code (C10.3.1) (proposed) |
 
 ## Where v1's records disagree with what v1 built
 
