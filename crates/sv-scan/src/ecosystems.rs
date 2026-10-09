@@ -936,6 +936,9 @@ pub const DEFAULT_REPORT_DIR: &str = sv_frameworks::names::REPORT_DIR;
 /// beside the marker, so a listing hides it.
 pub const REPORT_LOCK: &str = sv_frameworks::names::REPORT_LOCK;
 
+/// Who holds `REPORT_LOCK`, beside it: the one file of the lock another run can read on Windows.
+pub const REPORT_HOLDER: &str = sv_frameworks::names::REPORT_HOLDER;
+
 /// The five files a report is written as, in the order they are written and sealed. The one list
 /// the names of a report folder derive from: `REPORT_FOLDER_NAMES` here, and in `sv-cli` the table
 /// that says how each is rendered and what kind of file it is (`report_files`), which the compiler
@@ -956,15 +959,16 @@ pub const BUILD_LOOP_RECORD: &str = "build-loop.jsonl";
 /// Every name `sv` writes in a report folder: the marker, the lock, their old forms (a report folder
 /// from before the rename holds those), the record of the build loop, and the five reports.
 pub const REPORT_FOLDER_NAMES: &[&str] = &{
-    let mut names = [""; 5 + REPORT_FILES.len()];
+    let mut names = [""; 6 + REPORT_FILES.len()];
     names[0] = REPORT_MARKER;
     names[1] = REPORT_LOCK;
     names[2] = sv_frameworks::names::OLD_REPORT_MARKER;
     names[3] = sv_frameworks::names::OLD_REPORT_LOCK;
     names[4] = BUILD_LOOP_RECORD;
+    names[5] = REPORT_HOLDER;
     let mut i = 0;
     while i < REPORT_FILES.len() {
-        names[5 + i] = REPORT_FILES[i];
+        names[6 + i] = REPORT_FILES[i];
         i += 1;
     }
     names
