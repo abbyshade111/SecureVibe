@@ -126,6 +126,13 @@ fn run() -> Result<i32> {
         "history" => finished(history::command(rest)),
         "review" => finished(review::cmd_review(rest.first().map(PathBuf::from))),
         "bundle" => finished(cmd_bundle(rest)),
+        "connect" => {
+            print!("{}", sv_cli::connect::command(rest)?);
+            if let Some(line) = sv_cli::connect::where_it_goes(rest) {
+                eprintln!("{line}");
+            }
+            Ok(exit::CLEAN)
+        }
         "mcp" => finished(mcp::cmd_mcp(rest)),
         other => unreachable!("{other} is in COMMANDS and has no arm"),
     }
@@ -289,6 +296,13 @@ const COMMANDS: &[Command] = &[
         flags: &["--all"],
         valued: &[],
         help: "  sv history on|off|status|forget FOLDER|forget --all\n                     keep a small record of each sv report run, for sv dashboard to show\n                     how an app changes; off until you turn it on, kept outside every\n                     app's folder, readable only by you, and never your code\n",
+    },
+    Command {
+        name: "connect",
+        word: Some("TOOL"),
+        flags: &[],
+        valued: &["--docker", "--user", "--folder"],
+        help: "  sv connect TOOL [--docker PATH] [--user UID:GID] [--folder DIR]\n                     print the settings that connect an AI coding tool (claude, vscode,\n                     or cursor) to `sv` for this folder, the paths already filled in;\n                     --docker PATH (where docker is, from `which docker`) for the\n                     container, --user UID:GID on Linux; writes nothing\n",
     },
     Command {
         name: "mcp",

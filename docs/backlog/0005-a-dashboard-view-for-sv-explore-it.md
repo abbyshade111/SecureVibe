@@ -61,3 +61,5 @@ claimed on its own:
    can read, no limit on how many are kept, every run compared whatever its kind, history's text not escaped on
    the page, and `forget` that deletes nothing, each failed a test (`crates/sv-cli/tests/history.rs`).
 4. **A progress page during a run**, if wanted once the first three are in use (4).
+   **The owner's decision, 9 October 2026:** skipped for now; the owner means to come back to the dashboard later
+   ("we can skip for now, I want to come back to the dashboard later anyway").

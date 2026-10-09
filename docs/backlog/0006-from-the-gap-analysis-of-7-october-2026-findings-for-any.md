@@ -538,6 +538,8 @@ listed apart, below this item.
    `docs/prompts/loop-pilot/loop_dodging.py`, added to every row of `loop_measures.py` and held by its self-test
    (`crates/sv-check/tests/loop_dodging.rs`). The earlier trials are not re-scored, since their transcripts are not
    kept here. Still open: an outside tool run as an independent check of the loop arm, which needs a new trial.
+   **The owner's decision, 9 October 2026:** the outside-tool half is folded into the next loop trial the owner runs
+   anyway, rather than paid for as a trial of its own ("agree"). It stays open until then.
 22. **Smaller trust gaps in the build loop.** (`docs/GAP-ANALYSIS.md`, 4.6.) Each claimable on its own: (a) the
    seal key's passphrase on by default, and the report saying when a seal's key has none (a change to ADR-043); (b)
    reports read back as MCP resources fenced as app text; (c) a "drafted by your AI tool, adopted by you" label for
@@ -635,6 +637,10 @@ listed apart, below this item.
    cannot be told here.
 
 
+   **(d) claimed 9 October 2026 by session securevibe-e9**, at the owner's word ("observability is really important,
+   so let's go with the first option"), in branch `claude/stackvet-e9-build-loop`: the first option, a record of the
+   MCP calls made while building, which the report reads back. **`Status: proposed`: ADR-076.** Read on `main` and the
+   open pull requests just before this claim: no other session had claimed (d).
 23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no
    warning and exit 0. Read it when present and exit 2 on a parse error; say plainly in its help and in the coding
    rule that the terminal command is the narrower scan.
@@ -816,6 +822,8 @@ listed apart, below this item.
    can draft it. A test firing on 8 October also showed that a routine fired by hand starts a fresh session without
    the repository rather than waking the review's own session; whether the Monday run wakes the right one is to be
    checked after 12 October.
+   **The setup script added by the owner on 9 October 2026**, from the draft session securevibe-e9 gave: it installs
+   Rust (stable, with `clippy` and `rustfmt`, as CI does) when it is missing, and shows that Python 3 is there.
 32. **Every check that can credit should be seen not crediting somewhere in the suite.** (`docs/GAP-ANALYSIS.md`,
    7.4.) Extend `tools/coverage.py --credits` (and the census) so a check that credits in the test suite must also
    be seen giving a finding or "not assessed" there, turning "break your own rule" into a CI gate.
