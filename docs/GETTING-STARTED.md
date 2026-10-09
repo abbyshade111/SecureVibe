@@ -234,7 +234,8 @@ add `--user "$(id -u):$(id -g)"` after `docker run`, as in section 3.
 
 It goes through each answer that does not yet count as yours, shows it, asks your name or `owner`, and
 signs it with a key of its own, kept in your own settings folder. The first time, it makes that key and
-asks whether to protect it with a passphrase; with one, nothing can sign as you without it. Only then does the report count it as yours: a line
+asks for a passphrase to protect it with (press Enter to choose one, or type `none`); with one, nothing can sign as you
+without it, and without one the report says so beside each entry. Only then does the report count it as yours: a line
 saying `owner` that was never recorded this way still counts as the tool's word, because a tool trying to
 quiet a warning could write that line too. The same goes for an answer the tool confirmed and you looked
 at yourself, and for a finding set aside as a false alarm. `sv review` needs a terminal someone is typing

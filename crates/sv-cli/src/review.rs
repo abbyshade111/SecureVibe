@@ -143,19 +143,25 @@ fn signing_key(
                 "`sv review` signs what you record with a key of its own, which it makes now, in \
                  {}. A passphrase on it means nothing can sign as you without it, your AI coding \
                  tool included, since the passphrase is only in your head; you then type it each \
-                 time you run `sv review`.",
+                 time you run `sv review`. Without one, every entry signed with it says so in the \
+                 report.",
                 folder.display()
             )?;
             let Some(wanted) = ask(
                 input,
                 out,
-                "Protect the key with a passphrase? Type `yes`, or press Enter for none.\n> ",
+                "Protect the key with a passphrase? Press Enter to choose one, or type `none` for \
+                 none.\n> ",
             )?
             else {
                 return Ok(None);
             };
+            // A passphrase unless the person says otherwise (ADR-043, Later, 9 October 2026).
+            let none = ["none", "no", "n"]
+                .iter()
+                .any(|word| wanted.trim().eq_ignore_ascii_case(word));
             // Each typed passphrase is zeroed when it goes out of scope, the one kept included.
-            let passphrase: Option<Zeroizing<String>> = if wanted.eq_ignore_ascii_case("yes") {
+            let passphrase: Option<Zeroizing<String>> = if !none {
                 loop {
                     let Some(first) = secret(input, out, "Passphrase: ")?.map(Zeroizing::new)
                     else {
@@ -1288,6 +1294,9 @@ fn save_text(path: &Path, text: &str, counts: &dyn Fn() -> bool) -> Result<()> {
 mod confirm_notes_tests;
 
 #[cfg(test)]
+mod passphrase_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -1310,13 +1319,13 @@ mod tests {
             std::fs::read_to_string(self.app().join("stackvet.toml")).unwrap()
         }
         /// `sv review`, with `typed` as what the person types. The first run is asked whether the
-        /// signing key it makes should have a passphrase, and the answer is no.
+        /// signing key it makes should have a passphrase, and the answer is `none`.
         pub(super) fn run(&self, typed: &str) -> (Result<()>, String) {
             let first = !self
                 .keys()
                 .join(sv_check::signed::SIGNING_KEY_FILE)
                 .exists();
-            self.run_as_typed(&format!("{}{typed}", if first { "\n" } else { "" }))
+            self.run_as_typed(&format!("{}{typed}", if first { "none\n" } else { "" }))
         }
         fn run_as_typed(&self, typed: &str) -> (Result<()>, String) {
             let mut out = Vec::new();
@@ -1775,7 +1784,7 @@ mod tests {
         let s = Scratch::new("passphrase");
         with_app(&s, &format!("{HEAD}{}", proposal(WHY)));
         let (result, out) = s.run_as_typed(
-            "yes\nhorse one\nhorse two\nhorse battery staple\nhorse battery staple\nowner\n",
+            "\nhorse one\nhorse two\nhorse battery staple\nhorse battery staple\nowner\n",
         );
         result.unwrap();
         assert!(out.contains("The two were not the same"), "{out}");

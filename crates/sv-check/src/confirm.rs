@@ -238,11 +238,11 @@ pub fn credit(stated: &Verified, check_id: &str, holds: &Holds, sealed: &Sealed)
                 holds.on.show(),
                 holds.how
             ),
-            Sealed::Signed { key, from } => format!(
-                "{} Recorded through `sv review` and signed with key {key}, which {} trusts for \
-                 this app: {} confirmed it on {}, having looked: \"{}\"",
+            Sealed::Signed { key, from, lock } => format!(
+                "{} Recorded through `sv review` and {}: {} confirmed it on {}, having looked: \
+                 \"{}\"",
                 stated.scope.trim_end(),
-                from.named(),
+                crate::seal::signed_with(key, *from, *lock),
                 holds.who,
                 holds.on.show(),
                 holds.how

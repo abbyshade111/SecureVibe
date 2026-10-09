@@ -390,11 +390,45 @@ pub enum Sealed {
     /// Checked with this computer's review key.
     Here,
     /// A signature, checked against a list of trusted keys that names its key for this app
-    /// (ADR-043): the key's fingerprint, and where the list came from.
+    /// (ADR-043): the key's fingerprint, where the list came from, and whether the key has a
+    /// passphrase, as far as this computer can tell.
     Signed {
         key: String,
         from: crate::signed::ListFrom,
+        lock: KeyLock,
     },
+}
+
+/// Whether the signing key that made a signed seal has a passphrase, as far as this computer can
+/// tell (ADR-043, Later, 9 October 2026). Without one, anything that can run as the owner, the AI
+/// coding tool included, can sign; the seal itself cannot say which, so the entry says it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum KeyLock {
+    /// The key is on this computer, locked with a passphrase.
+    Passphrase,
+    /// The key is on this computer, with no passphrase.
+    NoPassphrase,
+    /// The key is not on this computer (CI, with a list given in SV_TRUSTED_SEALS), so whether it
+    /// has a passphrase cannot be told.
+    NotHere,
+}
+
+impl KeyLock {
+    /// What follows "signed with key …, which … trusts for this app" in every report.
+    pub fn said(self) -> &'static str {
+        match self {
+            KeyLock::Passphrase => " (a key on this computer with a passphrase)",
+            KeyLock::NoPassphrase => {
+                " (a key on this computer with no passphrase, so anything that can run as you, \
+                 your AI coding tool included, could have signed it)"
+            }
+            KeyLock::NotHere => {
+                " (a key that is not on this computer, so whether it has a passphrase cannot be \
+                 told here)"
+            }
+        }
+    }
 }
 
 /// What this computer can check one app's `review-key` seals with.
@@ -417,6 +451,9 @@ pub struct Checker {
     trust: crate::signed::Trust,
     /// The app being checked, by its folder here, or why it cannot be told.
     app: Result<App, String>,
+    /// This computer's signing key, if it has one: its fingerprint, and whether it has a
+    /// passphrase. Only ever these two; the key itself is not kept.
+    signing: Option<(String, bool)>,
 }
 
 impl Checker {
@@ -444,10 +481,18 @@ impl Checker {
             },
             Some(Err(why)) => Hmac::Broken(why),
         };
+        // A key file that cannot be read is no key here: its seals say "not on this computer".
+        let signing = folder
+            .and_then(|f| crate::signed::SigningKey::load_from(f).ok().flatten())
+            .map(|stored| match stored {
+                crate::signed::Stored::Ready(key) => (key.fingerprint(), false),
+                crate::signed::Stored::Locked(key) => (key.fingerprint(), true),
+            });
         Checker {
             hmac,
             trust: folder.map_or(crate::signed::Trust::None, crate::signed::Trust::in_folder),
             app,
+            signing,
         }
     }
 
@@ -457,6 +502,7 @@ impl Checker {
             hmac: Hmac::NoKey,
             trust: crate::signed::Trust::None,
             app: Err("no app was named".to_owned()),
+            signing: None,
         }
     }
 
@@ -466,6 +512,7 @@ impl Checker {
             app: Ok(key.app.clone()),
             hmac: Hmac::Key(key),
             trust: crate::signed::Trust::None,
+            signing: None,
         }
     }
 
@@ -523,7 +570,17 @@ impl Checker {
                     &signature,
                     fields,
                 )?;
-                return Ok(Sealed::Signed { key, from });
+                let lock = match &self.signing {
+                    Some((here, locked)) if *here == key => {
+                        if *locked {
+                            KeyLock::Passphrase
+                        } else {
+                            KeyLock::NoPassphrase
+                        }
+                    }
+                    _ => KeyLock::NotHere,
+                };
+                return Ok(Sealed::Signed { key, from, lock });
             }
             Parsed::Current { key, app, mac } => (key, app, mac),
         };
@@ -822,11 +879,22 @@ pub fn notes_confirmed_fields(requirement: &str, prose: &str) -> Vec<String> {
 pub fn recorded_where(sealed: &Sealed) -> String {
     match sealed {
         Sealed::Here => ", recorded through `sv review` on this computer".to_owned(),
-        Sealed::Signed { key, from } => format!(
-            ", recorded through `sv review` and signed with key {key}, which {} trusts for this app",
-            from.named()
+        Sealed::Signed { key, from, lock } => format!(
+            ", recorded through `sv review` and {}",
+            signed_with(key, *from, *lock)
         ),
     }
+}
+
+/// How every report words a signed seal, after "recorded through `sv review` and": the key, the
+/// list that trusts it, and whether the key has a passphrase. One place, so no report can leave
+/// the last out.
+pub fn signed_with(key: &str, from: crate::signed::ListFrom, lock: KeyLock) -> String {
+    format!(
+        "signed with key {key}, which {} trusts for this app{}",
+        from.named(),
+        lock.said()
+    )
 }
 
 /// Whether an owner's answer counts as theirs, checked where this runs: the seal, or why not.

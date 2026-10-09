@@ -535,7 +535,7 @@ fn write_new(path: &PathBuf, bytes: &[u8], mode: u32) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::seal::{Checker, Sealed};
+    use crate::seal::{Checker, KeyLock, Sealed};
 
     /// A folder of the test's own, removed when it ends.
     struct Scratch(PathBuf);
@@ -607,7 +607,8 @@ mod tests {
             here.recorded(Some(&seal), FIELDS),
             Ok(Sealed::Signed {
                 key: key.fingerprint(),
-                from: ListFrom::ThisComputer
+                from: ListFrom::ThisComputer,
+                lock: KeyLock::NoPassphrase
             })
         );
         // Any field changed, or a field's text moved into the next, breaks it.
@@ -638,7 +639,8 @@ mod tests {
             ci.recorded(Some(&seal), FIELDS),
             Ok(Sealed::Signed {
                 key: key.fingerprint(),
-                from: ListFrom::Variable
+                from: ListFrom::Variable,
+                lock: KeyLock::NotHere
             })
         );
         assert!(ci.check(Some(&seal), FIELDS).is_ok());
@@ -672,7 +674,8 @@ mod tests {
             here.recorded(Some(&seal), FIELDS),
             Ok(Sealed::Signed {
                 key: key.fingerprint(),
-                from: ListFrom::ThisComputer
+                from: ListFrom::ThisComputer,
+                lock: KeyLock::NoPassphrase
             }),
             "the setup: a checker reads the list when it is made"
         );
