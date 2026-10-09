@@ -1,6 +1,6 @@
 # Helping someone who is not technical start and keep using sv
 
-**Status:** partly done: parts 7 (a glossary), 5 (the report read with you), and 3 (sv doctor) are to build, in that order; part 1 is built (9 October 2026) and not yet tried in an AI coding tool
+**Status:** claimed by securevibe-e2, 9 October 2026
 
 Asked for by the owner on 8 October 2026: "consider the best way to help someone non-technical start and use sv.
 One thought is to turn the getting started guide into a prompt so the AI tool can walk the person through the
