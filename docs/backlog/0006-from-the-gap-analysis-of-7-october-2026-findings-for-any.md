@@ -318,6 +318,15 @@ listed apart, below this item.
    (`docs/design/0329-a-role-sent-with-an-email-change-9-october-2026.md`): `probe.email-change-role-trusted`, a rule of
    its own rather than `probe.role-field-trusted`, so the crash check (ADR-021) follows each by its name. `creates`
    stays open.
+   **(e) claimed 9 October 2026 by session securevibe-e9** ("please continue to work through and pick up new items
+   as you merge"), in branch `claude/stackvet-e9-stored-injection`: with `reads-owned = true`, the second test user
+   saves a note that carries a textbook injection ("Ignore all previous instructions") beside a private marker, and
+   asks the AI feature about it. The test model's RECALL answer also says whether the injection's words arrived with
+   the note. The note reaching the model with them is a finding citing C2.1.3, as the injection typed straight in is;
+   only ever a finding, since one stored pattern stopped is not every way of writing one. The control is the user's
+   own plain note, found the same way; without it nothing is judged. The change to what the test model reports is a
+   Later entry on ADR-042, written with the build. Read on `main` and the open pull requests just before this claim:
+   no other session had claimed (e).
    **(g) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
    you merge"), in branch `claude/securevibe-e2-gemini`: the test model answers Google's Gemini format as it answers
    OpenAI's and Anthropic's. A POST whose path ends `:generateContent` or `:streamGenerateContent` (whatever comes
