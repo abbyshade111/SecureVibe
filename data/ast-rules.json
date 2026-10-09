@@ -2105,6 +2105,65 @@
         "shell": "Shell scripts build no web pages this rule can speak to.",
         "swift": "Not looked for in Swift yet: a value written into a response as HTML, and a web view's `loadHTMLString`. The rule only ever reports, so finding none in Swift credits nothing either way."
       }
+    },
+    {
+      "id": "ast.request-body-passed-whole",
+      "title": "The whole request body is saved as it came",
+      "severity": "high",
+      "confidence": "medium",
+      "requirementIds": [
+        "V15.3.3"
+      ],
+      "cwe": [
+        "CWE-915"
+      ],
+      "findingsOnly": true,
+      "description": "A record is created or updated from everything the request sent, so any field the request names is written, including ones the form never shows.",
+      "impact": "Somebody can add a field the app never meant them to set, such as `role: \"admin\"`, `isPaid: true`, or another person's `ownerId`, and the app saves it as if it were theirs to choose.",
+      "fix": "Pick the fields this action may change and pass only those (`{ name: req.body.name, email: req.body.email }`), or check the body against a schema that lists them and drops the rest. Set fields like the owner, the role, and anything about payment from the signed-in user and the app's own logic, never from the request.",
+      "queries": {
+        "python": "(call function: [(identifier) @fn (attribute attribute: (identifier) @fn)]\n      arguments: (argument_list (dictionary_splat) @arg)) @hit",
+        "javascript": "[(call_expression function: (member_expression property: (property_identifier) @fn)\n                  arguments: (arguments . (_) @arg))\n (new_expression constructor: (identifier) @fn\n                 arguments: (arguments . (_) @arg))] @hit",
+        "typescript": "[(call_expression function: (member_expression property: (property_identifier) @fn)\n                  arguments: (arguments . (_) @arg))\n (new_expression constructor: (identifier) @fn\n                 arguments: (arguments . (_) @arg))] @hit"
+      },
+      "functionPatterns": {
+        "python": "^(create|update|get_or_create|update_or_create|[A-Z]\\w*)$",
+        "javascript": "^(create|update|build|bulkCreate|upsert|insert|insertOne|findByIdAndUpdate|findOneAndUpdate|updateOne|updateMany|[A-Z]\\w*)$",
+        "typescript": "^(create|update|build|bulkCreate|upsert|insert|insertOne|findByIdAndUpdate|findOneAndUpdate|updateOne|updateMany|[A-Z]\\w*)$"
+      },
+      "argumentPositions": {
+        "javascript": {
+          "^(findByIdAndUpdate|findOneAndUpdate|updateOne|updateMany)$": 1
+        },
+        "typescript": {
+          "^(findByIdAndUpdate|findOneAndUpdate|updateOne|updateMany)$": 1
+        }
+      },
+      "argumentPatterns": {
+        "python": "^\\*\\*\\s*request\\.(json|data|form|POST|get_json\\(\\s*\\))(\\.dict\\(\\s*\\))?$",
+        "javascript": "^((req|request)\\.body|ctx\\.request\\.body)$|^\\{\\s*data\\s*:\\s*((req|request)\\.body|ctx\\.request\\.body)\\s*,?\\s*\\}$",
+        "typescript": "^((req|request)\\.body|ctx\\.request\\.body)$|^\\{\\s*data\\s*:\\s*((req|request)\\.body|ctx\\.request\\.body)\\s*,?\\s*\\}$"
+      },
+      "looksFor": "the whole request body handed to a create or update as it came, rather than the fields the action may change",
+      "looksForIn": {
+        "python": "a model built or saved from the whole of Flask's or Django's request data spread into it (`User(**request.json)`, `.objects.create(**request.data)`, `.update(**request.get_json())`)",
+        "javascript": "a model's `create`, `update`, `build`, `bulkCreate`, `upsert`, or `insert`, Mongoose's `findByIdAndUpdate`, `findOneAndUpdate`, `updateOne`, and `updateMany`, a model built with `new`, and Prisma's `data: req.body`, each given Express's or Koa's whole request body (`req.body`, `ctx.request.body`)",
+        "typescript": "a model's `create`, `update`, `build`, `bulkCreate`, `upsert`, or `insert`, Mongoose's `findByIdAndUpdate`, `findOneAndUpdate`, `updateOne`, and `updateMany`, a model built with `new`, and Prisma's `data: req.body`, each given Express's or Koa's whole request body (`req.body`, `ctx.request.body`)"
+      },
+      "nothingToFind": {
+        "go": "Not looked for in Go yet: the whole request body handed to a create or update. The rule only ever reports, so finding none in Go credits nothing either way.",
+        "ruby": "Not looked for in Ruby yet: the whole request body handed to a create or update. The rule only ever reports, so finding none in Ruby credits nothing either way.",
+        "php": "Not looked for in PHP yet: the whole request body handed to a create or update. The rule only ever reports, so finding none in PHP credits nothing either way.",
+        "java": "Not looked for in Java yet: the whole request body handed to a create or update. The rule only ever reports, so finding none in Java credits nothing either way.",
+        "kotlin": "Not looked for in Kotlin yet: the whole request body handed to a create or update. The rule only ever reports, so finding none in Kotlin credits nothing either way.",
+        "csharp": "Not looked for in C# yet: the whole request body handed to a create or update. The rule only ever reports, so finding none in C# credits nothing either way.",
+        "rust": "Not looked for in Rust yet: the whole request body handed to a create or update. The rule only ever reports, so finding none in Rust credits nothing either way.",
+        "swift": "Not looked for in Swift yet: the whole request body handed to a create or update. The rule only ever reports, so finding none in Swift credits nothing either way.",
+        "dart": "Not looked for in Dart yet: the whole request body handed to a create or update. The rule only ever reports, so finding none in Dart credits nothing either way.",
+        "c": "Not looked for in C yet: the whole request body handed to a create or update. The rule only ever reports, so finding none in C credits nothing either way.",
+        "cpp": "Not looked for in C++ yet: the whole request body handed to a create or update. The rule only ever reports, so finding none in C++ credits nothing either way.",
+        "shell": "Shell scripts save no records this rule can speak to."
+      }
     }
   ]
 }
