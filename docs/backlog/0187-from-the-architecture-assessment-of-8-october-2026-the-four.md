@@ -219,3 +219,8 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    `requirements_for_tests` in `crates/sv-cli/src/assemble.rs` to `sv-frameworks`, beside `verification_class_for`,
    with tests of its own there. Nothing a report concludes changes. Confirmed on `main` just before this claim: the
    rule is still written inline in `assemble.rs`, it has no test of its own, and no other session holds this part.
+   **That part done the same day**
+   (`docs/design/0319-what-an-app-s-own-tests-cannot-show-decided-beside-the.md`): `ApplicabilityConfig::not_for_tests`
+   in `sv-frameworks`, called by the CLI, and `crates/sv-frameworks/tests/not_for_tests.rs`, which holds each of its four
+   reasons on a requirement only that reason covers. Before it, nothing in the workspace failed when the rule held for
+   nothing. The rest of item 12 is open.
