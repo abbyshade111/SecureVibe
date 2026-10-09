@@ -30,6 +30,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// The lock's name in the report folder, from the one list of the folder's names.
 pub const LOCK_NAME: &str = sv_scan::ecosystems::REPORT_LOCK;
 
+/// Who holds the lock, beside it, written while the lock is held and removed before it is let go.
+/// On Windows a locked file cannot be read by any other run, so the record the lock file also
+/// carries could not name the run holding the folder there; this file is never locked (backlog
+/// 0120, ADR-041, Later).
+pub const HOLDER_NAME: &str = sv_scan::ecosystems::REPORT_HOLDER;
+
 /// The record of a run that started at `started` and read `manifest` as its `stackvet.toml`.
 pub fn run_record(started: SystemTime, manifest: &[u8]) -> sv_report::RunRecord {
     let ms = millis(started);
@@ -84,9 +90,51 @@ impl Undo {
 /// `std::process::exit`, where nothing is dropped.
 static LIVE: std::sync::Mutex<Vec<Live>> = std::sync::Mutex::new(Vec::new());
 
-/// A folder this process holds: its lock's path, what to undo, and the lock file as this run
-/// opened and locked it, when the disk could lock it.
-type Live = (PathBuf, Undo, Option<Metadata>);
+/// A folder this process holds: its lock's path, what to undo, and how to know the lock file is still
+/// the one this run locked, when the disk could lock it.
+type Live = (PathBuf, Undo, Option<Mine>);
+
+/// The lock file as this run locked it: its metadata, and the record this run wrote into it and
+/// into the holder file beside it.
+#[derive(Clone)]
+struct Mine {
+    opened: Metadata,
+    record: String,
+}
+
+/// Whether the lock file at `lock` is still the one this run locked. On Unix, by the file itself
+/// (device and inode), as before. Elsewhere the standard library gives nothing that tells one file
+/// from another of the same size, and Windows hands a new file the creation time of one just removed
+/// under the same name, so it is known by the record this run wrote into the holder file, which
+/// names this process and the moment it took the folder.
+fn is_mine(lock: &Path, mine: &Mine) -> bool {
+    if cfg!(unix) {
+        std::fs::symlink_metadata(lock).is_ok_and(|on_disk| same_file(&on_disk, &mine.opened))
+    } else {
+        holds_record(
+            std::fs::read_to_string(lock.with_file_name(HOLDER_NAME))
+                .ok()
+                .as_deref(),
+            &mine.record,
+        )
+    }
+}
+
+/// Whether the holder file's text is exactly `record`. Pure, so the Windows rule is tested on every
+/// system.
+fn holds_record(holder: Option<&str>, record: &str) -> bool {
+    holder == Some(record)
+}
+
+/// Removes the holder file, then the lock file, both only when the lock is this run's. The holder
+/// first, while the lock is still held, so no run that takes the folder next has its holder file
+/// removed.
+fn remove_mine(lock: &Path, mine: &Mine) {
+    if is_mine(lock, mine) {
+        let _ = std::fs::remove_file(lock.with_file_name(HOLDER_NAME));
+        let _ = std::fs::remove_file(lock);
+    }
+}
 
 fn live() -> std::sync::MutexGuard<'static, Vec<Live>> {
     LIVE.lock()
@@ -119,11 +167,9 @@ pub fn let_go_of_all() {
 /// the file is another run's, and removing it on Ctrl-C would leave that run's folder open to a
 /// third (item 24 of the review of 1 to 4 October).
 fn let_go_of(held: Vec<Live>) {
-    for (lock, undo, opened) in held {
-        if let (Some(opened), Ok(on_disk)) = (opened, std::fs::symlink_metadata(&lock))
-            && same_file(&on_disk, &opened)
-        {
-            let _ = std::fs::remove_file(&lock);
+    for (lock, undo, mine) in held {
+        if let Some(mine) = mine {
+            remove_mine(&lock, &mine);
         }
         undo.apply();
     }
@@ -131,22 +177,22 @@ fn let_go_of(held: Vec<Live>) {
 
 impl Drop for Held {
     fn drop(&mut self) {
-        let undo = {
+        let (undo, mine) = {
             let mut live = live();
             live.iter()
                 .position(|(lock, _, _)| *lock == self.path)
-                .map(|at| live.remove(at).1)
+                .map(|at| {
+                    let (_, undo, mine) = live.remove(at);
+                    (undo, mine)
+                })
                 .unwrap_or_default()
         };
         if let Some(file) = self.file.take() {
             // Removed while still locked, and only if the name is still this file, so a run that
             // opened the old file and is waiting to lock it finds, once it has, that the name is
             // gone, and starts again with a new one (`take`).
-            if let (Ok(on_disk), Ok(opened)) =
-                (std::fs::symlink_metadata(&self.path), file.metadata())
-                && same_file(&on_disk, &opened)
-            {
-                let _ = std::fs::remove_file(&self.path);
+            if let Some(mine) = mine {
+                remove_mine(&self.path, &mine);
             }
             drop(file);
         }
@@ -154,9 +200,13 @@ impl Drop for Held {
     }
 }
 
-fn held(file: Option<File>, path: PathBuf, notes: Vec<String>) -> Held {
-    let opened = file.as_ref().and_then(|f| f.metadata().ok());
-    live().push((path.clone(), Undo::default(), opened));
+fn held(file: Option<File>, path: PathBuf, notes: Vec<String>, record: Option<String>) -> Held {
+    let mine = file
+        .as_ref()
+        .and_then(|f| f.metadata().ok())
+        .zip(record)
+        .map(|(opened, record)| Mine { opened, record });
+    live().push((path.clone(), Undo::default(), mine));
     Held { file, path, notes }
 }
 
@@ -182,18 +232,22 @@ pub fn take(out_dir: &Path, command: &str, elsewhere: &str) -> Result<Held> {
                     // The run that held it removed the name after this one opened it.
                     continue;
                 }
-                let before = read_holder(&mut file);
+                // The holder file names the run before, when there was one; a lock left by an `sv`
+                // from before the holder file carries its record in the lock file alone.
+                let holder_path = out_dir.join(HOLDER_NAME);
+                let before = read_holder_file(&holder_path).or_else(|| read_holder(&mut file));
                 let mine = serde_json::json!({
                     "command": command,
                     "process": std::process::id(),
                     "started": crate::bundle::utc_time(millis(SystemTime::now()) / 1000),
                     "started_unix_ms": millis(SystemTime::now()),
                 });
-                file.set_len(0)
-                    .and_then(|()| file.seek(SeekFrom::Start(0)).map(|_| ()))
-                    .and_then(|()| file.write_all(format!("{mine:#}\n").as_bytes()))
-                    .and_then(|()| file.sync_all())
+                let record = format!("{mine:#}\n");
+                put(&mut file, &record)
                     .with_context(|| format!("{} could not be written", path.display()))?;
+                let mut holder = open(&holder_path)?;
+                put(&mut holder, &record)
+                    .with_context(|| format!("{} could not be written", holder_path.display()))?;
                 let mut notes = Vec::new();
                 if let Some(before) = before {
                     notes.push(format!(
@@ -205,10 +259,11 @@ pub fn take(out_dir: &Path, command: &str, elsewhere: &str) -> Result<Held> {
                         out_dir.display()
                     ));
                 }
-                return Ok(held(Some(file), path, notes));
+                return Ok(held(Some(file), path, notes, Some(record)));
             }
             Err(std::fs::TryLockError::WouldBlock) => {
-                let holder = read_holder(&mut file);
+                let holder =
+                    read_holder_file(&out_dir.join(HOLDER_NAME)).or_else(|| read_holder(&mut file));
                 bail!(
                     "Another sv run is writing its report to {}: {}. sv does not write a report \
                      there at the same time, because the run that finished last would replace the \
@@ -231,6 +286,7 @@ pub fn take(out_dir: &Path, command: &str, elsewhere: &str) -> Result<Held> {
                          started, and a run does not replace a report from a run that started after it.",
                         out_dir.display()
                     )],
+                    None,
                 ));
             }
         }
@@ -267,6 +323,25 @@ fn open(path: &Path) -> Result<File> {
         .write(true)
         .open(path)
         .with_context(|| format!("{} could not be opened", path.display()))
+}
+
+/// Replaces what `file` holds with `text`, and makes sure it reached the disk.
+fn put(file: &mut File, text: &str) -> std::io::Result<()> {
+    file.set_len(0)?;
+    file.seek(SeekFrom::Start(0))?;
+    file.write_all(text.as_bytes())?;
+    file.sync_all()
+}
+
+/// Who the holder file names, if it is there, a plain file, and reads as a record. Never through a
+/// link.
+fn read_holder_file(path: &Path) -> Option<serde_json::Value> {
+    if !std::fs::symlink_metadata(path).ok()?.is_file() {
+        return None;
+    }
+    let text = std::fs::read_to_string(path).ok()?;
+    let value: serde_json::Value = serde_json::from_str(&text).ok()?;
+    value.is_object().then_some(value)
 }
 
 /// Who wrote the lock, if anyone did. An empty file, or one that does not read, is nobody yet.
@@ -406,6 +481,9 @@ pub fn manifest_changed(
 }
 
 #[cfg(test)]
+mod holder_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -457,7 +535,9 @@ mod tests {
         assert!(note.contains("stopped before it finished"), "{note}");
         assert!(note.contains("`sv report --run` (process 99999)"), "{note}");
         assert!(note.contains("2026-10-03T18:53:00Z"), "{note}");
-        let now = std::fs::read_to_string(dir.join(LOCK_NAME)).unwrap();
+        // Read from the holder file: on Windows the lock file, held, cannot be read from another
+        // handle, even in this process.
+        let now = std::fs::read_to_string(dir.join(HOLDER_NAME)).unwrap();
         assert!(
             now.contains(&format!("\"process\": {}", std::process::id())),
             "{now}"
@@ -518,6 +598,9 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    // By the file itself, which only Unix can tell apart; the record that stands for it elsewhere is
+    // tested in `holder_tests`.
+    #[cfg(unix)]
     #[test]
     fn ctrl_c_removes_only_the_lock_this_run_holds() {
         let dir = folder("ctrl-c");
@@ -527,8 +610,14 @@ mod tests {
             std::fs::metadata(&lock).unwrap()
         };
         // Its own, still in place: removed.
-        let mine = make();
-        let_go_of(vec![(lock.clone(), Undo::default(), Some(mine))]);
+        let mine = |opened| {
+            Some(Mine {
+                opened,
+                record: String::new(),
+            })
+        };
+        let first = make();
+        let_go_of(vec![(lock.clone(), Undo::default(), mine(first))]);
         assert!(!lock.exists(), "its own lock is removed");
         // A disk that could not lock: the file is not known to be this run's, and is left.
         make();
@@ -539,7 +628,7 @@ mod tests {
         let old = std::fs::metadata(&lock).unwrap();
         std::fs::rename(&lock, dir.join("moved-aside")).unwrap();
         make();
-        let_go_of(vec![(lock.clone(), Undo::default(), Some(old))]);
+        let_go_of(vec![(lock.clone(), Undo::default(), mine(old))]);
         assert!(lock.exists(), "another run's lock is left");
         std::fs::remove_dir_all(&dir).ok();
     }

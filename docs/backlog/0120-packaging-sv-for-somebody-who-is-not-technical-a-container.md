@@ -289,3 +289,8 @@ app's runs under one `.`, where `sv history forget` and the dashboard never foun
 app's real place (ADR-057, Later). The rest were tests that used names Windows refuses (a `:` or a `"`), made a
 link only Unix can make without a privilege, or expected `/` in a path Windows writes with `\`; each now uses
 what the system allows, with the reason beside it, and still runs whole on macOS and Linux.
+Ninth Windows finding, the same day: the report lock. Windows enforces a file lock, where macOS and Linux leave it
+advisory, so a second run could not read who held a folder from the locked file; and outside Unix the check that a lock
+file was still this run's compared only sizes, so a run stopped with Ctrl-C could have removed another run's lock.
+The holder's record now also goes into `.stackvet-report.holder`, which is never locked, and outside Unix a run knows
+its own lock by that record (ADR-041, Later).
