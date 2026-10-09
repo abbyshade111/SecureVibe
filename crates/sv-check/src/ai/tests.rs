@@ -2956,6 +2956,7 @@ fn counts_must_stand_as_numbers_of_their_own() {
         model_reached: true,
         who: None,
         failure: None,
+        tool_call: None,
     };
     // 44321 and 12345 contain the counts but are not them.
     let mut o = Outcome::default();
@@ -2985,6 +2986,7 @@ fn call_markers() -> LogMarkers {
         model_reached: true,
         who: None,
         failure: None,
+        tool_call: None,
     }
 }
 
@@ -4370,4 +4372,72 @@ fn a_caught_injection_logged_with_why_and_when_is_credited_in_part_and_nothing_e
             o.not_assessed
         );
     }
+}
+
+#[test]
+fn a_tool_call_logged_with_its_argument_is_credited_in_part_and_nothing_else_is() {
+    // ADR-075, C12.4.2: the MCP control call to `sv_lookup`, with the tag as its argument.
+    let markers = LogMarkers {
+        tool_call: Some("abc999".into()),
+        ..call_markers()
+    };
+    for (line, said) in [
+        (
+            "2026-10-09T12:00:01Z INFO tool call sv_lookup args={\"q\":\"abc999\"}",
+            "with its argument, and when;",
+        ),
+        (
+            "{\"tool\":\"mcp__sv_lookup\",\"arguments\":{\"q\":\"abc999\"}}",
+            "with its argument, though not when;",
+        ),
+    ] {
+        let mut o = Outcome::default();
+        logged(&markers, line, &mut o);
+        let credit = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == TOOL_ACTION_LOGGED.rule_id)
+            .unwrap_or_else(|| panic!("{line}: {:?}", o.not_assessed));
+        assert!(credit.in_part, "{credit:?}");
+        assert!(credit.scope.contains(said), "{}", credit.scope);
+        assert!(credit.scope.contains("not a security-critical action"), "{}", credit.scope);
+    }
+    // Said, never found nor credited: the tag only inside the person's logged message, the tool
+    // without the tag, and nothing written at all.
+    for line in [
+        "received message: Could you look that up for me? SV-PROBE-MCPPLAIN-abc999 (tools: sv_lookup)",
+        "2026-10-09T12:00:01Z INFO tool call sv_lookup",
+        "",
+    ] {
+        let mut o = Outcome::default();
+        logged(&markers, line, &mut o);
+        assert!(!credited(&o).contains(&TOOL_ACTION_LOGGED.rule_id), "{line}");
+        assert!(!found(&o).contains(&TOOL_ACTION_LOGGED.rule_id), "{line}");
+        assert!(
+            why(&o, "C12.4.2")
+                .iter()
+                .any(|w| w.contains("no line of the app's output recorded its call")),
+            "{line}: {:?}",
+            o.not_assessed
+        );
+    }
+    // With no call made, nothing is said from the output: the MCP questions say why instead.
+    let mut o = Outcome::default();
+    logged(&call_markers(), "tool call sv_lookup abc999", &mut o);
+    assert!(why(&o, "C12.4.2").is_empty(), "{:?}", o.not_assessed);
+    let never = ask_mcp(Flaws {
+        mcp_never_calls: true,
+        ..Default::default()
+    });
+    assert!(
+        why(&never, "C12.4.2")
+            .iter()
+            .any(|w| w.contains("never reached the test MCP server")),
+        "{:?}",
+        never.not_assessed
+    );
+    // A careful app's run sets the marker the output check reads.
+    let mut app = FakeChat::default();
+    let (_, careful) = run(&mut app, &mcp_section(), &context(None, &NO_POLICY));
+    assert!(careful.tool_call.is_some(), "{careful:?}");
 }
