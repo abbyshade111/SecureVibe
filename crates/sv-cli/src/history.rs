@@ -132,7 +132,7 @@ pub fn keep(app: &Path, run: &Run) -> Result<Option<PathBuf>> {
     let path = mine.join(format!("{}.json", run.started_unix_ms));
     private_file(&path, &serde_json::to_string_pretty(run)?)?;
     // The oldest go once there are more than `KEEP`.
-    let mut kept = runs_in(&mine);
+    let (mut kept, _) = runs_in(&mine);
     while kept.len() > KEEP {
         let (oldest, _) = kept.remove(0);
         std::fs::remove_file(oldest).ok();
@@ -140,9 +140,11 @@ pub fn keep(app: &Path, run: &Run) -> Result<Option<PathBuf>> {
     Ok(Some(path))
 }
 
-/// The runs in one app's folder, oldest first, with their files. A file that is not a run is passed
-/// over.
-fn runs_in(folder: &Path) -> Vec<(PathBuf, Run)> {
+/// The runs in one app's folder, oldest first, with their files, and how many files there could not
+/// be read as a run: one that does not parse, or names no format. They are counted, not passed over,
+/// so the page can say a run is missing rather than show fewer and say nothing.
+fn runs_in(folder: &Path) -> (Vec<(PathBuf, Run)>, usize) {
+    let mut unread = 0;
     let mut runs: Vec<(PathBuf, Run)> = std::fs::read_dir(folder)
         .into_iter()
         .flatten()
@@ -150,23 +152,28 @@ fn runs_in(folder: &Path) -> Vec<(PathBuf, Run)> {
         .map(|e| e.path())
         .filter(|p| p.extension().is_some_and(|x| x == "json") && !p.ends_with("app.json"))
         .filter_map(|p| {
-            let run: Run = serde_json::from_str(&std::fs::read_to_string(&p).ok()?).ok()?;
-            Some((p, run))
+            let run = std::fs::read_to_string(&p)
+                .ok()
+                .and_then(|text| serde_json::from_str::<Run>(&text).ok())
+                .filter(|run| run.format != 0);
+            if run.is_none() {
+                unread += 1;
+            }
+            Some((p, run?))
         })
         .collect();
     runs.sort_by_key(|(_, r)| r.started_unix_ms);
-    runs
+    (runs, unread)
 }
 
-/// The runs kept for the app at `app`, oldest first.
-pub fn runs(app: &Path) -> Vec<Run> {
+/// The runs kept for the app at `app`, oldest first, and how many files kept for it could not be
+/// read as runs.
+pub fn runs(app: &Path) -> (Vec<Run>, usize) {
     let app = real_place(app);
-    folder()
+    let (runs, unread) = folder()
         .map(|h| runs_in(&app_folder(&h, &app)))
-        .unwrap_or_default()
-        .into_iter()
-        .map(|(_, r)| r)
-        .collect()
+        .unwrap_or_default();
+    (runs.into_iter().map(|(_, r)| r).collect(), unread)
 }
 
 /// Every app folder history holds a run for, so `sv dashboard` can show them without being told.
@@ -228,7 +235,7 @@ pub fn command(args: &[String]) -> Result<()> {
                     .unwrap_or_default()
             );
             for app in apps {
-                println!("  {} ({} runs)", app.display(), runs(&app).len());
+                println!("  {} ({} runs)", app.display(), runs(&app).0.len());
             }
         }
         ["forget", "--all"] => {
@@ -256,3 +263,6 @@ pub fn command(args: &[String]) -> Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod unread_tests;

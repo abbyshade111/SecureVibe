@@ -1721,9 +1721,11 @@ fn cmd_dashboard(args: &[String]) -> Result<()> {
             )),
         };
         let report_html = reports.join("report.html");
+        let (runs, unread_runs) = history::runs(&folder);
         apps.push(sv_report::dashboard::App {
             report_html: report_html.is_file().then_some(report_html),
-            runs: history::runs(&folder),
+            runs,
+            unread_runs,
             folder,
             summary,
         });
