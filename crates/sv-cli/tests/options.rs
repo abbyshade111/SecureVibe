@@ -26,6 +26,7 @@ const COMMANDS: &[&str] = &[
     "bundle",
     "dashboard",
     "history",
+    "connect",
     "mcp",
 ];
 

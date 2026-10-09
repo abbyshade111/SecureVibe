@@ -12,6 +12,11 @@ the questions only you can answer.
 
 It takes about fifteen minutes to set up, once.
 
+**Or let your AI coding tool do steps 1 to 3.** [The setup prompt](prompts/setup.md) asks it to check Docker, fetch
+StackVet, put the folder in git, and write the settings file with the paths already filled in, asking you before
+it installs or changes anything outside the folder. It is new and has not yet been tried in any AI coding tool, so
+the steps below are still the way that is known to work.
+
 ## What StackVet will and will not tell you
 
 It never says your app is secure. It says what it checked, what it found, and, first of all, what it
@@ -53,6 +58,16 @@ reported as *not assessed*.
 Your AI tool talks to StackVet over MCP, a standard way for AI tools to use other programs. You add
 one small file to the app's folder. In each example, replace `/Users/you/code/my-app` with your app
 folder's full path, in all three places. On a Mac, `pwd` in a terminal in that folder prints it.
+
+StackVet can print the file for you with the paths already right. In a terminal in the app's folder (put
+`claude`, `vscode`, or `cursor` for your tool):
+
+```bash
+docker run --rm --network none -v "$PWD":"$PWD" -w "$PWD" ghcr.io/abbyshade111/stackvet-sv connect claude --docker "$(command -v docker)"
+```
+
+It prints the settings and the name of the file they go in, and writes nothing itself. On Linux, add
+`--user "$(id -u):$(id -g)"` at the end. The examples below show what it prints.
 
 ### Claude (the desktop app and Claude Code)
 
@@ -397,6 +412,20 @@ commands. These steps were tried on a Mac on 5 October 2026, from a fresh copy o
 steps have not been tried by hand, though StackVet is built on Linux every time its code changes.
 **Windows:** StackVet has never been built or tried on Windows, so nothing here is known to work
 there; use the Docker steps above, and leave `--run` out for now.
+
+**The quickest way, on a Mac or on Linux: Homebrew.** If you have [Homebrew](https://brew.sh), one command builds
+StackVet on your computer, fetching what the build needs by itself, and puts `sv` on your path with its data beside
+it. The first install takes a few minutes:
+
+```bash
+brew install --HEAD abbyshade111/stackvet/sv
+sv --version
+```
+
+`--HEAD` means the latest StackVet, since it has no numbered release yet; `brew upgrade --fetch-HEAD sv` updates it.
+This is tried automatically on a Mac and on Linux every week and on every change to the formula
+([github.com/abbyshade111/homebrew-stackvet](https://github.com/abbyshade111/homebrew-stackvet)), but not yet by hand
+on a person's own computer. If it fails, the steps below do the same thing by hand.
 
 **1. The basic tools.** On a Mac, in a terminal:
 
