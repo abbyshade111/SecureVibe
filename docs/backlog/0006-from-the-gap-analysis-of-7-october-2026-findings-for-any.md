@@ -71,6 +71,9 @@ listed apart, below this item.
    function written in the code is not reported. Mongoose, the MongoDB drivers for npm and Go, and PyMongo come off its
    unread list. Supabase's filter text stays on the list, and stays open. Read on `main` and the open pull requests
    just before this claim: no other session had claimed it.
+   **That part done the same day** (DESIGN, "The SQL rule reads MongoDB's $where"): `$where` read in JavaScript,
+   TypeScript, Python, and Go (`crates/sv-check/src/ast/orm_mongo_tests.rs`), and the MongoDB packages off the list.
+   Left: Supabase's filter text, on npm and in Python; the first half stays open for it.
 2. **Dependencies in .NET, Dart, Swift, Elixir, and Deno are invisible, and V15.2.1 is credited anyway.**
    (`docs/GAP-ANALYSIS.md`, 1.5.) Detect `*.csproj`, `packages.lock.json`, `pubspec.yaml`/`.lock`,
    `Package.swift`/`.resolved`, `mix.exs`, and `deno.json`/`.lock` as ecosystems `sv` does not read, so they hold
