@@ -275,3 +275,7 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    2026): `crates/sv-cli/src/lib.rs`, holding the stages of a run, `Loaded`, `ReportOptions`, what they call, and the
    modules they need (`exit`, `report_lock`, `bundle`), about 820 lines of `main.rs` moved unchanged; the stage results
    public as `Advisories`, `Tools`, `RunningApp`, `PersonsWord`, and `Gathered`. Steps 2 and 3 remain.
+   **Its second step done the same day**
+   (`docs/design/0322-the-plan-the-brief-and-the-preflight-in-the-library-the.md`): the plan, the brief, the
+   preflight, and the answer in parts are the library's, with the prompt functions they reach; `cmd_plan`,
+   `cmd_brief`, and `cmd_preflight` stay in `main.rs` and print. Step 3 remains.
