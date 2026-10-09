@@ -208,3 +208,9 @@ are not yet asked.
 **Part 1, item 1 claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please go ahead"), in branch
 `claude/crash-line-redacted`: the app's crash line and a failed install's tail put through `redact_text` before they
 leave `sv-run`, with a test that plants a key built from pieces in each and fails when it reaches the report.
+
+**Part 1, item 1 done the same day** (`docs/design/0343-a-crash-line-kept-from-carrying-a-credential-into-the-report.md`):
+every reason the app could not be run passes through one function that cuts credentials, in `sv run` and the report
+alike, and a failed seed's line is cut the same way; without `sv`'s rules the app's words are left out. Breaks: the
+redaction removed failed two tests, a call site that skipped it failed the test that reads the source, and the seed's
+redaction removed failed its own test.

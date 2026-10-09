@@ -84,6 +84,21 @@ pub enum CannotRun {
 }
 
 impl CannotRun {
+    /// What kind of failure this was, in a few words and without anything the app or the backend
+    /// printed: for when what they printed cannot be shown.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            CannotRun::NoBackend { .. } => "no container backend",
+            CannotRun::NoRunCommand { .. } => "stackvet.toml does not say how to run it",
+            CannotRun::BadImage { .. } => "the image named is not one Docker reads",
+            CannotRun::BackendFailed { .. } => "the container backend refused",
+            CannotRun::NeverReady { .. } => "it started and never answered",
+            CannotRun::AppFolderUnseen { .. } => "its folder arrived empty in the container",
+            CannotRun::InstallRefused { .. } => "the install was refused",
+            CannotRun::InstallFailed { .. } => "the install did not finish",
+        }
+    }
+
     /// Plain language, for the reports and the terminal.
     pub fn explain(&self) -> String {
         match self {
