@@ -214,7 +214,7 @@ pub(crate) fn random(n: usize) -> Result<Vec<u8>, String> {
     // Linux and on a Mac, and Windows' own on Windows, where there is no /dev/urandom to open
     // (backlog 0120).
     let mut buf = vec![0u8; n];
-    getrandom::getrandom(&mut buf)
+    getrandom::fill(&mut buf)
         .map_err(|e| format!("the system's randomness could not be read ({e})"))?;
     if n >= 16 && buf.iter().all(|b| *b == 0) {
         return Err("the system's randomness gave only zeros".to_owned());

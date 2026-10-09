@@ -221,3 +221,7 @@ bytes and decoded a line at a time, a line that is not UTF-8 counted as unreadab
 sentence when the record stopped at its size limit (item 7), each with a test that fails without it. No open pull
 request or branch of the last few hours touches `crates/sv-cli/src/build_loop.rs`; item 2 is session paper-facts's,
 in #1300.
+**Part 1, item 2 claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please go ahead with item
+2"), in branch `claude/explain-whose-word`: `sv explain` reading whose word a status rests on as the report does, so
+an answer only the AI coding tool gave, confirmed through `sv review`, is never told to the owner as their own.
+Open pull requests and recent branches read first: none touches `crates/sv-cli/src/explain.rs`.

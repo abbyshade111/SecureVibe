@@ -31,6 +31,14 @@ import sys
 import tempfile
 from pathlib import Path
 
+
+def write_text(path, text):
+    """Writes `text` as UTF-8 with Unix line endings on every system. Path.write_text uses the
+    system's own encoding and, on Windows, CRLF, which would make a generated file differ from the
+    one committed (backlog 0120)."""
+    with open(path, "w", encoding="utf-8", newline="\n") as out:
+        out.write(text)
+
 BLOCK = re.compile(
     r"^<<<<<<< [^\n]*\n(?P<ours>.*?)^\|\|\|\|\|\|\| [^\n]*\n(?P<base>.*?)^=======\n(?P<theirs>.*?)^>>>>>>> [^\n]*\n",
     re.S | re.M,
@@ -39,7 +47,7 @@ MARKER = re.compile(r"^(<<<<<<< |\|\|\|\|\|\|\| |=======$|>>>>>>> )", re.M)
 
 
 def git(repo, *args, check=True):
-    out = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
+    out = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, encoding="utf-8")
     if check and out.returncode != 0:
         raise SystemExit(f"git {' '.join(args)} failed:\n{out.stdout}{out.stderr}")
     return out
@@ -90,11 +98,11 @@ def merge_main(repo, ref="origin/main", fetch=True):
     settled, left = [], []
     for name in conflicted:
         path = repo / name
-        text = settle(path.read_text()) if name.endswith(".md") else None
+        text = settle(path.read_text(encoding="utf-8")) if name.endswith(".md") else None
         if text is None:
             left.append(name)
             continue
-        path.write_text(text)
+        write_text(path, text)
         git(repo, "add", name)
         settled.append(name)
     for name in settled:
@@ -115,23 +123,23 @@ def self_test():
         docs = repo / "docs"
         docs.mkdir()
         backlog = docs / "BACKLOG.md"
-        backlog.write_text("## Next\n\n- **Item A.** Open.\n\n- **Item B.** Open.\n\n## Done\n")
-        (repo / "notes.md").write_text("one\ntwo\nthree\n")
-        (repo / "lib.rs").write_text("fn a() {}\n")
+        write_text(backlog, "## Next\n\n- **Item A.** Open.\n\n- **Item B.** Open.\n\n## Done\n")
+        write_text((repo / "notes.md"), "one\ntwo\nthree\n")
+        write_text((repo / "lib.rs"), "fn a() {}\n")
         git(repo, "add", "-A")
         git(repo, "commit", "-q", "-m", "base")
 
         git(repo, "checkout", "-q", "-b", "work")
-        backlog.write_text(backlog.read_text().replace("## Done", "- **Item D, the branch's claim.** Open.\n\n## Done"))
+        write_text(backlog, backlog.read_text(encoding="utf-8").replace("## Done", "- **Item D, the branch's claim.** Open.\n\n## Done"))
         git(repo, "commit", "-q", "-am", "the branch claims D")
         git(repo, "checkout", "-q", "main")
-        backlog.write_text(backlog.read_text().replace("## Done", "- **Item C, another session's claim.** Open.\n\n## Done"))
+        write_text(backlog, backlog.read_text(encoding="utf-8").replace("## Done", "- **Item C, another session's claim.** Open.\n\n## Done"))
         git(repo, "commit", "-q", "-am", "main claims C")
         git(repo, "checkout", "-q", "work")
 
         settled, left = merge_main(repo, ref="main", fetch=False)
         assert settled == ["docs/BACKLOG.md"] and left == [], (settled, left)
-        text = backlog.read_text()
+        text = backlog.read_text(encoding="utf-8")
         assert "<<<<<<<" not in text, text
         assert text.index("Item C") < text.index("Item D"), text
         assert "Item A" in text and "Item B" in text and text.count("## Done") == 1, text
@@ -141,22 +149,22 @@ def self_test():
         git(repo, "commit", "-q", "--no-edit")
 
         # Both sides changed the same line of a Markdown file, and both added to a Rust file: left for a person.
-        (repo / "notes.md").write_text("one\nTWO on the branch\nthree\n")
-        (repo / "lib.rs").write_text("fn a() {}\nfn branch() {}\n")
+        write_text((repo / "notes.md"), "one\nTWO on the branch\nthree\n")
+        write_text((repo / "lib.rs"), "fn a() {}\nfn branch() {}\n")
         git(repo, "commit", "-q", "-am", "the branch edits")
         git(repo, "checkout", "-q", "main")
-        (repo / "notes.md").write_text("one\nTWO on main\nthree\n")
-        (repo / "lib.rs").write_text("fn a() {}\nfn main_side() {}\n")
+        write_text((repo / "notes.md"), "one\nTWO on main\nthree\n")
+        write_text((repo / "lib.rs"), "fn a() {}\nfn main_side() {}\n")
         git(repo, "commit", "-q", "-am", "main edits")
         git(repo, "checkout", "-q", "work")
         settled, left = merge_main(repo, ref="main", fetch=False)
         assert settled == [] and sorted(left) == ["lib.rs", "notes.md"], (settled, left)
-        assert "<<<<<<<" in (repo / "notes.md").read_text()
-        assert "<<<<<<<" in (repo / "lib.rs").read_text()
+        assert "<<<<<<<" in (repo / "notes.md").read_text(encoding="utf-8")
+        assert "<<<<<<<" in (repo / "lib.rs").read_text(encoding="utf-8")
         git(repo, "merge", "--abort")
 
         # Refusals: uncommitted changes, and being on main.
-        (repo / "notes.md").write_text("dirty\n")
+        write_text((repo / "notes.md"), "dirty\n")
         try:
             merge_main(repo, ref="main", fetch=False)
             raise AssertionError("merged over uncommitted changes")

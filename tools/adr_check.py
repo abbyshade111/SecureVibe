@@ -74,18 +74,18 @@ class Git:
         self.head = head
 
     def __call__(self, path):
-        r = subprocess.run(["git", "show", f"{self.head}:{path}"], cwd=ROOT, capture_output=True, text=True)
+        r = subprocess.run(["git", "show", f"{self.head}:{path}"], cwd=ROOT, capture_output=True, text=True, encoding="utf-8")
         return r.stdout if r.returncode == 0 else None
 
     def listing(self, folder):
         r = subprocess.run(["git", "ls-tree", "--name-only", f"{self.head}:{folder}"], cwd=ROOT,
-                           capture_output=True, text=True, check=True)
+                           capture_output=True, text=True, encoding="utf-8", check=True)
         return [f"{folder}/{name}" for name in r.stdout.split()]
 
 
 def changed_files(base, head):
     r = subprocess.run(["git", "diff", "--name-only", f"{base}...{head}"], cwd=ROOT, capture_output=True,
-                       text=True, check=True)
+                       text=True, encoding="utf-8", check=True)
     return [line for line in r.stdout.splitlines() if line]
 
 
@@ -146,10 +146,10 @@ def main():
         parser.error("--base is needed")
     body = ""
     if args.event:
-        event = json.loads(Path(args.event).read_text())
+        event = json.loads(Path(args.event).read_text(encoding="utf-8"))
         body = (event.get("pull_request") or {}).get("body") or ""
     elif args.body_file:
-        body = Path(args.body_file).read_text()
+        body = Path(args.body_file).read_text(encoding="utf-8")
     patterns = records(Git(args.head))
     missing = owed(changed_files(args.base, args.head), patterns, body)
     if missing:

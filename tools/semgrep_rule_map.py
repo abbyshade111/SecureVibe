@@ -316,7 +316,7 @@ def read_rules(root):
             if rel.startswith((".github", "scripts", "stats")):
                 continue
             try:
-                doc = yaml.safe_load(open(path))
+                doc = yaml.safe_load(open(path, encoding="utf-8"))
             except Exception:
                 continue
             if not isinstance(doc, dict) or not isinstance(doc.get("rules"), list):
@@ -354,7 +354,7 @@ def with_targets(entry, rule):
 
 def targets_only(root, adapters_path):
     by_id = {r["id"]: r for r in read_rules(root)}
-    adapters = json.load(open(adapters_path))
+    adapters = json.load(open(adapters_path, encoding="utf-8"))
     entry = next(a for a in adapters["adapters"] if a["id"] == "semgrep")
     unknown = []
     for rule_id, mapped in entry["rules"].items():
@@ -364,7 +364,7 @@ def targets_only(root, adapters_path):
             with_targets(mapped, by_id[rule_id])
         else:
             unknown.append(rule_id)
-    open(adapters_path, "w").write(json.dumps(adapters, indent=2, ensure_ascii=False) + "\n")
+    open(adapters_path, "w", encoding="utf-8", newline="\n").write(json.dumps(adapters, indent=2, ensure_ascii=False) + "\n")
     narrowed = sum(1 for m in entry["rules"].values() if "targets" in m or "skips" in m)
     print(f"{narrowed} of {len(entry['rules'])} mapped rules read only some files; "
           f"{len(unknown)} not in this checkout: {', '.join(unknown) or 'none'}")
@@ -378,7 +378,7 @@ def main():
         return
     root = sys.argv[1]
     commit = subprocess.run(["git", "-C", root, "log", "-1", "--format=%h %cs"],
-                            capture_output=True, text=True, check=True).stdout.strip()
+                            capture_output=True, text=True, encoding="utf-8", check=True).stdout.strip()
     by_name = {name: (reqs, what) for name, _, _, _, reqs, what in C}
     by_name.update({name: (reqs, what) for name, reqs, what in EXTRA})
     rules = [r for r in read_rules(root) if r["category"] == "security" and not r["id"].startswith(LEFT_OUT)]
@@ -408,7 +408,7 @@ def main():
     families |= {p for p in ASVS_AGAINST if not any(re.fullmatch(p, i) for i in ids)}
     if families:
         sys.exit("AISVS families naming no rule:\n  " + "\n  ".join(sorted(families)))
-    adapters = json.load(open(adapters_path))
+    adapters = json.load(open(adapters_path, encoding="utf-8"))
     entry = next(a for a in adapters["adapters"] if a["id"] == "semgrep")
     entry["rules"] = mapped
     asvs = sum(1 for m in mapped.values() if m["requirements"])
@@ -423,7 +423,7 @@ def main():
                   f"none of those. So do {against} others for ASVS requirements a pattern can show "
                   "missing and not present (V3.2.2, V4.4.1, V9.2.1).")
     entry["note"] = re.sub(r" Its rule ids are mapped by .*$", "", entry["note"]) + provenance
-    open(adapters_path, "w").write(json.dumps(adapters, indent=2, ensure_ascii=False) + "\n")
+    open(adapters_path, "w", encoding="utf-8", newline="\n").write(json.dumps(adapters, indent=2, ensure_ascii=False) + "\n")
     print(f"{asvs} of {len(rules)} security rules mapped to ASVS, {aisvs} with AISVS findings, "
           f"from semgrep-rules {commit}")
 

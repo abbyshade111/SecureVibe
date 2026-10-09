@@ -27,6 +27,14 @@ import sys
 import tempfile
 from pathlib import Path
 
+
+def write_text(path, text):
+    """Writes `text` as UTF-8 with Unix line endings on every system. Path.write_text uses the
+    system's own encoding and, on Windows, CRLF, which would make a generated file differ from the
+    one committed (backlog 0120)."""
+    with open(path, "w", encoding="utf-8", newline="\n") as out:
+        out.write(text)
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 PACKS = ROOT / "data" / "semgrep-packs.json"
@@ -37,7 +45,7 @@ FIXTURE_APP = ROOT / "crates" / "sv-check" / "tests" / "fixtures" / "semgrep" / 
 def adapter_packs() -> list:
     """The registry packs the semgrep adapter runs, from its `--config` arguments, including those it
     adds only for an app a condition may hold for (`conditional_args`)."""
-    semgrep = next(a for a in json.loads(ADAPTERS.read_text())["adapters"] if a["id"] == "semgrep")
+    semgrep = next(a for a in json.loads(ADAPTERS.read_text(encoding="utf-8"))["adapters"] if a["id"] == "semgrep")
     lists = [semgrep["run"]["args"]] + [c["args"] for c in semgrep.get("conditional_args", [])]
     return [args[i + 1] for args in lists for i, a in enumerate(args[:-1]) if a == "--config"]
 
@@ -59,7 +67,7 @@ def measure(pack: str) -> dict:
              "--sarif", "--output", str(out), "--quiet", "."],
             cwd=FIXTURE_APP, check=True,
         )
-        return json.loads(out.read_text())
+        return json.loads(out.read_text(encoding="utf-8"))
 
 
 def main() -> None:
@@ -71,10 +79,10 @@ def main() -> None:
                         help="measure only these of the adapter's packs (default: all of them)")
     args = parser.parse_args()
     today = args.date or datetime.date.today().isoformat()
-    packs = json.loads(PACKS.read_text()) if PACKS.exists() else {"packs": {}}
+    packs = json.loads(PACKS.read_text(encoding="utf-8")) if PACKS.exists() else {"packs": {}}
     if args.from_sarif:
         path, pack = args.from_sarif
-        runs = {pack: (json.loads(Path(path).read_text()), str(Path(path).resolve().relative_to(ROOT)))}
+        runs = {pack: (json.loads(Path(path).read_text(encoding="utf-8")), str(Path(path).resolve().relative_to(ROOT)))}
     else:
         unknown = [p for p in args.only if p not in adapter_packs()]
         if unknown:
@@ -90,7 +98,7 @@ def main() -> None:
         "tools/coverage.py counts semgrep only through mapped rules in a pack the adapter runs. A pack "
         "is the registry's and changes without sv changing, so re-measure when the map is regenerated."
     )
-    PACKS.write_text(json.dumps({"_comment": packs["_comment"], "packs": packs["packs"]}, indent=2) + "\n")
+    write_text(PACKS, json.dumps({"_comment": packs["_comment"], "packs": packs["packs"]}, indent=2) + "\n")
     print(f"wrote {PACKS.relative_to(ROOT)}")
 
 
