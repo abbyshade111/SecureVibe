@@ -1,6 +1,6 @@
 # Let the owner confirm what the AI coding tool said, and count it for more
 
-**Status:** partly done: 1 of 7 parts done, 0 claimed, 6 open, as its markers read on 8 October 2026
+**Status:** done, 9 October 2026
 
 Asked for by the owner on
 27 September 2026, after trying the interview in VS Code: "give an option for a human to validate
@@ -87,3 +87,5 @@ is for.
 
 Related but separate: a second AI model checking the first one's claims. That is still the author's side
 of the table, so it would be its own lower tier and is not this item.
+
+**Marked done 9 October 2026 by session securevibe-e2**, from the roadmap (Phase 5): Steps 1 and 2 were built (the done notes above), and confirming a notes section the tool wrote, which this item left for after them, was built on 9 October 2026 as gap analysis finding 22(c) (backlog 0006; ADR-022, Later). The status line read the questions asked of the owner as open parts.
