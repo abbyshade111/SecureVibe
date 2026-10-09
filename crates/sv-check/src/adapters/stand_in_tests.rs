@@ -6,7 +6,6 @@
 //! refuses `--refused`, and answers or writes a report only when the adapter's environment
 //! reached it.
 use super::*;
-use std::os::unix::fs::PermissionsExt;
 
 const OTHER: &str = r#"#!/bin/sh
 if [ "$1" = --version ]; then
@@ -20,8 +19,7 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
 
 fn script(dir: &Path, name: &str, text: &str) -> String {
     let path = dir.join(name);
-    std::fs::write(&path, text).unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    crate::test_support::executable(&path, text);
     path.display().to_string()
 }
 
