@@ -105,6 +105,23 @@ pub(super) fn output_schema(tool: &str) -> Option<Value> {
         "out_of_level",
         "ai_process",
     ];
+    // One question only the person can answer, as the check's `questions` lists it.
+    let question = object(
+        json!({
+            "id": string, "title": string, "how": string,
+            "where_to_look": { "type": ["string", "null"] },
+            "route": { "type": "string", "enum": ["write-it-down", "answer-in-the-manifest", "go-and-look"] },
+            "where_means": { "type": ["string", "null"] },
+        }),
+        &[
+            "id",
+            "title",
+            "how",
+            "where_to_look",
+            "route",
+            "where_means",
+        ],
+    );
     let schema = match tool {
         "stackvet_check" => object(
             json!({
@@ -131,21 +148,15 @@ pub(super) fn output_schema(tool: &str) -> Option<Value> {
                     json!({ "id": string, "description": string, "chapter": string, "blocked_on": strings }),
                     &["id", "description", "chapter", "blocked_on"],
                 ) },
+                "questions": { "type": "array", "items": question.clone() },
                 "part": part.clone(),
             }),
             // The lists are left out of a part that holds none of them (`crate::parts`).
             &["app", "targetLevel", "counts"],
         ),
+        // Folded into `stackvet_check` on 9 October 2026, and still answering by this name, unlisted.
         "stackvet_questions" => object(
-            json!({ "questions": { "type": "array", "items": object(
-                json!({
-                    "id": string, "title": string, "how": string,
-                    "where_to_look": { "type": ["string", "null"] },
-                    "route": { "type": "string", "enum": ["write-it-down", "answer-in-the-manifest", "go-and-look"] },
-                    "where_means": { "type": ["string", "null"] },
-                }),
-                &["id", "title", "how", "where_to_look", "route", "where_means"],
-            ) } }),
+            json!({ "questions": { "type": "array", "items": question } }),
             &["questions"],
         ),
         "stackvet_guidance" => object(
@@ -296,9 +307,15 @@ pub(super) fn output_schema(tool: &str) -> Option<Value> {
             }),
             &["file", "asked", "alreadyAnswered", "keptOutsideQuestions"],
         ),
+        // With an id and an answer, what was recorded; with neither, the file made or refreshed,
+        // as `stackvet_notes_file` gave it before it was folded in here.
         "stackvet_record_answer" => object(
-            json!({ "file": string, "id": string, "writtenBy": string }),
-            &["file", "id", "writtenBy"],
+            json!({
+                "file": string, "id": string, "writtenBy": string,
+                "asked": count, "alreadyAnswered": count,
+                "keptOutsideQuestions": { "type": "boolean" },
+            }),
+            &["file"],
         ),
         "stackvet_write_report" => object(json!({ "files": strings }), &["files"]),
         "stackvet_bundle" => object(
@@ -490,19 +507,12 @@ pub(super) fn tool_list() -> Value {
         {
             "name": "stackvet_check",
             "title": "Check an app",
-            "description": "Check the app against OWASP ASVS 5.0, AISVS 1.0 and the Secure by Design checklist: credentials in the code, configuration, rules that read the code, dependencies (listed, not compared with known vulnerabilities: that needs `--advisories` at a terminal), and which requirements apply. Reads files only; never starts the app. The result gives the counts, then what was NOT examined, then what needs attention with the file, line and fix. It never says a requirement passed, and nothing in it means the app is secure. A check too long to take in whole (over about 40,000 characters) comes in parts: the first answer gives what was not examined and the findings, and ends with a list of every section and how to ask for each with `section` and `page`. Nothing is left out.",
+            "description": "Check the app against OWASP ASVS 5.0, AISVS 1.0 and the Secure by Design checklist: credentials in the code, configuration, rules that read the code, dependencies (listed, not compared with known vulnerabilities: that needs `--advisories` at a terminal), and which requirements apply. Reads files only; never starts the app. The result gives the counts, then what was NOT examined, then what needs attention with the file, line and fix. It never says a requirement passed, and nothing in it means the app is secure. It also gives the questions about the app that only a person can answer (how it is built, the rules it follows, and what to check by hand), in its section \"questions\": ask the person them one at a time, offering what you know of the code as a tip, and record their answers as that section says; answers you give yourself are recorded as yours and reported as weaker than the person's. A check too long to take in whole (over about 40,000 characters) comes in parts: the first answer gives what was not examined and the findings, and ends with a list of every section and how to ask for each with `section` and `page`. Nothing is left out.",
             "inputSchema": { "type": "object", "properties": {
                 "path": path.clone(),
                 "section": section(CHECK_SECTIONS),
                 "page": page.clone(),
             } },
-            "annotations": { "readOnlyHint": true, "openWorldHint": false }
-        },
-        {
-            "name": "stackvet_questions",
-            "title": "Questions for the owner",
-            "description": "The questions about the app that only a person can answer: how it is built, the rules it follows, and what to check by hand. Ask the person them one at a time, offering what you know of the code as a tip, and record their answers as the result says. Answers you give yourself are recorded as yours and reported as weaker than the person's.",
-            "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
             "annotations": { "readOnlyHint": true, "openWorldHint": false }
         },
         {
@@ -519,24 +529,16 @@ pub(super) fn tool_list() -> Value {
             "annotations": { "readOnlyHint": false, "destructiveHint": false, "openWorldHint": false }
         },
         {
-            "name": "stackvet_notes_file",
-            "title": "Make the security notes file",
-            "description": "Make or refresh security-notes.md in the app's folder, where the person's written decisions go. Keeps everything already written in it: answers stay under their questions, and any other text is kept word for word in a section of its own near the top. Refuses, writing nothing, when the file is not UTF-8 text or has two sections for one question.",
-            "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
-            "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false }
-        },
-        {
             "name": "stackvet_record_answer",
             "title": "Record an answer in the security notes",
-            "description": "Write an answer under one question in security-notes.md (making the file if it is not there), in place of what was under it. sv marks every answer this records as yours, `Written by: AI coding tool`, which the report counts for less than the person's own word; there is no way to mark it as theirs. Record what the person told you, or what you found in the code if they asked you to answer; then show them. If it says what they decided, they change the line to `Written by: owner` themselves and record it by running `sv review` in their own terminal; if you worked it out from the code and they agree, they leave the line as it is and confirm it through `sv review`, and the report shows it as your words a person confirmed. It fills a question with nothing under it, or replaces an answer marked `Written by: AI coding tool`; anything else under the question may be the person's own words and is never replaced.",
+            "description": "Write an answer under one question in security-notes.md (making the file if it is not there), in place of what was under it. Called with no id and no answer, it only makes or refreshes security-notes.md, where the person's written decisions go, keeping everything already written in it: answers stay under their questions, and any other text is kept word for word in a section of its own near the top; it refuses, writing nothing, when the file is not UTF-8 text or has two sections for one question. sv marks every answer this records as yours, `Written by: AI coding tool`, which the report counts for less than the person's own word; there is no way to mark it as theirs. Record what the person told you, or what you found in the code if they asked you to answer; then show them. If it says what they decided, they change the line to `Written by: owner` themselves and record it by running `sv review` in their own terminal; if you worked it out from the code and they agree, they leave the line as it is and confirm it through `sv review`, and the report shows it as your words a person confirmed. It fills a question with nothing under it, or replaces an answer marked `Written by: AI coding tool`; anything else under the question may be the person's own words and is never replaced.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "path": path.clone(),
-                    "id": { "type": "string", "description": "The question's requirement id, as stackvet_questions lists it, such as V6.1.1." },
-                    "answer": { "type": "string", "description": "The answer, in a sentence or two of plain words, at least 40 characters, with no headings and no line starting with `>`. Leave out any line saying who wrote it; sv adds it." }
-                },
-                "required": ["id", "answer"]
+                    "id": { "type": "string", "description": "The question's requirement id, as stackvet_check's section \"questions\" lists it, such as V6.1.1. Leave it and the answer out to only make or refresh the file." },
+                    "answer": { "type": "string", "description": "Needed with an id. The answer, in a sentence or two of plain words, at least 40 characters, with no headings and no line starting with `>`. Leave out any line saying who wrote it; sv adds it." }
+                }
             },
             "annotations": { "readOnlyHint": false, "destructiveHint": true, "idempotentHint": true, "openWorldHint": false }
         },

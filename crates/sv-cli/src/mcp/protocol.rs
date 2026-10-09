@@ -131,3 +131,17 @@ pub(super) fn split_remedy(e: &anyhow::Error) -> (String, Option<String>) {
 pub(super) fn tool_error(message: &str) -> Value {
     json!({ "content": [{ "type": "text", "text": message }], "isError": true })
 }
+
+/// A result given by a tool's old name, once the tool was folded into another (backlog 0187, part
+/// 10): the same result, ending with `sv`'s own line, outside any fence, naming the tool to call
+/// instead.
+pub(super) fn folded(mut result: Value, instead: &str) -> Value {
+    if let Some(text) = result["content"][0]["text"].as_str() {
+        let text = format!(
+            "{text}\n\nThis tool's name is going away and it is no longer listed: call {instead}, \
+             which gives the same."
+        );
+        result["content"][0]["text"] = json!(text);
+    }
+    result
+}

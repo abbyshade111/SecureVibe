@@ -97,15 +97,33 @@ impl Server {
         let ask = crate::parts::ask(args, "stackvet_check", CHECK_SECTIONS)?;
         let app_dir = self.app_dir(args)?;
         let report = self.report_for(&app_dir, progress)?;
+        // The parts carry the questions only the person can answer in full, and so does the whole
+        // answer, so the parts joined are still the whole (backlog 0187, part 10). Asked for with no
+        // section, a check that would come whole without them but not with them comes whole with
+        // them only counted, as before they were folded in, rather than in parts.
+        let full = |fence: &sv_report::fence::Fence| summary_with(&report, fence, true);
+        let mut with_questions = structured(&report);
+        with_questions["questions"] = questions_in_order(&report);
+        let fits = |text: String, data: &Value| {
+            text.len() <= crate::parts::ANSWER_BUDGET
+                && data.to_string().len() <= crate::parts::ANSWER_BUDGET
+        };
+        let counted = matches!(ask, crate::parts::Ask::First)
+            && !fits(sv_report::fence::fenced(full), &with_questions);
+        let whole_structured = if counted {
+            structured(&report)
+        } else {
+            with_questions
+        };
         crate::parts::respond(
             &crate::parts::Answer {
                 tool: "stackvet_check",
                 what: "check",
-                sections: &|fence| check_sections(&report, fence),
+                sections: &|fence| check_sections(&report, fence, true),
                 first: CHECK_FIRST,
                 always: check_always(&report),
-                whole_text: &|fence| summary_with(&report, fence),
-                whole_structured: structured(&report),
+                whole_text: &|fence| summary_with(&report, fence, !counted),
+                whole_structured,
             },
             &ask,
         )
@@ -177,17 +195,11 @@ impl Server {
     }
 
     /// The questions only a person can answer, for the tool to ask them one at a time.
+    /// Answered by its old name only: it is `stackvet_check` with section "questions" now.
     pub(super) fn questions(&self, args: &Value, progress: &Progress) -> Result<Value> {
         let app_dir = self.app_dir(args)?;
         let report = self.report_for(&app_dir, progress)?;
-        Ok(json!({
-            "content": [{
-                "type": "text",
-                "text": sv_report::fence::fenced(|fence| sv_report::interview::text_with(&report, fence)),
-            }],
-            "structuredContent": { "questions": report.questions_for_you },
-            "isError": false,
-        }))
+        Ok(questions_answer(&report))
     }
 
     /// The rules to follow while writing the app, for all of it or one topic, from OWASP AISVS
@@ -371,7 +383,7 @@ impl Server {
             format!(
                 "Wrote {}, keeping every answer already in it. {} question{} apply, {} already \
                      answered. Record the person's decisions with stackvet_record_answer; \
-                     stackvet_questions lists the questions.{}",
+                     stackvet_check lists the questions, in its section \"questions\".{}",
                 fence.wrap(&written.path.display().to_string()),
                 written.asked,
                 if written.asked == 1 { "" } else { "s" },
@@ -406,7 +418,13 @@ impl Server {
     /// `sv` writes the mark, and it is always `Written by: AI coding tool`: this server cannot tell
     /// whether the person said something or the tool only says they did, so it offers no way to say
     /// "the owner" (the owner's decision, 4 October 2026). The person changes the line themselves.
+    ///
+    /// Called with no id and no answer, it makes or refreshes the file and records nothing, which
+    /// `stackvet_notes_file` did before it was folded in here (backlog 0187, part 10).
     pub(super) fn record_answer(&self, args: &Value) -> Result<Value> {
+        if args.get("id").is_none() && args.get("answer").is_none() {
+            return self.notes_file(args);
+        }
         let app_dir = self.app_dir(args)?;
         let text = |key: &str| {
             args.get(key)
@@ -508,4 +526,17 @@ impl Server {
             "isError": false,
         }))
     }
+}
+
+/// The questions only the person can answer, for the tool to ask them one at a time, as the old
+/// name gave them: the interview's text, and the questions as structured items.
+fn questions_answer(report: &sv_report::Report) -> Value {
+    json!({
+        "content": [{
+            "type": "text",
+            "text": sv_report::fence::fenced(|fence| sv_report::interview::text_with(report, fence)),
+        }],
+        "structuredContent": { "questions": report.questions_for_you },
+        "isError": false,
+    })
 }

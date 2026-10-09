@@ -8,8 +8,12 @@ use super::*;
 /// finding's title and fix, a claim, a threat, an entry in stackvet.toml), is fenced as data
 /// (`sv_report::fence`): an app's name opened this result as if `sv` had said it (deep review R9).
 /// What `sv` itself tells the tool to do stays outside every fence.
-pub(super) fn summary_with(report: &sv_report::Report, fence: &sv_report::fence::Fence) -> String {
-    check_sections(report, fence)
+pub(super) fn summary_with(
+    report: &sv_report::Report,
+    fence: &sv_report::fence::Fence,
+    questions_whole: bool,
+) -> String {
+    check_sections(report, fence, questions_whole)
         .iter()
         .map(crate::parts::Section::text)
         .collect()
@@ -36,7 +40,6 @@ pub(super) const CHECK_SECTIONS: &[&str] = &[
 pub(super) const CHECK_FIRST: &[&str] = &[
     "summary",
     "not-examined",
-    "questions",
     "contradicted",
     "set-aside",
     "not-counted",
@@ -45,9 +48,15 @@ pub(super) const CHECK_FIRST: &[&str] = &[
 
 /// The check in its sections, each line with the item of the structured result it shows (`crate::parts`):
 /// the whole answer is these joined. The last two are in the structured result only, as they always were.
+///
+/// `questions_whole` gives the questions only the person can answer in full, a page at a time, as
+/// `stackvet_questions` gave them before it was folded in here (backlog 0187, part 10). Without it the
+/// section only counts them and says how to ask for them: in full they are long enough to make a short
+/// check come in parts, so the whole answer keeps the count, and the parts carry the questions.
 pub(super) fn check_sections(
     report: &sv_report::Report,
     fence: &sv_report::fence::Fence,
+    questions_whole: bool,
 ) -> Vec<crate::parts::Section> {
     use crate::parts::{Item, Section};
     let one_line = |text: &str| fence.wrap(text);
@@ -122,17 +131,19 @@ pub(super) fn check_sections(
     let mut questions = Section::new(
         "questions",
         format!(
-            "The {} questions only the person can answer (stackvet_questions asks them)",
+            "The {} questions only the person can answer, to ask them one at a time",
             report.questions_for_you.len()
         ),
-        &[],
+        &["questions"],
     );
-    if !report.questions_for_you.is_empty() {
+    if questions_whole {
+        (questions.lead, questions.items) = question_items(report, fence);
+    } else if !report.questions_for_you.is_empty() {
         questions.lead = format!(
             "\nQUESTIONS FOR THE OWNER — {} that only a person can answer (how the app is built, \
-             the rules it follows, what to check by hand). Call stackvet_questions and ask the \
-             person them one at a time; `sv notes` and `sv questions` in the lines above are the \
-             terminal's way to the same thing.\n",
+             the rules it follows, what to check by hand). Call stackvet_check again with section \
+             \"questions\" for them, and ask the person them one at a time; `sv notes` and \
+             `sv questions` in the lines above are the terminal's way to the same thing.\n",
             report.questions_for_you.len()
         );
     }
@@ -400,4 +411,61 @@ pub(super) fn structured(report: &sv_report::Report) -> Value {
         "claims": report.claims,
         "undecided": report.undecided,
     })
+}
+
+/// The interview's text in items, so a page ends between two questions or before a group's heading and
+/// never inside one; each question's item carries it in the structured result's `questions`.
+fn question_items(
+    report: &sv_report::Report,
+    fence: &sv_report::fence::Fence,
+) -> (String, Vec<crate::parts::Item>) {
+    use crate::parts::Item;
+    let text = sv_report::interview::text_with(report, fence);
+    // Where each question (`\n - V1.2.3: ...`) and each group's heading (`\n2. WRITTEN ...`) starts.
+    let starts: Vec<usize> = text
+        .match_indices('\n')
+        .map(|(at, _)| at)
+        .filter(|&at| {
+            let rest = &text[at + 1..];
+            rest.starts_with(" - ")
+                || (rest.starts_with(|c: char| c.is_ascii_digit())
+                    && rest
+                        .trim_start_matches(|c: char| c.is_ascii_digit())
+                        .starts_with(". "))
+        })
+        .collect();
+    let Some(&first) = starts.first() else {
+        return (text, Vec::new());
+    };
+    let lead = text[..first].to_owned();
+    let mut items = Vec::new();
+    for (n, &start) in starts.iter().enumerate() {
+        let piece = text[start..starts.get(n + 1).copied().unwrap_or(text.len())].to_owned();
+        let asked = piece.strip_prefix("\n - ").and_then(|rest| {
+            report
+                .questions_for_you
+                .iter()
+                .find(|q| rest.starts_with(&format!("{}: ", q.id)))
+        });
+        items.push(match asked {
+            Some(question) => Item::with(piece, "questions", json!(question)),
+            None => Item::text(piece),
+        });
+    }
+    (lead, items)
+}
+
+/// The questions only the person can answer, in the order the interview asks them (how the app is
+/// built, then the written decisions, then the checks to make by hand), which is the order the
+/// check's parts give them in.
+pub(super) fn questions_in_order(report: &sv_report::Report) -> Value {
+    use sv_check::human::Route;
+    let rank = |route: &Route| match route {
+        Route::AnswerInTheManifest => 0,
+        Route::WriteItDown => 1,
+        Route::GoAndLook => 2,
+    };
+    let mut questions: Vec<_> = report.questions_for_you.iter().collect();
+    questions.sort_by_key(|q| rank(&q.route));
+    json!(questions)
 }

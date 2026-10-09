@@ -109,7 +109,7 @@ it stops, so the bar is the person's to set.
 ## The MCP server (`crates/sv-cli/src/mcp/`)
 
 JSON-RPC over stdio, hand-written, one request at a time, each on a thread with a time limit. The tools are the
-commands (`stackvet_check`, `stackvet_write_report`, `stackvet_plan`, `stackvet_spec`, `stackvet_questions`,
+commands (`stackvet_check`, `stackvet_write_report`, `stackvet_plan`, `stackvet_spec`,
 `stackvet_record_answer`, and the rest in `catalog.rs`), built on the same `assemble_report_saying` as `sv report`,
 so what the tool is told is what the report says. Three rules hold everywhere in it: every path stays below the folder
 the server was started for (`confine.rs`); the app's own text is fenced as data before it reaches the tool, since the
