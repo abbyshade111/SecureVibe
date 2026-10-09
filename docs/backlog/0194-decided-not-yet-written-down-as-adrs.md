@@ -1,6 +1,6 @@
 # Decided, not yet written down as ADRs
 
-**Status:** open
+**Status:** done, 27 September 2026
 
 **All three written down on 27 September 2026 by session securevibe-e8**, in a `docs/adr/` of `sv`'s
 own, numbered after v1's so that a number always means one decision (`docs/adr/README.md`). Each one was
