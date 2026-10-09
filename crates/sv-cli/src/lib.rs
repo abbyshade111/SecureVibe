@@ -24,11 +24,10 @@ macro_rules! eprintln {
 }
 
 pub mod assemble;
-pub mod static_scan;
-
+pub mod bundle;
 pub mod exit;
-
 pub mod report_lock;
+pub mod static_scan;
 
 /// Everything a report reads from `data/`, loaded once per process.
 ///
@@ -725,8 +724,6 @@ pub fn more_questions(plan: &RunPlan) -> (Vec<String>, Vec<sv_check::running::Pr
 pub fn crosswalk_path() -> PathBuf {
     sv_frameworks::data::file("sbd-asvs-crosswalk.json")
 }
-
-pub mod bundle;
 
 impl ReviewLookup<'_> {
     fn looked(&self, rule: &str, file: &str) -> sv_check::review::Looked {
