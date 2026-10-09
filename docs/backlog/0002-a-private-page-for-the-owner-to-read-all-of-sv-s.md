@@ -1,6 +1,6 @@
 # A private page for the owner to read all of `sv`'s documentation
 
-**Status:** partly done: 1 of 4 parts done, 0 claimed, 3 open, as its markers read on 8 October 2026
+**Status:** done, 9 October 2026
 
 Asked for by the owner on 8 October 2026
 ("build out a private page (just for me on this computer) that makes it easy for me to navigate through all the
@@ -42,3 +42,12 @@ against `main` just before this claim, they were met by part 1's build and are o
 `tools/docs_page.py` writes to `~/stackvet-docs/` and only into a folder it marks as its own (part 2). It reads
 Markdown with a reader of its own and no dependency (part 3). It takes only the Markdown git tracks, with
 `docs/paper/`, the example apps, `target/`, and `crates/` left out (part 4). No other session had claimed them.
+**Parts 2 to 4 done the same day**, by part 1's build (ADR-058), read against `tools/docs_page.py` on `main`. Its
+self-test passed 16 of 16, and a full run wrote 707 documents.
+- Part 2: it writes to `~/stackvet-docs/`, the home folder the owner chose, and only into a folder it marks as its
+  own.
+- Part 3: its Markdown reader is its own, with no dependency.
+- Part 4: it takes only the Markdown git tracks, with `docs/paper/`, the example apps, `target/`, and `crates/` left
+  out (`crates/sv-cli/tests/docs_page.rs`).
+
+Every part of this item is done.
