@@ -387,12 +387,7 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     assert_eq!(seen(port, "5e5f")["mcp_released"], true);
     // The control: an MCPPLAIN call is answered at once, with its result, and never held.
     chat_with_tools(port, "Look it up SV-PROBE-MCPPLAIN-6e6f");
-    let plain = call(
-        port,
-        "POST",
-        "/mcp",
-        &rpc.replace("5e5f", "6e6f"),
-    );
+    let plain = call(port, "POST", "/mcp", &rpc.replace("5e5f", "6e6f"));
     assert!(plain.contains("SV-MCPRESULT-6e6f"), "{plain}");
     assert_eq!(seen(port, "6e6f")["mcp_called"], true);
     assert_ne!(seen(port, "6e6f")["mcp_released"], true);

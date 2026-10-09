@@ -3428,10 +3428,18 @@ fn a_tool_with_a_time_limit_is_credited_in_part_and_nothing_else_is_ever_credite
         "the rest of C9.1.1 is said to be unchecked: {:?}",
         careful.not_assessed
     );
-    // Credit only, never a finding, in every case below.
-    let no_finding = |o: &Outcome| {
-        assert!(!found(o).contains(&TOOL_TIMEOUT.rule_id), "{:?}", o.findings);
-        assert!(!credited(o).contains(&TOOL_TIMEOUT.rule_id), "{:?}", o.steps);
+    // Never a finding, and in every case below no credit either.
+    let neither = |o: &Outcome| {
+        assert!(
+            !found(o).contains(&TOOL_TIMEOUT.rule_id),
+            "{:?}",
+            o.findings
+        );
+        assert!(
+            !credited(o).contains(&TOOL_TIMEOUT.rule_id),
+            "{:?}",
+            o.steps
+        );
     };
     // No limit of its own: no answer within the wait says nothing, and the hold is waited out.
     let mut app = FakeChat {
@@ -3442,7 +3450,7 @@ fn a_tool_with_a_time_limit_is_credited_in_part_and_nothing_else_is_ever_credite
         ..Default::default()
     };
     let waits = run(&mut app, &mcp_section(), &context(None, &NO_POLICY)).0;
-    no_finding(&waits);
+    neither(&waits);
     assert!(
         why(&waits, "C9.1.1")
             .iter()
@@ -3460,7 +3468,7 @@ fn a_tool_with_a_time_limit_is_credited_in_part_and_nothing_else_is_ever_credite
         tool_trace_on_timeout: true,
         ..Default::default()
     });
-    no_finding(&traced);
+    neither(&traced);
     assert!(
         why(&traced, "C9.1.1")
             .iter()
@@ -3473,7 +3481,7 @@ fn a_tool_with_a_time_limit_is_credited_in_part_and_nothing_else_is_ever_credite
         answers_after_tool_lets_go: true,
         ..Default::default()
     });
-    no_finding(&late);
+    neither(&late);
     assert!(
         why(&late, "C9.1.1")
             .iter()
@@ -3493,9 +3501,11 @@ fn a_tool_with_a_time_limit_is_credited_in_part_and_nothing_else_is_ever_credite
         },
     ] {
         let o = ask_mcp(flaws);
-        no_finding(&o);
+        neither(&o);
         assert!(
-            why(&o, "C9.1.1").iter().any(|w| w.contains("was not asked")),
+            why(&o, "C9.1.1")
+                .iter()
+                .any(|w| w.contains("was not asked")),
             "{:?}",
             o.not_assessed
         );
@@ -3505,7 +3515,7 @@ fn a_tool_with_a_time_limit_is_credited_in_part_and_nothing_else_is_ever_credite
         mcp_calls_once: true,
         ..Default::default()
     });
-    no_finding(&once);
+    neither(&once);
     assert!(
         why(&once, "C9.1.1")
             .iter()

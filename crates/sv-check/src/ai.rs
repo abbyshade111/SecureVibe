@@ -1884,6 +1884,7 @@ where
             ),
         ));
     }
+    crate::verified::unless_credited(TOOL_TIMEOUT.rule_id, &out.verified);
 }
 
 /// The rounds a loop question ran, judged: the same rules whichever tool the test model kept asking

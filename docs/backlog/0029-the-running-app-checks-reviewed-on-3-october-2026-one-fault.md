@@ -172,6 +172,10 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    credited for C9.1.1 in part (execution time, one tool; CPU, memory, disk and egress cannot be seen from outside).
    No finding: no answer in time cannot tell a longer limit from none. **Record, `Status: proposed`: ADR-064.**
    Checked just before this claim: not on `main`, in no open pull request, and in no recent branch.
+   **Done on 8 October 2026** (DESIGN, "A tool that does not answer, and C9.1.1 checked in part (8 October 2026)";
+   ADR-064, accepted). The test model's `MCPHANG` has the MCP server hold the call for 40 seconds;
+   `probe.ai-tool-timeout` credits C9.1.1 in part when the app answers by itself within 15 seconds while the call is
+   held, and is never a finding. CPU, memory, disk and egress quotas remain unchecked.
 10. **The AI service failing (V16.5.2, V16.5.3; C7.1.1 where the app asks for a structured answer).** The test
     model answers with an error, a timeout, or malformed JSON; credit when the app shows a plain error, keeps
     working, and passes on neither the raw error nor the bad structure.
