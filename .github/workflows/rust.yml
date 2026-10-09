@@ -75,7 +75,10 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           if [ -n "$DOCKERHUB_TOKEN" ]; then
-            printf '%s' "$DOCKERHUB_TOKEN" | docker login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin
+            # A sign-in Docker Hub refuses is said and passed over: the pulls then go unsigned, as
+            # before. Its first run met Docker Hub answering 500 to the sign-in itself.
+            printf '%s' "$DOCKERHUB_TOKEN" | docker login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin \
+              || echo "::warning::Docker Hub refused the sign-in; pulling unsigned, as before."
           else
             echo "No Docker Hub sign-in here (a pull request from a fork is given no secrets): pulling as before."
           fi
@@ -134,7 +137,10 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           if [ -n "$DOCKERHUB_TOKEN" ]; then
-            printf '%s' "$DOCKERHUB_TOKEN" | docker login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin
+            # A sign-in Docker Hub refuses is said and passed over: the pulls then go unsigned, as
+            # before. Its first run met Docker Hub answering 500 to the sign-in itself.
+            printf '%s' "$DOCKERHUB_TOKEN" | docker login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin \
+              || echo "::warning::Docker Hub refused the sign-in; pulling unsigned, as before."
           else
             echo "No Docker Hub sign-in here (a pull request from a fork is given no secrets): pulling as before."
           fi
@@ -234,7 +240,10 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           if [ -n "$DOCKERHUB_TOKEN" ]; then
-            printf '%s' "$DOCKERHUB_TOKEN" | docker login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin
+            # A sign-in Docker Hub refuses is said and passed over: the pulls then go unsigned, as
+            # before. Its first run met Docker Hub answering 500 to the sign-in itself.
+            printf '%s' "$DOCKERHUB_TOKEN" | docker login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin \
+              || echo "::warning::Docker Hub refused the sign-in; pulling unsigned, as before."
           else
             echo "No Docker Hub sign-in here (a pull request from a fork is given no secrets): pulling as before."
           fi
