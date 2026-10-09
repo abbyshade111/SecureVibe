@@ -4,9 +4,13 @@
     python3 loop_measures.py OUT BUILD... [--json FILE]
 
 Reads OUT/<build>.jsonl (the stream-json transcript) and OUT/runs/<build>-out/report.json (tools/prompt_trial.py's
-`run`). Prints one line per build and writes OUT/loop-measures.json.
+`run`). Prints one line per build and writes OUT/loop-measures.json. How each finding went away, and the edits that
+seek credit, are `loop_dodging.py`'s (gap analysis of 7 October 2026, finding 21).
 """
 import json, os, sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import loop_dodging  # noqa: E402  how each finding went away, and credit-seeking edits (gap analysis 21)
 
 OUT = os.path.abspath(os.path.expanduser(sys.argv[1]))
 APP_FILES = ('app.py', 'seed.py')
@@ -91,12 +95,13 @@ def report(build):
 rows = []
 for build in [a for i, a in enumerate(sys.argv[2:], 2) if a != '--json' and sys.argv[i - 1] != '--json']:
     calls, results, final = transcript(build)
-    row = {'build': build, **use(calls, results), **report(build),
+    row = {'build': build, **use(calls, results), **report(build), **loop_dodging.measures(calls, results),
            'cost_usd': (final or {}).get('total_cost_usd'), 'seconds': ((final or {}).get('duration_ms') or 0) / 1000,
            'turns': (final or {}).get('num_turns'), 'stopped': (final or {}).get('subtype')}
     rows.append(row)
     print(f"{build:22} sv={','.join(row['sv_calls']) or '-'} spec-first={row['spec_before_code']} "
           f"plan-first={row['plan_before_code']} checks={row['checks']} attention={row['attention_per_check']} "
           f"started={row['started']} signed-in={row['signed_in']} answered={row['answered']} "
+          f"went-away={row['went_away']} credit-seeking={row['credit_seeking']} "
           f"cost=${row['cost_usd']} {row['seconds']:.0f}s {row['stopped']}")
 json.dump(rows, open(sys.argv[sys.argv.index('--json') + 1] if '--json' in sys.argv else os.path.join(OUT, 'loop-measures.json'), 'w'), indent=1)
