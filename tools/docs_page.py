@@ -29,6 +29,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 MARK = ".stackvet-docs"
+# The marker the tool wrote until 9 October 2026 (ADR-062): a folder carrying it is still the tool's own.
+OLD_MARK = ".securevibe-docs"
 LEFT_OUT = ("docs/paper/", "examples/", "target/", "crates/", "v1/")
 
 # The sections the index lists, in order: (title, test on the document's path).
@@ -313,7 +315,7 @@ def build(out):
     out = Path(out).expanduser()
     if out.is_symlink():
         sys.exit(f"{out} is a link; nothing is written through it.")
-    if out.exists() and not (out / MARK).is_file():
+    if out.exists() and not ((out / MARK).is_file() or (out / OLD_MARK).is_file()):
         if any(out.iterdir()):
             sys.exit(f"{out} is already there and was not made by this tool, so it is left as it is. Choose --out.")
     if out.resolve().is_relative_to(ROOT):

@@ -52,7 +52,7 @@ fn the_pages_hold_the_documents_and_leave_out_the_paper() {
     let adr = read("docs/adr/ADR-058.html");
     let guide = read("docs/GETTING-STARTED.html");
     let paper = dir.join("docs/paper").exists();
-    let marked = dir.join(".securevibe-docs").is_file();
+    let marked = dir.join(".stackvet-docs").is_file();
     std::fs::remove_dir_all(&dir).ok();
 
     assert!(out.status.success(), "{}", said(&out));
