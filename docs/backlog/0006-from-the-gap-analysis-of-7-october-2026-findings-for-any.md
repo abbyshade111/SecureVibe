@@ -39,6 +39,14 @@ listed apart, below this item.
    both read, both off the list, each call with a case that must be found and one that must not
    (`crates/sv-check/src/ast/orm_raw_tests.rs`). TypeORM, Sequelize, Drizzle, Mongoose and the MongoDB drivers,
    Supabase's clients, Django, PyMongo, and Laravel remain, each still holding V1.2.4's credit back.
+   **The first half's second part, TypeORM, Sequelize, and Drizzle, claimed 9 October 2026 by session securevibe-e2**,
+   in branch `claude/securevibe-e2-orm-npm`: TypeORM's query builder (`where`, `andWhere`, `orWhere`, `having`,
+   `andHaving`, `orHaving`, `orderBy`, `addOrderBy`, `groupBy`, `addGroupBy`) and Sequelize's `literal`, each only
+   when the text is built in the call, so an object of conditions or fixed text is not reported; and Drizzle, whose
+   one unsafe call, `sql.raw`, the rule may already read, shown by a test before it comes off the list. `select` is
+   left out: `d3.select("#" + id)` would be a false alarm in every page that draws a chart. Each package comes off
+   `unreadPackages` only with a test of each of its calls. Confirmed on `main` just before this claim: all three are on
+   the list, and no other session holds this part.
 2. **Dependencies in .NET, Dart, Swift, Elixir, and Deno are invisible, and V15.2.1 is credited anyway.**
    (`docs/GAP-ANALYSIS.md`, 1.5.) Detect `*.csproj`, `packages.lock.json`, `pubspec.yaml`/`.lock`,
    `Package.swift`/`.resolved`, `mix.exs`, and `deno.json`/`.lock` as ecosystems `sv` does not read, so they hold
@@ -194,6 +202,10 @@ listed apart, below this item.
    and their usual siblings in Python, JavaScript and TypeScript, and Go), and not for an address built from the app's
    own settings, which is how every API client is written. Confirmed on `main` and in the open pull requests just
    before this claim: no rule reads it, and no other session holds this part.
+   **That part done the same day** (`docs/design/0324-an-outgoing-request-s-address-taken-from-the-incoming-one-9.md`):
+   `ast.fetch-address-from-request` in Python, JavaScript and TypeScript, and Go, only ever a finding, with an address
+   from the app's settings or a written-out host left alone; six guards broken in turn, each caught. Of this finding,
+   the request body passed whole to an update or create is still open.
    **The request body passed whole to an update or create claimed 9 October 2026 by session securevibe-e9**, from the
    roadmap (Phase 4, item 4, the last unclaimed part of this finding), in branch `claude/stackvet-e9-body-whole`: a code
    rule, `ast.request-body-passed-whole`, only ever a finding, citing V15.3.3 (mass assignment), for the whole request

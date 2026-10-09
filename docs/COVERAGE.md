@@ -47,12 +47,12 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Can be credited | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 58 | 44 | 17 | 1 | 6 | 38 | 21 | 3 |
-| L2 | 183 | 91 | 67 | 20 | 0 | 19 | 46 | 28 | 2 |
+| L2 | 183 | 91 | 67 | 22 | 0 | 19 | 46 | 28 | 2 |
 | L3 | 92 | 21 | 9 | 3 | 0 | 8 | 2 | 6 | 3 |
 
 50 of the 170 ASVS requirements that can be settled can only ever be marked *needs attention*: a check can show the control missing, and finding nothing does not show it present, so a clean run credits none of them. They are counted under *Can settle* and not under *Can be credited*, and the kinds of check above count every requirement a check can settle either way.
 
-With nothing beyond plain `sv check`, 40 ASVS requirements can be settled. 25 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 42 ASVS requirements can be settled. 25 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -86,7 +86,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 
 ## ASVS 5.0 requirement by requirement
 
-### Settled by reading the code (40)
+### Settled by reading the code (42)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -95,6 +95,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V1.2.5 | L1 | Reads the code: `ast.shell-command`, `ast.shell-command-backticks`, `ast.shell-command-shell-true`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (bandit only ever as a finding: `B601`; sv only ever as a finding: `ast.shell-command-shell-true`) |
 | V1.3.1 | L1 | Reads the code: `config.rich-text-without-sanitizer` (sv only ever as a finding: `config.rich-text-without-sanitizer`) |
 | V1.3.2 | L1 | Reads the code: `ast.dynamic-code-execution`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
+| V1.3.6 | L2 | Reads the code: `ast.fetch-address-from-request`; The running app: `probe.fetch-goes-anywhere`; Outside tools: `gosec`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `ast.fetch-address-from-request`, `probe.fetch-goes-anywhere`) |
 | V1.3.7 | L2 | Reads the code: `ast.template-built-from-value`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `ast.template-built-from-value`) |
 | V1.5.2 | L2 | Reads the code: `ast.unsafe-deserialization`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
 | V3.4.2 | L1 | Reads the code: `ast.cors-any-origin-with-credentials`; The running app: `probe.cors-any-origin`; Outside tools: `semgrep`, `codeql-javascript` (sv only ever as a finding: `ast.cors-any-origin-with-credentials`) |
@@ -122,6 +123,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V12.3.2 | L2 | Reads the code: `config.certificate-checks-off`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (sv only ever as a finding: `config.certificate-checks-off`) |
 | V12.3.4 | L2 | Reads the code: `config.certificate-checks-off` (sv only ever as a finding: `config.certificate-checks-off`) |
 | V13.2.3 | L2 | Reads the code: `secrets.credential-assignment` (sv only ever as a finding: `secrets.credential-assignment`) |
+| V13.2.4 | L2 | Reads the code: `ast.fetch-address-from-request`; The running app: `probe.fetch-goes-anywhere` (sv only ever as a finding: `ast.fetch-address-from-request`, `probe.fetch-goes-anywhere`) |
 | V13.3.2 | L2 | Reads the code: `config.workflow-hands-out-all-secrets` (sv only ever as a finding: `config.workflow-hands-out-all-secrets`) |
 | V13.4.2 | L2 | Reads the code: `ast.debug-mode-on`; The running app: `probe.error-detail-leak`, `probe.development-console-open`; Outside tools: `bandit`, `gosec`, `semgrep`, `codeql-python` (gosec only ever as a finding: `G108`; sv only ever as a finding: `ast.debug-mode-on`, `probe.development-console-open`) |
 | V13.4.7 | L3 | Reads the code: `ast.static-files-from-app-folder`; The running app: `probe.private-files-served` (sv only ever as a finding: `ast.static-files-from-app-folder`, `probe.private-files-served`) |
@@ -139,7 +141,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V1.2.3 | L1 | The running app: `probe.reflected-json-unescaped`; Outside tools: `brakeman` (sv only ever as a finding: `probe.reflected-json-unescaped`) |
 | V1.2.4 | L1 | Reads the code: `ast.sql-built-by-hand`; Signed in: `probe.sql-injection`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (bandit only ever as a finding: `B610`, `B611`; sv only ever as a finding: `probe.sql-injection`) |
 | V1.3.4 | L2 | Signed in: `probe.uploaded-svg-keeps-script` |
-| V1.3.6 | L2 | The running app: `probe.fetch-goes-anywhere`; Outside tools: `gosec`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `probe.fetch-goes-anywhere`) |
+| V1.3.6 | L2 | Reads the code: `ast.fetch-address-from-request`; The running app: `probe.fetch-goes-anywhere`; Outside tools: `gosec`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `ast.fetch-address-from-request`, `probe.fetch-goes-anywhere`) |
 | V2.2.2 | L1 | Signed in: `probe.validation-only-in-the-browser` (sv only ever as a finding: `probe.validation-only-in-the-browser`) |
 | V2.4.1 | L2 | Signed in: `probe.create-rate-unlimited` |
 | V3.2.1 | L1 | Signed in: `probe.uploaded-file-rendered` |
@@ -223,7 +225,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V10.5.1 | L2 | Signed in: `probe.oidc-nonce-not-checked` |
 | V10.5.2 | L2 | Reads the code: `ast.account-found-by-provider-email`; Signed in: `probe.oidc-user-keyed-on-email` (sv only ever as a finding: `ast.account-found-by-provider-email`) |
 | V10.5.4 | L2 | Signed in: `probe.oidc-audience-not-checked` |
-| V13.2.4 | L2 | The running app: `probe.fetch-goes-anywhere` (sv only ever as a finding: `probe.fetch-goes-anywhere`) |
+| V13.2.4 | L2 | Reads the code: `ast.fetch-address-from-request`; The running app: `probe.fetch-goes-anywhere` (sv only ever as a finding: `ast.fetch-address-from-request`, `probe.fetch-goes-anywhere`) |
 | V13.4.1 | L1 | The running app: `probe.source-control-exposed` |
 | V13.4.2 | L2 | Reads the code: `ast.debug-mode-on`; The running app: `probe.error-detail-leak`, `probe.development-console-open`; Outside tools: `bandit`, `gosec`, `semgrep`, `codeql-python` (gosec only ever as a finding: `G108`; sv only ever as a finding: `ast.debug-mode-on`, `probe.development-console-open`) |
 | V13.4.3 | L2 | The running app: `probe.directory-listing` (sv only ever as a finding: `probe.directory-listing`) |

@@ -2182,6 +2182,8 @@ fn read_page(rules: &AstRules, relative: &str, source: &str, scan: &mut AstScan)
 mod tests;
 
 #[cfg(test)]
+mod fetch_tests;
+#[cfg(test)]
 mod html_tests;
 
 #[cfg(test)]
