@@ -989,6 +989,8 @@ pub(super) fn owned_checks(
     if let (Some(b), Some(as_a)) = (&b, &as_a) {
         owner_field_check(http, users, owned, &session, &b.session, &as_a.body, out);
     }
+    // Whether what a user saves is written back into a page unencoded (finding 13(b)).
+    stored_markup_check(http, users, owned, &session, out);
 
     forgery_check(http, owned, &session, a, out);
     simple_request_check(http, owned, &session, a, out);
