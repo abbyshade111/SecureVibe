@@ -29,3 +29,9 @@ how to make them again; the owner's choice is ADR-063. Each part below can be cl
    heading and as the browser tab's icon. That changes what `sv` writes into someone's folder, which is a decision
    (CLAUDE.md), so it needs the owner's yes and a record, and the icon has to be inside the page (an inline SVG),
    since a report opens no network connection. Ask before building it.
+
+**Parts 1 and 4 claimed 9 October 2026 by session securevibe-e2**, the rename having merged, in branch
+`claude/securevibe-e2-logo`: the logo at the top of `README.md` (and of `docs/GETTING-STARTED.md` if it reads well
+there), and the image's `org.opencontainers.image` labels in the `Dockerfile`. Confirmed on `main` just before this
+claim: neither file carries the logo or any label, and no other session holds this item. Parts 2, 3, and 5 stay the
+owner's.
