@@ -16,6 +16,53 @@ pub struct Declared {
     pub name: String,
 }
 
+/// A package list `sv` found and could not read, and why (backlog 0226, part 1, item 11). The packages
+/// it names are unknown, so a technology known only by its package can read as not used; the report
+/// says so beside the answer (`ScanReport::unread_manifests`).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Unread {
+    pub manifest: String,
+    pub why: String,
+}
+
+/// Every package list in `listing` that `read_in` finds and cannot read. The formats it reads line by
+/// line (`pyproject.toml`, `Cargo.toml`, `go.mod`, `Gemfile`, `pom.xml`, Gradle's) cannot fail to
+/// parse, so only one that is not text can land here; JSON and the `Pipfile` can also be malformed.
+pub fn unread_in(listing: &super::files::Listing) -> Vec<Unread> {
+    let app_dir = listing.root.as_path();
+    let mut out = BTreeSet::new();
+    for eco in super::ecosystems::detect_in(listing) {
+        let why = match std::fs::read_to_string(app_dir.join(&eco.manifest)) {
+            Err(e) => Some(format!("it could not be read as text ({})", e.kind())),
+            Ok(text) => match super::ecosystems::file_name(&eco.manifest) {
+                "package.json" | "composer.json" => {
+                    serde_json::from_str::<serde_json::Value>(&text)
+                        .err()
+                        .map(|e| {
+                            format!(
+                                "it is not valid JSON (line {}, column {})",
+                                e.line(),
+                                e.column()
+                            )
+                        })
+                }
+                "Pipfile" => text
+                    .parse::<toml::Table>()
+                    .err()
+                    .map(|_| "it is not valid TOML".to_owned()),
+                _ => None,
+            },
+        };
+        if let Some(why) = why {
+            out.insert(Unread {
+                manifest: eco.manifest.clone(),
+                why,
+            });
+        }
+    }
+    out.into_iter().collect()
+}
+
 pub fn read(app_dir: &Path) -> Vec<Declared> {
     read_in(&super::files::Listing::of(app_dir))
 }
