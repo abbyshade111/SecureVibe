@@ -31,20 +31,34 @@ macro_rules! print {
 }
 
 mod baseline;
+mod crash;
 mod history;
 mod review;
 
 /// Runs the command, and ends with its status: 3 for any error `sv` could not get past, whichever
 /// command met it, so a pipeline can tell "`sv` did not run" from anything a run found (DESIGN, "Exit
 /// codes for CI"). The error is printed as it always was, `Error:` and its causes.
+///
+/// A panic is a fault in `sv`, so it ends the same way: what failed and where, that it is `sv`'s fault
+/// and not the app's, that nothing was assessed, and 3, rather than Rust's own line and 101, a code
+/// no document names (backlog 226, part 1, item 5). The panic unwinds first, so whatever cleans up
+/// on the way out (the run's containers, the report folder's lock) still does.
 fn main() {
-    match run() {
-        Ok(exit::CLEAN) => {}
-        Ok(code) => exit::exit_with(code),
-        Err(error) => {
+    crash::install();
+    let ran = std::panic::catch_unwind(run);
+    match ran {
+        Ok(Ok(exit::CLEAN)) => {}
+        Ok(Ok(code)) => exit::exit_with(code),
+        Ok(Err(error)) => {
             use std::io::Write;
             let _ = std::io::stdout().flush();
             eprintln!("Error: {error:?}");
+            exit::exit_with(exit::FAILED)
+        }
+        Err(_) => {
+            use std::io::Write;
+            let _ = std::io::stdout().flush();
+            eprintln!("{}", crash::said());
             exit::exit_with(exit::FAILED)
         }
     }
@@ -52,6 +66,11 @@ fn main() {
 
 /// The command named on the command line, and the status it ends with when it finished.
 fn run() -> Result<i32> {
+    // Only in a debug build, so the crash path can be tested: no released `sv` has it.
+    #[cfg(debug_assertions)]
+    if std::env::var_os("SV_PANIC_FOR_TEST").is_some() {
+        panic!("a panic asked for by SV_PANIC_FOR_TEST");
+    }
     let args: Vec<String> = std::env::args().skip(1).collect();
     let Some(first) = args.first().map(String::as_str) else {
         print_help();
@@ -1155,26 +1174,10 @@ fn cmd_run(args: &[String]) -> Result<i32> {
                 println!("  {} — {}", gap.what, gap.why);
             }
 
-            if let Some(signed_in) = &outcome.signed_in
-                && !signed_in.steps.is_empty()
-            {
-                println!("\nThen, as two test users: {}.", signed_in.steps.join("; "));
-            }
-            if let Some(oidc) = &outcome.oidc
-                && !oidc.steps.is_empty()
-            {
-                println!(
-                    "\nThen, through a test provider standing in for the one it signs in with: {}.",
-                    oidc.steps.join("; ")
-                );
-            }
-            if let Some(ai) = &outcome.ai
-                && !ai.steps.is_empty()
-            {
-                println!(
-                    "\nThen, its AI feature, with a test model standing in for the real one: {}.",
-                    ai.steps.join("; ")
-                );
+            for (lead, asked) in outcome.asked() {
+                if !asked.steps.is_empty() {
+                    println!("\nThen, {lead}: {}.", asked.steps.join("; "));
+                }
             }
 
             // What the probes cannot reach comes before what they found, for the usual reason.
