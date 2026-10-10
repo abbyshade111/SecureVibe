@@ -384,6 +384,21 @@ To see how each app changes from one check to the next, turn on history once: `s
 compared with an earlier one of the same kind, so a quick check after a full one does not make the app look worse.
 `sv history off` stops it, and `sv history forget --all` deletes what was kept.
 
+To see what changed between two particular reports, history on or not, keep a copy of the older report folder and run
+`sv compare`:
+
+```bash
+cp -R stackvet-report ~/report-before   # before the change
+sv report .                             # after it
+sv compare ~/report-before              # the newer is this folder's report
+```
+
+It lists each requirement whose status moved, with what it gained or lost (a check that now credits it, a finding
+that went away), the findings that came or went, and the counts. It writes nothing. It says first when it cannot show
+that a report is one StackVet wrote on this computer, or when the two runs were not alike (a different kind of run,
+level, `stackvet.toml`, security notes, or version of StackVet), since a requirement can then move for that reason
+alone.
+
 ### Checking the packages against known vulnerabilities
 
 Whether any package the app uses has a published vulnerability is *not assessed* until you give

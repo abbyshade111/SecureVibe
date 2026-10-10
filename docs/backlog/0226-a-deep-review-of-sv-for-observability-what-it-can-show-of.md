@@ -401,3 +401,6 @@ the three new tests fail.
 entry is, a set-aside false alarm that withheld a credit, each finding with its place, and reads another report with
 `--report`, under the same seal rule. Breaks: with the lists cut to `checked_by`, no places, and `--report`
 ignored, both new tests fail.
+
+**Part 3, item C done 10 October 2026** by session securevibe-e2, as backlog 0230: ADR-083 accepted in full (each
+requirement's status kept, a run that did not finish kept, the inputs in the comparison key, and `sv compare`).
