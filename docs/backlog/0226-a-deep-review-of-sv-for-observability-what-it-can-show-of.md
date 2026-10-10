@@ -266,3 +266,9 @@ where and that nothing was assessed, after the unwinding has cleaned up; other t
 surviving a check thread is not reported as `sv` failing. An unreadable `level-hints.json` is a gap in the report
 rather than a line on stderr; no other data file in the report's path fails silently. Breaks: without the catch, and
 without the gap, each new test fails.
+
+**Part 1, items 9 and 10 claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please do"), in
+branch `claude/explain-seal-and-path`: `sv explain` checking a report's seal before repeating it, and saying when it
+is not shown to be `sv`'s (item 9); and `sv explain ID PATH` taking the path as the app, as its own documentation
+says (item 10). Open pull requests and recent branches read first: session stackvet-e9 holds items 3, 4, 7, and 8,
+and none touches `crates/sv-cli/src/explain.rs`.
