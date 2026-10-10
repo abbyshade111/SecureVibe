@@ -26,6 +26,7 @@ macro_rules! eprintln {
 
 pub mod assemble;
 pub mod bundle;
+pub mod compare;
 pub mod exit;
 pub mod report_lock;
 pub mod static_scan;

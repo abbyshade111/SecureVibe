@@ -115,3 +115,20 @@ fn a_record_from_before_format_four_reads_as_finished_and_an_unfinished_one_roun
         (Outcome::Stopped, Some(130))
     );
 }
+
+#[test]
+fn a_record_from_a_later_sv_with_a_field_this_one_does_not_know_still_reads() {
+    // ADR-083, decision 4: a later `sv` adds to the record; this one reads what it knows.
+    let later: Run = serde_json::from_str(
+        r#"{"format":9,"started":"2026-12-01T08:00:00Z","started_unix_ms":1,"app_name":"A",
+            "target_level":1,"sv":"sv 0.9.0","securevibe_toml_sha256":"x","not_run":[],
+            "counts":{},"findings":[],"requirements":[],"outcome":"finished",
+            "something_new":{"kept":"by a later sv"}}"#,
+    )
+    .expect("a field this sv does not know is passed over");
+    assert_eq!(later.format, 9);
+    assert!(later.finished());
+    // An outcome this sv does not know is not guessed at: the record does not read, and history
+    // counts it among the files it could not show (`runs_in`).
+    assert!(serde_json::from_str::<Run>(r#"{"format":9,"outcome":"crashed"}"#).is_err());
+}

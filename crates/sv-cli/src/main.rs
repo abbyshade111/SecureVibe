@@ -142,6 +142,7 @@ fn run() -> Result<i32> {
         "audit" => cmd_audit(rest),
         "report" => cmd_report(rest),
         "dashboard" => finished(cmd_dashboard(rest)),
+        "compare" => finished(sv_cli::compare::command(rest)),
         "history" => finished(history::command(rest)),
         "review" => finished(review::cmd_review(rest.first().map(PathBuf::from))),
         "bundle" => finished(cmd_bundle(rest)),
@@ -309,6 +310,13 @@ const COMMANDS: &[Command] = &[
         flags: &[],
         valued: &["--out"],
         help: "  sv dashboard FOLDER... --out FILE.html\n                     one page for several apps, from the report already in each one's\n                     stackvet-report folder: every app in alphabetical order, and each\n                     app's own view; it checks nothing itself, and writes only FILE.html\n",
+    },
+    Command {
+        name: "compare",
+        word: Some("REPORT..."),
+        flags: &[],
+        valued: &[],
+        help: "  sv compare OLDER [NEWER]\n                     what changed between two reports of an app: each requirement whose\n                     status moved, with what it gained or lost, and the findings that\n                     came or went; NEWER is this folder's report when not given; writes\n                     nothing\n",
     },
     Command {
         name: "history",

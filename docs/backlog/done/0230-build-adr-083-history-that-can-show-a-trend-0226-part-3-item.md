@@ -1,6 +1,6 @@
 # Build ADR-083: history that can show a trend (0226, part 3, item C)
 
-**Status:** claimed by securevibe-e2, 10 October 2026
+**Status:** done, 10 October 2026
 
 Item C of the observability review's part 3 (backlog 0226), which the owner said yes to on 9 October 2026 ("please go
 ahead and yes to A, C, and D as well"). The plan is ADR-083, `Status: proposed`: the dashboard's history keeps each
@@ -23,3 +23,5 @@ decision 4, and `sv compare` remain.
 finish"): a run that failed or was stopped with Ctrl-C is kept as such, and the dashboard says when the report shown is
 older than the latest run. What remains of decision 4, and `sv compare`, remain.
 
+**Decision 4 and `sv compare` built 10 October 2026 by session securevibe-e2** (design entry "sv compare, and what
+history keeps from a later sv"). ADR-083 is accepted in full; nothing of this item remains.
