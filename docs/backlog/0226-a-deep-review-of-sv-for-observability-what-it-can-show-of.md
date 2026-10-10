@@ -388,6 +388,12 @@ suite of questions to the running app, and the app's own tests, are said on stde
 their stage; the MCP server, which starts neither, is unchanged. Breaks: with each line taken away, its test fails;
 the Docker harness's lines are caught where a container backend is present (CI).
 
+**Part 2, item 13 claimed on 10 October 2026 by session securevibe-e2**, its remainder, under the owner's
+"continue to work through and pick up new items", in branch `claude/securevibe-e2-suite-times`: each suite of
+questions to the running app timed, from its start (the hook item 15 added) to the next one's, and listed in
+`report.json`'s `timings` after the stages, so the slowest five can name one. Each request inside a suite is not
+timed; what is left of item 13 after this is said in its done note. With a test that fails without it.
+
 **Part 2, item 13 partly done on 10 October 2026** (`docs/design/0362-a-time-on-each-running-app-suite-10-october-2026.md`): each suite of questions to the running app, and the
 app's own tests, timed and listed in `report.json`'s `timings` after the stages and the tools, named so the total
 counts each moment once; the slowest five can name one. Still open: a time on each request inside a suite. Breaks:
