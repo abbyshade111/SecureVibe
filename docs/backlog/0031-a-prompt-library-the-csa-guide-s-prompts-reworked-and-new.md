@@ -18,6 +18,7 @@ prompt is written:
    - **They are CSA's copyrighted text.** Copying about sixty of them needs CSA's permission or
      license terms, which nobody has checked yet; the Semgrep Rules License took the owner's own
      review. Rewriting each in our words, with a link back to the guide, avoids the question.
+   **Part status:** done, with the item
 2. **The lessons from real builds make better prompts than the guide's.** From the owner's first
    build on 26 September 2026 and the review of it (see "What the owner's first build from
    scratch found in `sv`"):
@@ -30,23 +31,29 @@ prompt is written:
    - Put the app in git from its first commit, or the check for a committed secret never runs.
    - Let the app's AI provider address be set from the environment, so `sv`'s test model can
      stand in for it.
+   **Part status:** done, with the item
 3. **Each prompt names the requirements it targets.** Then `sv` can offer the right prompt for a
    requirement that still has no evidence, through `sv prompts` and an MCP tool beside
    `securevibe_questions`. The citation guard that holds the rules to their requirements holds
    the prompts too, so a prompt cannot claim a requirement its words do not touch.
+   **Part status:** done, with the item
 
 **How a prompt is known to work:** the check it targets, run on an app built with it, and failing
 on one built without it. The same discipline as every other check here.
 **The owner's decisions, 3 October 2026:**
 1. **Our own words.** Every prompt is written fresh in plain language, crediting and linking to the guide where
    it inspired one. No CSA text is copied.
+   **Part status:** done, with the item
 2. **The first batch:** about fifteen, the lessons from the owner's first build and prompts for the Level 1 areas
    `sv` checks most (secrets, access control, injection, headers, CORS, error pages, uploads).
+   **Part status:** done, with the item
 3. **Both ways of getting them:** a page in `docs/` first, then `sv prompts` and an MCP tool.
+   **Part status:** done, with the item
 4. **Each is tested before it ships:** the same small app is built twice by fresh helper agents in a throwaway
    folder, once with the prompt and once without, and `sv` checks both. A prompt ships only when its check
    passes on the build with it and fails on the build without. A lesson with no check that could show it
    working is listed apart, not shipped as a tested prompt.
+   **Part status:** done, with the item
 **First batch tried, 3 October 2026:** nine prompts, in `data/prompts.json` and `docs/PROMPTS.md`. Two shown to
 work (the settings file first, and git from the first file). Seven not shown: for four the build without the
 prompt already did the safe thing, and for three `sv` raised a false alarm on the build that followed the prompt

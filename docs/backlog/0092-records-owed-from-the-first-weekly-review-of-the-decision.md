@@ -16,17 +16,24 @@ app to level 2), ADR-025 (`sv run` has an end), and ADR-019, "Later, 4 October 2
 passes" is 36 by the table today; ADR-021 gives both.
 1. **A crash's or a rate limiter's answer is never read as the app refusing** (#412, #416, #418, #420). Undone
    quietly, 29 passes come back that rest on an answer the app never gave.
+   **Part status:** done, with the item
 2. **Whose word counts, and at which tier:** an AI tool's answers are marked as its own, the owner's are credited
    at their own tier, and checks made by hand are recorded (#175, #242). The index points to v1's ADR-006; `sv`'s
    own statuses have no record.
+   **Part status:** done, with the item
 3. **False alarms and accepted risks a person records, and test code's findings listed apart** (#297, #303,
    #316). These can move a finding out of the count, so the limits on them need their reasons.
+   **Part status:** done, with the item
 4. **An unanswered data list holds the app to ASVS level 2** (#265): ADR-015's rule that silence is not a "no",
    carried into choosing the level, which ADR-015 does not mention.
+   **Part status:** done, with the item
 5. **`sv run` has an end:** time limits on Docker calls and on the tests, a suite stopped at its limit credits
    nothing, Ctrl-C tears down, and a killed run's leftovers are removed by the next (#332, #336, #369). This is also
    where all five `unsafe` blocks came in.
+   **Part status:** done, with the item
 6. **The release build relies on a panic unwinding, so a crash still removes the app's containers** (#330; the
    reason is in a comment in `Cargo.toml` and in `DESIGN.md`). Switching to `panic = "abort"` to save size would
    leave fenced containers running. It could be a line in ADR-019 or ADR-020 rather than a record of its own.
+   **Part status:** done, with the item
 7. **The container image is published from CI and runs as user 10001** (#333). Lower than the rest.
+   **Part status:** done, with the item

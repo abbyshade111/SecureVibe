@@ -123,7 +123,10 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
 - **Claim a backlog item before starting it, and commit that claim on its own.** An item is a file under
   `docs/backlog/` whose third line is its status (ADR-061): `python3 tools/backlog.py claim <number> --by <session>`
   sets it and refuses an item another session holds; `done <number>` marks it finished (`--remains "..."` when part
-  stays open); `new "Its title"` adds one; `list --open` prints what is open. Merge the claim's pull request before
+  stays open); `new "Its title"` adds one; `list --open` prints what is open. A numbered part of an item is claimed
+  and finished the same way, `claim 0226.3 --by <session>` and `done 0226.3`, which set the part's own status line;
+  the board reads parts from those lines alone, so a claim or done note written only in prose is not seen (backlog
+  0228). Merge the claim's pull request before
   building on it. Saying so in a message to another session does not count: a session that is not running never
   receives it, and one that is will not see it again after its context is summarized. On 20 September 2026 two
   sessions each read the backlog, each correctly saw an item unclaimed, and both built it; on 8 October 2026 every

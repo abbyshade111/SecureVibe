@@ -12,9 +12,18 @@ in one of four forms:
     **Status:** done, <date>
     **Status:** partly done: <what remains>
 
-The rest is the item's text, its numbered parts included. Parts are not files: a part claimed or done on its own is
-marked in its text (`**Claimed ... by session x**`, `**Done ...**`), the item's status says `partly done` with what
-remains, and `list` counts the parts' markers beside the item's own status. The numbers keep the order the items stood
+The rest is the item's text, its numbered parts included. A part is a line `N. **Its title.**` and the indented lines
+under it, and has a status line of its own among them, in the same four forms (backlog 0228; ADR-061, Later, 9
+October 2026):
+
+    1. **A finding.** What is wrong, and what to do.
+       **Part status:** claimed by <session>, <date>
+
+set by `claim 0226.1` and `done 0226.1` as an item's is, and read by `list`, `--check`, and the board in the docs
+set from that line alone, never from the prose. A note written at the item's end, at the left margin, belongs to no
+part; `--check` fails when one names a part ("**Part 1, item 3 claimed", "**Items 3 and 7 done") that the part's own
+line disagrees with, when a part has no line, and when an item is `done` with a part that is not, or `open` with one
+begun. The numbers keep the order the items stood
 in the old single file when it was split on 8 October 2026, and are an identity, not a date; two pull requests open
 at once may take the same number, which harms nothing. docs/BACKLOG.md holds the rules and the roadmap, and no item
 and no list of items: a list every item adds a line to would bring back the conflicts this layout is for.
@@ -24,7 +33,10 @@ and no list of items: a list every item adds a line to would bring back the conf
     python3 tools/backlog.py summary                  # the counts alone
     python3 tools/backlog.py new "A title"            # writes an open item, numbered one past the highest; prints its path
     python3 tools/backlog.py claim 0150 --by <session>          # sets the status line (refused when another session holds it, or it is done)
+    python3 tools/backlog.py claim 0226.3 --by <session>        # the same for part 3 of item 0226
     python3 tools/backlog.py done 0150                # sets `done, <today>`; with --remains "..." sets `partly done: ...`
+    python3 tools/backlog.py done 0226.3              # the same for a part
+    python3 tools/backlog.py convert                  # gives every part with no status line one, once (run on 9 October 2026)
     python3 tools/backlog.py show 0150                # prints the item
     python3 tools/backlog.py --check                  # fails on a misnamed file, a missing title or status, two files with
                                                       # one title, or an item left in docs/BACKLOG.md
@@ -72,6 +84,13 @@ PART = re.compile(r"^\s{0,5}(\d+)\.\s(.*?)(?=^\s{0,5}\d+\.\s|\Z)", re.S | re.M)
 DONE = re.compile(r"\*\*(Done|Built|Fixed|Mended|Written|Answered|Settled)\b")
 NOT_DONE = re.compile(r"\b(Not done|not done|Not built|not built|left for|still open|remains open|Not yet)\b")
 CLAIMED = re.compile(r"\*\*Claimed\b")
+# A numbered part: `N. **Its title.**` at the start of a line, and the lines under it that are blank or indented. Its
+# status is a line of its own among them, in an item's four forms (ADR-061, Later, 9 October 2026; backlog 0228).
+PART_HEAD = re.compile(r"^ {0,5}(\d+)\. \*\*")
+PART_STATUS = re.compile(r"^[ \t]+\*\*Part status:\*\* (?P<text>.+?)[ \t]*$", re.M)
+# A note at an item's end naming parts: "**Part 1, item 3 claimed", "**Part 1, items 9 and 10 claimed", "**Items 3 and
+# 7 done". What it says must agree with the parts' own lines.
+NOTE = re.compile(r"\*\*(?:Part \d+, )?[Ii]tems? ((?:\d+(?:, | and |, and ))*\d+)(?: \w+)? (claimed|done)\b")
 SESSION = re.compile(r"\bby session ([A-Za-z0-9_-]+)")
 
 
@@ -101,12 +120,74 @@ def marker_status(text):
     return "open"
 
 
-def part_counts(body):
-    """The numbered parts of an item's text, counted by their markers."""
+def marker_counts(text):
+    """The numbered parts of an item in the old single-file layout, counted by the markers in their prose: what `move`
+    read when the items were split, kept for a branch from before then. Items now read their parts' own lines."""
     counts = {"open": 0, "claimed": 0, "part": 0, "done": 0}
-    for _, part in PART.findall(body):
+    for _, part in PART.findall(text):
         counts[marker_status(part)] += 1
     return counts
+
+
+def kind_of(status_text):
+    """The kind of a status in one of the four forms: open, claimed, partly done, or done; None otherwise."""
+    if not status_text or not FORMS.match(status_text):
+        return None
+    return "partly done" if status_text.startswith("partly") else status_text.split(" ", 1)[0].rstrip(",")
+
+
+class Part:
+    """A numbered part of an item: its number, its lines in the item's text, and its own status line."""
+
+    def __init__(self, number, start, end, text):
+        self.number, self.start, self.end, self.text = number, start, end, text
+        s = PART_STATUS.search(text)
+        self.status_text = s.group("text") if s else None
+        self.kind = kind_of(self.status_text)
+
+
+def parts_of(body):
+    """The numbered parts of an item's text, each running from its `N. **` line over the blank and indented lines
+    under it, so a note at the item's end, written at the left margin, belongs to no part."""
+    lines = body.split("\n")
+    offsets, at = [], 0
+    for line in lines:
+        offsets.append(at)
+        at += len(line) + 1
+    found, n = [], 0
+    while n < len(lines):
+        head = PART_HEAD.match(lines[n])
+        if not head:
+            n += 1
+            continue
+        end = n + 1
+        while end < len(lines) and not PART_HEAD.match(lines[end]) and (
+            not lines[end].strip() or lines[end][:1] in " \t"
+        ):
+            end += 1
+        while end > n + 1 and not lines[end - 1].strip():
+            end -= 1
+        start, stop = offsets[n], offsets[end - 1] + len(lines[end - 1])
+        found.append(Part(int(head.group(1)), start, stop, body[start:stop]))
+        n = end
+    return found
+
+
+def part_counts(parts):
+    """How many parts are of each kind, from their own status lines; `unread` for one that has none."""
+    counts = {"open": 0, "claimed": 0, "part": 0, "done": 0, "unread": 0}
+    for part in parts:
+        counts[{"partly done": "part", None: "unread"}.get(part.kind, part.kind)] += 1
+    return counts
+
+
+def notes_of(body):
+    """What the notes in an item's text say of its parts by number: `claimed` or `done`, the last word for each."""
+    said = {}
+    for m in NOTE.finditer(body):
+        for number in re.findall(r"\d+", m.group(1)):
+            said[int(number)] = m.group(2)
+    return said
 
 
 class Item:
@@ -124,11 +205,38 @@ class Item:
         if self.status_text and FORMS.match(self.status_text):
             self.kind = "partly done" if self.status_text.startswith("partly") else self.status_text.split(" ", 1)[0].rstrip(",")
         self.body = text[s.end():] if s else text
-        self.counts = part_counts(self.body)
+        self.parts = parts_of(self.body)
+        self.counts = part_counts(self.parts)
         self.sessions = sorted(set(SESSION.findall(text)))
         if self.kind == "claimed":
             who = re.match(r"claimed by ([^,]+),", self.status_text).group(1).strip()
             self.sessions = sorted(set(self.sessions) | {who})
+
+    def set_part_status(self, number, text):
+        """Sets part `number`'s own status line, adding it as the part's last line when it has none."""
+        self.set_part_status_at(self.parts.index(self.part(number)), text)
+
+    def set_part_status_at(self, index, text):
+        """`set_part_status` for the part at `index` among the item's parts in order, for an item whose lists number
+        their parts afresh (two parts numbered 1), which a number alone cannot name."""
+        part = self.parts[index]
+        if part.status_text is None:
+            line = f"\n   **Part status:** {text}"
+            body = self.body[: part.end] + line + self.body[part.end :]
+        else:
+            new_text = PART_STATUS.sub(lambda m: m.group(0).replace(m.group("text"), text), part.text, count=1)
+            body = self.body[: part.start] + new_text + self.body[part.end :]
+        self.text = self.text[: len(self.text) - len(self.body)] + body
+        write_text(self.path, self.text)
+        self.body = body
+        self.parts = parts_of(body)
+        self.counts = part_counts(self.parts)
+
+    def part(self, number):
+        hits = [p for p in self.parts if p.number == number]
+        if len(hits) != 1:
+            raise SystemExit(f"{self.path.name} has {len(hits)} parts numbered {number}")
+        return hits[0]
 
     def set_status(self, text):
         self.text = STATUS.sub(lambda _: f"**Status:** {text}", self.text, count=1)
@@ -200,7 +308,7 @@ def split_status(chunk):
     when = "as its markers read on 8 October 2026"
     if chunk.startswith("- ~~") and marker_status(chunk) != "done":
         return f"done, struck through in the old file, {when}"
-    counts = part_counts(chunk)
+    counts = marker_counts(chunk)
     parts = sum(counts.values())
     if parts:
         if counts["done"] == parts:
@@ -265,6 +373,32 @@ def move(source, folder):
 
 # ---------------------------------------------------------------------------------------------------------------
 
+def part_problems(item):
+    """What is wrong with an item's parts: a part with no status line or one in none of the forms, an item `done` with
+    a part not done or `open` with a part under way, and a note that names a part its own line disagrees with."""
+    found = []
+    for part in item.parts:
+        if part.status_text is None:
+            found.append(f"{item.path.name}, part {part.number}, has no `**Part status:**` line")
+        elif part.kind is None:
+            found.append(f"{item.path.name}, part {part.number}: the status {part.status_text!r} is in none of the four forms")
+    kinds = {part.kind for part in item.parts}
+    if item.kind == "done" and kinds - {"done"}:
+        found.append(f"{item.path.name} is done, and not all of its parts are")
+    if item.kind == "open" and kinds & {"claimed", "partly done", "done"}:
+        found.append(f"{item.path.name} is open, and some of its parts are under way or done")
+    numbers = {part.number: part for part in item.parts}
+    for number, said in notes_of(item.body).items():
+        part = numbers.get(number)
+        if part is None or part.kind is None:
+            continue
+        if said == "done" and part.kind not in ("done", "partly done"):
+            found.append(f"{item.path.name}: a note says part {number} is done, and its line says {part.status_text!r}")
+        if said == "claimed" and part.kind == "open":
+            found.append(f"{item.path.name}: a note says part {number} is claimed, and its line says it is open")
+    return found
+
+
 def problems(backlog, folder):
     found = []
     titles = {}
@@ -282,6 +416,7 @@ def problems(backlog, folder):
             found.append(f"{path.name} has no `**Status:**` line")
         elif not item.kind:
             found.append(f"{path.name}: the status {item.status_text!r} is in none of the four forms")
+        found.extend(part_problems(item))
         if item.title in titles:
             found.append(f"{path.name} and {titles[item.title]} share the title {item.title!r}")
         titles[item.title] = path.name
@@ -298,6 +433,8 @@ def show_list(found, only):
             continue
         c = i.counts
         parts = f"o{c['open']} c{c['claimed']} p{c['part']} d{c['done']}" if sum(c.values()) else ""
+        if c["unread"]:
+            parts += f" ?{c['unread']}"
         who = ",".join(i.sessions)[:28]
         print(f"{i.number:04d}  {(i.kind or '?'):12s} {parts:16s} {who:28s} {(i.title or '?')[:80]}")
 
@@ -355,7 +492,7 @@ rules
         assert got["A claimed item"].kind == "claimed" and got["A claimed item"].sessions == ["alpha"], got["A claimed item"].status_text
         assert got["A done item"].kind == "done" and "A second line of it." in got["A done item"].body
         assert got["A done item"].body.lstrip().startswith("Text."), got["A done item"].body
-        assert got["A mixed item"].kind == "partly done" and got["A mixed item"].counts == {"open": 1, "claimed": 1, "part": 0, "done": 1}
+        assert got["A mixed item"].kind == "partly done" and got["A mixed item"].counts["unread"] == 3
         assert got["Decided, not yet written down as ADRs"].kind == "open" and "Prose before any item" in got["Decided, not yet written down as ADRs"].body
         assert got["A decided item"].kind == "done"
         assert got["A struck item"].kind == "done" and got["A struck item"].body.strip().startswith("**Done the same day.**")
@@ -392,6 +529,14 @@ rules
         path = new(folder, "A brand new item")
         assert path.name == "0009-a-brand-new-item.md" and find(folder, "9").kind == "open"
         write_text(backlog, "# Backlog\n\nrules\n\n## Roadmap\n\n1. first\n")
+        # Moved, its parts have no lines of their own yet, which the check names; the conversion gives each one from
+        # its markers, once.
+        assert any("part 1, has no `**Part status:**` line" in p for p in problems(backlog, folder))
+        convert(folder)
+        mixed = find(folder, "A mixed item")
+        assert mixed.counts == {"open": 1, "claimed": 1, "part": 0, "done": 1, "unread": 0}, mixed.counts
+        assert mixed.part(2).status_text.startswith("claimed by gamma"), mixed.part(2).status_text
+        assert convert(folder) == [], "the conversion is done once"
         assert problems(backlog, folder) == [], problems(backlog, folder)
         write_text(backlog, "# Backlog\n\n- **An item left here.** text\n")
         assert any("line 3 is an item" in p for p in problems(backlog, folder))
@@ -406,11 +551,72 @@ rules
                      "is in none of the four forms", "share the title"):
             assert any(want in p for p in found), (want, found)
         assert slug("One file per backlog item, with a status line.") == "one-file-per-backlog-item-with-a-status-line"
+    # Parts (backlog 0228): each has its own line, set by claim and done, and the check holds them to it.
+    with tempfile.TemporaryDirectory() as tmp:
+        folder = Path(tmp) / "backlog"
+        folder.mkdir()
+        write_text(folder / "0001-a-review.md", """# A review
+
+**Status:** partly done: two findings
+
+1. **A finding.** What is wrong.
+   More of it.
+   **Part status:** open
+
+2. **Another.** Also wrong.
+   **Part status:** open
+
+**Part 1, item 2 claimed on 9 October 2026 by session alpha**, in branch `b`. A note at the item's end, in no part.
+""")
+        item = find(folder, "1")
+        assert [part.number for part in item.parts] == [1, 2]
+        assert "A note at the item" not in item.part(2).text, "a note at the left margin belongs to no part"
+        # The note says part 2 is claimed, and its line says open: the check says so.
+        assert any("a note says part 2 is claimed" in p for p in part_problems(item)), part_problems(item)
+        assert claim(folder, "1.2", "alpha", "9 October 2026") is True
+        assert claim(folder, "1.2", "beta", "9 October 2026") is False, "a part another session holds is refused"
+        assert part_problems(find(folder, "1")) == [], part_problems(find(folder, "1"))
+        assert mark_done(folder, "1.1", "9 October 2026", None) is True
+        item = find(folder, "1")
+        assert item.part(1).status_text == "done, 9 October 2026" and "More of it." in item.part(1).text
+        assert claim(folder, "1.1", "alpha", "9 October 2026") is False, "a done part is not claimed again"
+        assert item.counts == {"open": 0, "claimed": 1, "part": 0, "done": 1, "unread": 0}, item.counts
+        # A part with no line, or one in no form, and an item whose own status disagrees with its parts.
+        text = item.path.read_text(encoding="utf-8")
+        write_text(item.path, text.replace("   **Part status:** claimed by alpha, 9 October 2026", "   **Part status:** soon"))
+        assert any("is in none of the four forms" in p for p in part_problems(find(folder, "1")))
+        write_text(item.path, text.replace("\n   **Part status:** claimed by alpha, 9 October 2026", ""))
+        assert any("has no `**Part status:**` line" in p for p in part_problems(find(folder, "1")))
+        write_text(item.path, text.replace("partly done: two findings", "done, 9 October 2026"))
+        assert any("is done, and not all of its parts are" in p for p in part_problems(find(folder, "1")))
+        write_text(item.path, text.replace("partly done: two findings", "open"))
+        assert any("is open, and some of its parts are under way" in p for p in part_problems(find(folder, "1")))
     print("backlog self-test: ok")
 
 
+def split_key(key):
+    """An item and, after a dot, one of its parts: "0226" or "226.3"."""
+    item, _, part = key.partition(".")
+    if part and not part.isdigit():
+        raise SystemExit(f"{key!r}: a part is named by its number, as 226.3")
+    return item, int(part) if part else None
+
+
 def claim(folder, key, session, date):
+    key, number = split_key(key)
     item = find(folder, key)
+    if number is not None:
+        part = item.part(number)
+        if part.kind == "done":
+            print(f"{item.path.name}, part {number}, is done; nothing to claim")
+            return False
+        held = re.match(r"claimed by ([^,]+),", part.status_text or "")
+        if held and held.group(1).strip() != session:
+            print(f"{item.path.name}, part {number}, is {part.status_text}; a claim by another session is refused")
+            return False
+        item.set_part_status(number, f"claimed by {session}, {date}")
+        print(f"{item.path.name}, part {number}: claimed by {session}, {date}")
+        return True
     if item.kind == "done":
         print(f"{item.path.name} is done; nothing to claim")
         return False
@@ -423,10 +629,68 @@ def claim(folder, key, session, date):
 
 
 def mark_done(folder, key, date, remains):
+    key, number = split_key(key)
     item = find(folder, key)
-    item.set_status(f"partly done: {remains}" if remains else f"done, {date}")
+    text = f"partly done: {remains}" if remains else f"done, {date}"
+    if number is not None:
+        item.set_part_status(number, text)
+        print(f"{item.path.name}, part {number}: {text}")
+        return True
+    item.set_status(text)
     print(f"{item.path.name}: {item.status_text}")
     return True
+
+
+DATE = re.compile(r"\b(\d{1,2} (?:January|February|March|April|May|June|July|August|September|October|November|December) \d{4})\b")
+UNCLEAR = "partly done: unclear, needs a look"
+
+
+def first_line_for(item, part):
+    """The status line a part with none is given once (backlog 0228), from what its prose and the item's notes say;
+    where they leave it in doubt, that it needs a look, never a guess."""
+    said = notes_of(item.body).get(part.number)
+    marked = marker_status(part.text)
+    # The date: the part's own last one, or, when a note settles it, the notes' (a done note "the same day" is the
+    # claim's day).
+    notes = [m for m in NOTE.finditer(item.body) if str(part.number) in re.findall(r"\d+", m.group(1))]
+    noted = [d for m in notes for d in DATE.findall(item.body[m.start():m.end() + 120])]
+    dates = (noted if said else []) or DATE.findall(part.text)
+    when = dates[-1] if dates else "date not recorded"
+    if said == "done" or marked == "done":
+        return f"done, {when}"
+    if marked == "part":
+        return UNCLEAR
+    if said == "claimed" or marked == "claimed":
+        who = SESSION.findall(part.text)
+        if not who:
+            notes = [m for m in NOTE.finditer(item.body) if str(part.number) in re.findall(r"\d+", m.group(1))]
+            tail = item.body[notes[-1].end():][:300] if notes else ""
+            who = SESSION.findall(tail)
+        return f"claimed by {who[-1]}, {when}" if who else UNCLEAR
+    if item.kind == "done":
+        return "done, with the item"
+    if item.kind == "claimed":
+        return item.status_text
+    return "open"
+
+
+def convert(folder):
+    """Gives every part with no status line one (backlog 0228), and an item `done` whose parts are not all done the
+    status `partly done`, naming them. Run once, on 9 October 2026; afterwards every part has a line and this does
+    nothing."""
+    changed = []
+    for item in items(folder):
+        missing = [n for n, part in enumerate(item.parts) if part.status_text is None]
+        for index in missing:
+            item.set_part_status_at(index, first_line_for(item, item.parts[index]))
+        left = [part.number for part in item.parts if part.kind != "done"]
+        if item.kind == "done" and left:
+            item.set_status(f"partly done: parts {', '.join(map(str, left))} (backlog 0228's conversion read them as not done)")
+        if item.kind == "open" and any(part.kind in ("claimed", "partly done", "done") for part in item.parts):
+            item.set_status(f"partly done: parts {', '.join(map(str, left))} (backlog 0228's conversion read the rest as begun or done)")
+        if missing or (item.kind == "partly done" and not left and item.parts):
+            changed.append(item)
+    return changed
 
 
 def new(folder, title):
@@ -442,7 +706,7 @@ def main(argv):
     import argparse
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("command", nargs="?", default="list",
-                        choices=["list", "summary", "new", "claim", "done", "show", "move"])
+                        choices=["list", "summary", "new", "claim", "done", "show", "move", "convert"])
     parser.add_argument("args", nargs="*")
     parser.add_argument("--open", action="store_true")
     parser.add_argument("--claimed", action="store_true")
@@ -481,6 +745,10 @@ def main(argv):
         return 0 if mark_done(FOLDER, a.args[0], a.date, a.remains) else 1
     if a.command == "show" and len(a.args) == 1:
         print(find(FOLDER, a.args[0]).text)
+        return 0
+    if a.command == "convert":
+        for item in convert(FOLDER):
+            print(f"{item.path.name}: {len(item.parts)} parts, {item.status_text}")
         return 0
     if a.command == "move" and len(a.args) == 1:
         written, carried_into, differing = move(Path(a.args[0]), FOLDER)

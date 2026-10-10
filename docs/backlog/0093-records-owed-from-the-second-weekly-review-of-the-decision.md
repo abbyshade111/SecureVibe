@@ -9,23 +9,31 @@ is the owner's call. Most costly first:
 1. **The SQL injection probe's limits** (#545, 3 October; DESIGN, the probe's section): read-only GET requests
    only, only against the copy of the app `sv` starts itself, and only ever a finding. The owner set them on
    4 October. A limit like this is the kind that is loosened later without its reason.
+   **Part status:** done, with the item
 2. **Checks on the app's own sign-in tokens, and the key source they may name** (#544, 3 October, then #710,
    5 October; DESIGN, "A sign-in token caught naming where its key is"): the owner left out `jku` and `kid` on
    4 October and then had `jku` and `x5u` built through a test key server; `kid` stays out. No record traces it.
+   **Part status:** done, with the item
 3. **A credential that reads like a sentence is reported low** (#597, 4 October; DESIGN, "A credential name over a
    sentence is reported low, and says so"): a default that changes what a report concludes, the owner's choice.
+   **Part status:** done, with the item
 4. **Cookies handed to the browser with their attributes, and a warning, not a refusal, when the start command
    looks like it weakens the app** (#605, 4 October): changes the browser checks' evidence; the owner's choice.
+   **Part status:** done, with the item
 5. **A run secret, `SV_ADMIN_TOTP_SECRET`, handed to the app's seed** (#600, 4 October; DESIGN, "An admin who
    signs in with a code"): what `sv` passes into the app's container; the owner's choice.
+   **Part status:** done, with the item
 6. **Log markers moved into the address, so the log check can pass for an app that keeps personal data out of its
    log** (#601, 4 October): when a check credits; the owner's choice.
+   **Part status:** done, with the item
 7. **A lock file in the report folder** (#589, 4 October; DESIGN, "One run at a time in a report folder"): a new
    file `sv` writes into the app's folder. ADR-017 lists the report folder, so this may be a line there.
+   **Part status:** done, with the item
 8. **Owner's choices with no code change:** V9.2.3 is not cited by the running probe (4 October); V8.3.1 stays
    checked by hand only (5 October); phpcs-security-audit is not added (5 October); and the compressed-archive check
    for V5.2.3 is to be built (3 October, archives up to about 1 GB, limits the owner sets), which should come with
    its record as `proposed` in its claim.
+   **Part status:** done, with the item
 
 **Two questions for the owner,** found by the same review:
 - **Should records govern the large shared files?** Several decisions are enforced in `crates/sv-cli/src/mcp.rs`

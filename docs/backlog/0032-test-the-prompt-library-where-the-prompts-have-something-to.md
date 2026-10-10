@@ -16,12 +16,16 @@ testing them needs: in its Haiku 4.5 builds without the server, the problem a pr
    V7.2.3, V7.4.1). Added as `untested`. No security contact (`config.security-contact`) is the commonest finding
    of all, and gets no prompt: its rule cites no requirement on purpose, and a prompt is held to the requirements
    its check cites (`tools/coverage.py`).
+   **Part status:** done, with the item
 2. **A protocol, fixed before any build:** Haiku 4.5, the loop's plain brief with the specification, each prompt's
    builds against one shared set without any prompt; how many builds; the rule for "shown"; and harm measured in
    the same builds (every finding, and whether `sv` could still start the app and sign in).
+   **Part status:** done, with the item
 3. **The trial,** at the size the owner approves.
+   **Part status:** done, with the item
 4. **Then how a prompt is delivered,** for those shown to work: pasted into the request, or returned by
    `securevibe_before`.
+   **Part status:** done, 6 October 2026
 **Claimed on 6 October 2026 by session paper-facts**, at the owner's word, in branch `claude/prompt-trial`.
 **Items 1 to 3 done the same day** (`docs/prompts/library-trial/README.md`): four new prompts, the protocol, and
 ninety builds for $21.12. Shown to work by the rule: `ai-feature-guard` (Sonnet, the AI feature's problems in 10 of

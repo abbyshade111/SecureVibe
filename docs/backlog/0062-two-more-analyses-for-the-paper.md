@@ -6,8 +6,10 @@
 the owner's asking.
 1. **What coordinating several AI sessions cost, and what it bought:** claims, merge conflicts, duplicated work,
    harness collisions, and faults one session found in another's merged work, from git and this backlog.
+   **Part status:** done, with the item
 2. **Test growth against fault discovery:** tests day by day beside when each fault was found and how, to see
    whether more tests meant fewer surprises. Exploratory; it may not show a clean pattern.
+   **Part status:** done, with the item
 
 Touches only `docs/paper/`.
 

@@ -159,11 +159,13 @@ only the old "not yet something this guide can make easy" sentence.
      else except `README.md` and `.gitignore`, which the plan already covers. For `docs/`, the
      simplest honest move is to keep v1's two under a name that says so (`docs/v1/`, beside
      `docs/paper/`), since `v1-final` holds them anyway and the paper may cite their paths.
+   **Part status:** claimed by securevibe-e2, 9 October 2026
   2. **Two Python tools find the shared folder the same way the Rust does.** `tools/coverage.py` and
      `tools/pwned_passwords.py` set `ROOT = AGNOSTIC.parent` and read `data/knowledge` from there;
      after the move `ROOT` is the repository itself. `coverage.py --check` runs in the Rust test
      suite (`coverage_doc.rs`), so a wrong path fails the build, which is the test watching this.
      `pwned_passwords.py` has no test and would only fail when somebody runs it.
+   **Part status:** claimed by securevibe-e2, 9 October 2026
   3. **The evaluation harness still earns its place while `templates/` is used.** It was the only
      check able to confirm today's template change (semgrep option B changed two lines of v1's
      template). If `templates/` is archived with v1, the harness goes with it; if `sv` keeps using
@@ -174,6 +176,7 @@ only the old "not yet something this guide can make easy" sentence.
   `templates/`, is on its checks now and lands within the hour. After it I will open nothing else
   that touches `agnostic/`, `CLAUDE.md`, or CI until the move lands, so the freeze can start any time
   after that.
+   **Part status:** claimed by securevibe-e2, 9 October 2026
 
 **The owner's decision, 9 October 2026**, asked by session securevibe-e2 with a recommendation for each open choice: **look at both ways to the download on a Mac, Homebrew and Apple's notarization, and bring the findings back before anything is built or paid for.** Apple's developer program charges a yearly fee, so nothing there is bought without asking again.
 
@@ -217,13 +220,16 @@ cost of fetching all of this one). What follows is the plan, each step claimed o
    one formula serves both. Until the first release exists it builds the latest `main` (`brew install --HEAD`); a
    stable version follows the signed releases (0191 part 4). It is tried in CI on a Mac runner and a Linux runner
    (`brew install`, `brew test`, `brew audit`) before the guide mentions it.
+   **Part status:** claimed by securevibe-e2, 9 October 2026
 2. **Windows, found out first.** `sv` has never been built or run on Windows, and Homebrew does not run there. First a
    CI job builds and tests `sv` on a Windows runner, to learn what breaks (paths, the `curl` that `sv probe` uses, the
    container backend); its failures are fixed or written down. Only then a way to install it, Scoop or winget (both
    free), chosen with what the job found. Until then the guide keeps saying plainly that Windows is untried, and that
    the Docker route works wherever Docker Desktop does.
+   **Part status:** claimed by securevibe-e2, 9 October 2026
 3. **The guide** gains "Installing with Homebrew" for Mac and Linux once step 1 is green, and a Windows section once
    step 2 is.
+   **Part status:** claimed by securevibe-e2, 9 October 2026
 
 **Step 1 done 9 October 2026 by session securevibe-e2:** the formula is in `abbyshade111/homebrew-stackvet`
 (`Formula/sv.rb`, head-only until the first release), and its CI installs it from source, audits it, and runs its test

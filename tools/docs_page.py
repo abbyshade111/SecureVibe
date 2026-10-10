@@ -389,7 +389,7 @@ def board(docs):
         ("Done", "Newest first.", sorted([i for i in found if i.kind == "done"], key=lambda i: -(i.number or 0))),
     ]
     body = ["<h1>The backlog at a glance</h1>",
-            f"<p class=\"note\">{html.escape(counts_line(found))}. Read from each item's own status line in "
+            f"<p class=\"note\">{html.escape(counts_line(found))}. Read from each item's own status line, and each numbered part's, in "
             "<code>docs/backlog/</code> when these pages were written; run the tool again after a pull.</p>"]
     for name, note, mine in groups:
         body.append(f"<h2>{html.escape(name)} <span class=\"note\">({len(mine)})</span></h2><p class=\"note\">{html.escape(note)}</p>")
@@ -404,7 +404,12 @@ def board(docs):
             cell = f'<a href="{html.escape(href)}">{title}</a>' if href else title
             phase = phases.get(i.title or "", "")
             c = i.counts
-            parts = f"{c['done']} of {sum(c.values())} parts done" if sum(c.values()) else ""
+            # From each part's own status line (backlog 0228), so what is under way shows beside what is done.
+            parts = ", ".join(
+                [f"{c['done']} of {sum(c.values())} parts done"]
+                + [f"{c[k]} {word}" for k, word in (("claimed", "claimed"), ("part", "partly done"), ("open", "open"),
+                                                    ("unread", "with no status line")) if c.get(k)]
+            ) if sum(c.values()) else ""
             rows.append("<tr>" + "".join(f"<td>{x}</td>" for x in (
                 f"{i.number:04d}" if i.number is not None else "", cell, html.escape(i.status_text or ""),
                 html.escape(phase), html.escape(parts))) + "</tr>")

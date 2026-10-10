@@ -24,28 +24,35 @@ the release build). Every item of this entry is now done.
    `ADR-011.md` is titled ADR-014, which `docs/adr/README.md` already explains, but the dangling ADR-011 in
    ADR-012 is not mentioned there. The change it means is `dca2e6c` ("Say what was read, and stop scoring code
    nobody read").
+   **Part status:** done, with the item
 2. **v1's ADR-010 says generated code's network access is not restricted, and rejects `sandbox-exec`.** Two
    days later the network fence (`27b85e2`, 18 September) used `sandbox-exec` on macOS and a network namespace
    on Linux, and v1's `docs/CONTRACTS.md` describes it. ADR-010 was never updated, and v1's `README.md` still
    says "Network access is **not** restricted — the reports say so."
+   **Part status:** done, with the item
 3. **v1's ADR-008 lists three AI providers** (`anthropic`, `null`, `scripted`). OpenAI and Google providers
    were added on 18 September (`7ecb4c3`, `71fae08`), with a choice of service per step (`4b947ac`), and the
    record was not updated.
+   **Part status:** done, with the item
 4. **v1's ADR-013 contradicts itself on paper size.** Its decision says the PDF writer "lays it out on A4
    pages". Its cost section, updated by `2ef4149`, says US Letter is the default and A4 is a setting.
+   **Part status:** done, with the item
 5. **`sv`'s `README.md` says "`sv` opens no network connection", and ADR-017 and `CLAUDE.md` say it opens
    none "of its own".** `sv probe <address>` has `curl` make a handful of read-only requests to the address the
    owner types (`crates/sv-cli/src/main.rs`, `cmd_probe`). That is deliberate, and it is the only exception,
    but none of the three says so. Name the exception in each.
+   **Part status:** done, with the item
 6. **`DESIGN.md` says v1's evidence rule carries over "word for word" as "AI review alone is `ai-assessed`,
    never `pass`".** `sv`'s reports have neither status (they say *checked*, *needs attention*, *stated*, and so
    on), and `sv` has no AI review. Restate the rule in `sv`'s own terms: an AI tool's word is `stated`, the
    weakest tier, and nothing a model says makes a requirement *checked*.
+   **Part status:** done, with the item
 7. **v1's ADR-001 cites a requirement that does not fit it.** It gives V15.1.2 (keep an inventory of
    third-party libraries, such as an SBOM) for the choice of "TypeScript everywhere with a single npm install".
    A language choice is not an inventory. ADR-007 cites the same requirement correctly, since it ships the SBOM.
    The other 15 citations in v1's records fit their decisions (checked against `data/frameworks` on
    27 September 2026).
+   **Part status:** done, with the item
 8. **`sv`'s two largest technical choices have no record, and each reverses a v1 decision.**
    - **Rust.** v1's ADR-001 chose "TypeScript everywhere". `DESIGN.md` says only "Written in Rust.", and no
      reason is recorded anywhere.
@@ -55,3 +62,4 @@ the release build). Every item of this entry is now done.
      choice, and ADR-010 itself says nothing of it.
 
    Both are candidates for records of their own, the way ADR-018 replaced ADR-012's ruling.
+   **Part status:** done, with the item

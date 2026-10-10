@@ -4,6 +4,7 @@
 
 Closed on 27 September
 2026. **The owner's decision that day: garak is not taken up** ("I agree with the assessment that
+   **Part status:** done, with the item
 there are better options"). The test model inside the fence was built instead (below), and garak
 would have needed a hole in the fence and the app's own API credit. Kept for the record. Asked by the owner on
 26 September 2026 ("would adding a tool like garak help answer any of the AISVS requirements?") and
@@ -33,9 +34,11 @@ alarm, so the report has to show the prompt and the reply. The same rule as semg
 1. **The fence.** The app runs where it cannot reach OpenAI, Anthropic, or anyone else, so its AI
    feature has no model to call, and garak would be testing an error page. Getting round it means
    letting the app reach its provider, a hole in the fence and the owner's decision.
+   **Part status:** done, with the item
 2. **Money.** Every garak prompt then spends the app's own API credit, and a full run is thousands
    of prompts. It would need a small probe set, a stated cap, and the owner asked each time, as for
    any paid step.
+   **Part status:** done, with the item
 
 **The alternative: a fake model inside the fence.** A small container speaking the provider's API
 shape, as the test sign-in provider does for OIDC, that misbehaves on purpose: it obeys injected

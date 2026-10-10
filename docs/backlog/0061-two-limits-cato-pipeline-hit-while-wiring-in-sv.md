@@ -36,6 +36,7 @@ fail-closed behavior; the cost is in what they block. **Each numbered item can b
    guard, broken in turn, turns its own test red. See DESIGN, "A `requirements.lock` beside `pyproject.toml`".
    One correction to the entry above: no ecosystem's report says which lockfile was read when several are
    there, so this one does not either. That is the next item.
+   **Part status:** done, 28 September 2026
 2. **One large data file blocks two checks for the whole app.** `MAX_FILE_BYTES` (2 MB,
    `crates/sv-scan/src/files.rs`; checked) is the largest file any check reads. cato vendors NIST's SP 800-53
    catalog at `oscal/catalogs/nist-800-53-rev5/catalog.json`: 10 MB of standards text, no code, no
@@ -67,6 +68,7 @@ fail-closed behavior; the cost is in what they block. **Each numbered item can b
    read when it never says `command`, its own rule for any file. On cato's reproduction the credential
    scan is `ran` and the MCP check is no longer not-run. See DESIGN, "A large data file no longer
    blocks the credential scan or the MCP check".
+   **Part status:** done, 28 September 2026
 3. **The report does not say which lockfile was read when a project has more than one.** Found on 28 September
    2026 while doing item 1. `find_lockfile` in `crates/sv-scan/src/ecosystems.rs` takes the first name in each
    ecosystem's list that exists and says nothing about the rest, for every ecosystem (`poetry.lock` and
@@ -80,3 +82,4 @@ fail-closed behavior; the cost is in what they block. **Each numbered item can b
    `partly` in `examined`, and the clean "nothing found" claim is withheld, so `sv audit` exits 2 rather than 0.
    Six tests; each of eight guards, broken in turn, turns its own test red. See DESIGN, "Two lockfiles of
    one kind".
+   **Part status:** done, 29 September 2026

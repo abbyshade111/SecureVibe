@@ -1,6 +1,6 @@
 # From the architecture assessment of 8 October 2026: the four costs worth paying down
 
-**Status:** done, 9 October 2026
+**Status:** partly done: parts 8, 11 (backlog 0228's conversion read them as not done)
 
 A read-only assessment of
 `sv`'s shape (the run harness, the MCP server, the check pipeline, the test suite and CI) made after the review of
@@ -26,6 +26,7 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    binary from 531 s to 92 s on four CPUs, the `ast` tests from 126 s to 1.9 s, the crash sweeps from about 400 s
    on the critical path to 80 s. The crash sweep itself is unchanged: it already ran on scoped threads, and the
    profile setting made each of its suite runs cheaper.
+   **Part status:** done, date not recorded
 2. **Two pure refactors in the harness and the MCP server.** The hardening flags (`--read-only --cap-drop ALL
    --security-opt no-new-privileges`) are written out 12 times in `docker.rs` and once in `install.rs`; they belong
    in `prepared`, where ADR-019 already put the limits (branch `claude/securevibe-review-hardening-once`).
@@ -44,6 +45,7 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    replace the seven hand-written triples (the MCP server's three sentences written over `reading_only`'s); and
    the five file names are `sv_scan::ecosystems::REPORT_FILES`, which the folder names, the seal's list, and the
    MCP server's resources derive from, with `sv-cli`'s table of renderers held to it by the compiler.
+   **Part status:** done, with the item
 3. **`sv check` and `sv report` can exit differently on the same folder.** `cmd_check` runs the same five scanners
    but never `merge_same_place`, the test-code and bundled-library marks, or `review::apply`, and its exit code
    counts every finding, where `sv report`'s counts the findings left after a person's recorded false alarms. So
@@ -54,6 +56,7 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    `sv report`"): `crates/sv-cli/src/static_scan.rs`, `StaticScan::read` and `settle`, called by both; `sv check`
    applies the manifest's reviews and says what was set aside and what does not count; the test shows the two
    exit alike before and after a review.
+   **Part status:** done, 8 October 2026
 4. **The tier is not on the value, and the run's script lives in the container layer.** A `Verified` lands in
    *attested*, *stated*, *by hand*, or *documented* by which slice of `Inputs` it is passed in, assembled by hand
    in `main.rs`, and *attested* is told from *stated* by a string match on the check id; an enum on `Verified` and
@@ -69,6 +72,7 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    `sv_check::script::run` against the trait `Services`, which `sv-run`'s `DockerRun` implements over Docker;
    `run_after_cleanup` from 568 lines to 430, the fence, the helpers, the app, the install step, the tests, and
    the teardown; the script's own tests show the order against a harness that answers nothing.
+   **Part status:** done, with the item
 5. **A two-page `docs/ARCHITECTURE.md`.** There is no ten-minute map: DESIGN.md is 13,084 lines in 281 dated
    sections and its opening still describes "a second version beside v1 in `agnostic/`"; CLAUDE.md's eight-line
    Layout paragraph is the nearest thing. Lift it from text that exists: the chain listing, scan, resolve, bucket,
@@ -80,6 +84,7 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    server, the rules that hold everywhere, and where to look), held to files that exist by
    `crates/sv-cli/tests/architecture_map.rs`; DESIGN.md's opening says it is the dated record and points here;
    CLAUDE.md's layout line names it first.
+   **Part status:** done, date not recorded
 6. **One answer type for `send`.** The "a crash or a limiter is not an answer" rule exists in seven places with
    three definitions (`signed_in/mod.rs:1282`, `sessions.rs:274`, `fetch.rs:264`, `burst.rs:153`, `once.rs:118`,
    `ai.rs:1932`, `mcp_server.rs:199`, the last missing the 503-with-Retry-After case `rate_limited` knows), and the
@@ -91,6 +96,7 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    **Done the same day** (ADR-021, Later, 8 October 2026; DESIGN, "One rule for what an answer is, and one wait for
    the whole run"): `answer_of`, the seven places through it, `Patient` around the OIDC, MCP, and fetch suites with
    one budget for the run; the AI suite left as it is, with why.
+   **Part status:** done, 8 October 2026
 7. **The probe sidecar's life is a fixed 900 s** (`docker.rs:84`), not derived from the request budget: 300 s of
    limiter waiting plus the AI suite's fixed waits can outlive it, after which every request reads as "no answer"
    and nothing names the sidecar. Tie it to the budget and have `probe` tell "container gone" from "app silent".
@@ -98,6 +104,7 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    **Claimed 8 October 2026 by session securevibe-review**, with item 6 (the same branch).
    **Done the same day** (ADR-025, Later, 8 October 2026): `SIDECAR_SECONDS` built from `MOST_WAITING`, and a lost
    sidecar named in the run's output and the report (`RunOutcome::sidecar_lost`).
+   **Part status:** done, 8 October 2026
 8. **A check cannot be made to say what it asked.** A check is `fn(.., out: &mut Outcome)` and nothing requires it
    to touch `out`: about 200 hand-written `not_assessed.push` sites, and four early returns with none
    (`sessions.rs:711`, fixed on 8 October; `sessions.rs:298`, `passwords.rs:1318`, `signin.rs:618`). Cheapest: a
@@ -121,6 +128,7 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    once they have asked go through `asked!`, which records "asked and never answered", and stops sv-check's own tests,
    when one asked and named nothing; the 16 whose silence is their answer go through `quiet!`; a test fails on a check
    called through neither. It found one silent return (`archive_checks`, a gzip-only upload), now fixed.
+   **Part status:** partly done: unclear, needs a look
 9. **The stand-in protocol is defined twice**: the JS owns it (`/_sv/health`, `/_sv/mode`, `/_sv/keys/<tag>`,
    `SV-PROBE-<KIND>-<tag>`) and the Rust clients and fakes repeat it as strings; only `model_provider.rs` runs the
    real script. One `stand_in` module of constants shared by clients and fakes, and a contract test for
@@ -139,6 +147,7 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    clients, the Docker runner, and the fakes take them from there; `crates/sv-run/tests/oidc_provider.rs` runs the real
    sign-in provider under Node and holds every mode to what the Rust side assumes. The browser driver stays open: its
    Rust side is already one function (`Action::to_json`), and running the driver in a test needs a real browser.
+   **Part status:** done, 9 October 2026
 10. **The MCP server.** Fold `securevibe_questions` into `securevibe_check {section: "questions"}` and
    `securevibe_notes_file` into `securevibe_record_answer` (fewer ways to do one thing, two fewer full check runs
    per loop; an ADR Later entry, the docs' "thirteen", `image_smoke.py`; the owner's VS Code flow used
@@ -172,6 +181,7 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    before the brief as the instructions do, and `mcp/flow_text_tests.rs` holds the instructions, the list, the spec,
    and the guide's pasted prompt to that order, and every string the AI tool reads to American spelling and to no
    sentence that calls an app safe unless it denies it.
+   **Part status:** done, 9 October 2026
 11. **Process.** Every session inserts its claim at the top of this file's "Next" section, so a branch an hour old
    conflicts with `main` here; the same conflict was resolved three times on 8 October, each costing a 20-minute
    CI round. Append claims at the end of "Next" instead (a CLAUDE.md line), and merge the claim pull request before
@@ -198,6 +208,7 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    ADR-054, Later, 9 October 2026): five files beside the two modules, the code in them unchanged, `ast.rs` from 4,584
    lines to 2,087 and `sbom.rs` from 1,560 to 739. The census of credits, which names a file and a line, read the same
    checks crediting the same requirements after the move.
+   **Part status:** partly done: unclear, needs a look
 12. **Smaller seams in the pipeline.** `Signature.condition` in `sv-scan` is a `String` skipped at run time when
    unknown (`sv-scan/src/lib.rs:297`), where the `Condition` enum refuses unknown names everywhere else: type it
    (ADR-015 governs both data files; one line). `not_for_tests` (`main.rs:4492-4510`) decides an applicability
@@ -289,6 +300,7 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    `tools/coverage.py`, held to the census as it is, rather than make `docs/COVERAGE.md` need a full test run ("agree,
    keep the coverage mirror list held to the full test count"). The record is ADR-059, "Later, 9 October 2026". Recorded
    by session securevibe-e2.
+   **Part status:** done, with the item
 
 **The owner's decision, 9 October 2026**, asked by session securevibe-e2 with a recommendation for each open choice: **yes to part 10's tool fold, as recommended:** `stackvet_questions` folds into `stackvet_check` and the notes-file tool into the answer-recording tool, with the old names still answering, unlisted, for a few weeks, so a flow that calls them by name (the owner's VS Code walk-through called `stackvet_questions`) keeps working while the guide and the tool count change. **Claimed 9 October 2026 by session securevibe-e9**, at
 the owner's word ("go ahead and take the next thing from the backlog"; Phase 2 of the roadmap, the one part of it the

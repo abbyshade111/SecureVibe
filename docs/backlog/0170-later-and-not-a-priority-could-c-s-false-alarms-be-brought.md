@@ -27,7 +27,7 @@ Every first-party finding was read.
   `securevibe.provenance.json` in the earlier measurement cannot happen in a real `sv` run, if it scanned the folder.
 
 **Follow-ups, each claimable on its own, and they apply to today's packs as well as to option C:**
-1. Bundled third-party library files shown apart, detected by a known library's file (as retire.js does) rather
+1. **Bundled third-party library files shown apart, detected by** a known library's file (as retire.js does) rather
    than by long lines alone, and checked on apps the test was not written against.
    **Claimed on 6 October 2026 by session securevibe-e9**, at the owner's asking to pick another item, in branch
    `claude/securevibe-e9-bundled-libraries`: a copy of a library kept in the app, known by its own banner, has its
@@ -37,8 +37,10 @@ Every first-party finding was read.
    by a string only the library writes or the comment it opens with naming a version; its findings listed after the
    app's own, named for the library, and still counted. On the library files at hand every bannered copy is named,
    and none of the 661 first-party files of this repository and v1 is.
-2. The secret rules' findings in test code kept apart with the rest.
-3. One finding per file and line, naming every rule and requirement.
+   **Part status:** done, 6 October 2026
+2. **The secret rules' findings in test code kept apart with the rest.**
+   **Part status:** open
+3. **One finding per file and line, naming every rule and requirement.**
    **Claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("Yes, please go ahead with both of
    those", asked whether to reverse the rule that findings with no CWE in common stay apart), in branch
    `claude/securevibe-e9-one-per-line`. **Record, `Status: proposed`** (to be a "Later" entry on ADR-023): after
@@ -50,7 +52,8 @@ Every first-party finding was read.
    problem on the same line. SARIF keeps one result per problem, for the tools that read it.
    **Done the same day**, and the record accepted (ADR-023, "Later, 6 October 2026: one finding per line of code";
    DESIGN, "One finding per line of code").
-4. The narrow secret-rule exception: a hex digest or bcrypt hash assigned to a password or hash field.
+   **Part status:** done, 6 October 2026
+4. **The narrow secret-rule exception:** a hex digest or bcrypt hash assigned to a password or hash field.
    **Follow-ups 2 and 4 Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch
    `claude/semgrep-follow-ups-2-4`.
    **Done the same day** (DESIGN, "Semgrep follow-ups 2 and 4"). *2:* nothing kept the secret rules' findings
@@ -69,7 +72,8 @@ Every first-party finding was read.
    and the report no longer shows it. Eight guards broken in turn: seven caught. The eighth, dropping the `test`
    folder from what is test code, was not by these tests, because every corpus file in `test/` is also named
    like a test; `finding.rs`'s own tests hold it.
-5. Only then, and the owner's choice: the narrow "worth a look" tier (`unsafe-dynamic-method`,
+   **Part status:** done, 5 October 2026
+5. **Only then, and the owner's choice:** the narrow "worth a look" tier (`unsafe-dynamic-method`,
    `detect-non-literal-regexp`, `prohibit-jquery-html`, `plaintext-http-link`, `var-in-href`), which costs one real
    finding in this corpus.
    **The owner's decision, 6 October 2026: yes**, as long as a "worth a look" finding is still shown in full, only
@@ -78,6 +82,7 @@ Every first-party finding was read.
    "worth a look", in full and still counted, as test code's are.
    **Done the same day** (DESIGN, "Five Semgrep rules listed apart as "worth a look""; ADR-023, Later): listed
    after the app's own, in full, still counted, and marked in SARIF; only when nothing else backs the finding up.
+   **Part status:** done, 6 October 2026
 Where to start, from both measurements: which rules make the false alarms (`var-in-href`,
 `html-in-template-string`, `detect-non-literal-regexp`, `unsafe-dynamic-method`, and
 `generic-api-key` on the hashes in `securevibe.provenance.json`), counted per rule against real

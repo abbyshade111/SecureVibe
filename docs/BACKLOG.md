@@ -18,8 +18,10 @@ holds or that is done. A message to another session is not a claim. When the wor
 done <number>` marks it, or `done <number> --remains "..."` when part of it stays open; a note of what was built goes
 in the item's text, as before, and the design entry holds the detail. A new item is `python3 tools/backlog.py new
 "Its title"`, which writes an open file numbered one past the highest; two pull requests open at once may take the
-same number, which harms nothing. An item's parts keep their numbers inside it and are claimed and marked in their
-own text, as before; the item's status says `partly done` with what remains. `python3 tools/backlog.py list --open`
+same number, which harms nothing. An item's numbered parts each have a status line of their own (`**Part status:**`, in the same four
+forms), set with `python3 tools/backlog.py claim 0226.3 --by <session>` and `done 0226.3`, and read by the board from
+that line alone; a note of what was built still goes in the part's text. The item's status says `partly done` with
+what remains, and `--check` holds the two to each other (backlog 0228). `python3 tools/backlog.py list --open`
 prints every open item, `summary` the counts, and `--check` holds the layout. A branch written before the split
 conflicts here once it merges `main`; the steps to mend it are at the top of the script.
 

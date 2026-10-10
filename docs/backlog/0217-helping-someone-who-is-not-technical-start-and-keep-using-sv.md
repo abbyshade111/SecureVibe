@@ -36,33 +36,41 @@ person's path from "I have heard of SecureVibe" to "my AI tool is using it, and 
    is kept with the others and cannot drift from the guide (a test can hold the two to the same image name and
    steps). Try it the way the prompt library's prompts are tried (`docs/prompts/library-trial/`), from an empty
    folder in each tool, and say in the guide which tools it has been tried in.
+   **Part status:** claimed by securevibe-e2, 9 October 2026: part 3 (sv doctor) is to build; parts 1, 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
 2. **`sv` writes its own settings file.** Instead of the person (or the AI tool) filling in paths by hand, one
    command, run through Docker in the app's folder, prints or writes the settings for a named tool with the paths
    already right: for example `docker run … securevibe-sv connect claude`. Smaller than part 1 and useful to it,
    since the setup prompt could call it rather than build the file itself. Writing into someone's folder is a
    decision under CLAUDE.md, so this needs a record.
+   **Part status:** claimed by securevibe-e2, 9 October 2026: part 3 (sv doctor) is to build; parts 1, 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
 3. **One "is everything ready?" answer.** A `securevibe_status` tool and an `sv doctor` command that say, in plain
    sentences: whether Docker is running, whether the folder is in git, whether `securevibe.toml` exists and reads,
    which version of `sv` this is and whether the person's copy is older than the one they fetched, and what `--run`
    would need that is missing. Today these are found out one failure at a time. It opens no network connection to
    find any of it out.
+   **Part status:** claimed by securevibe-e2, 9 October 2026: part 3 (sv doctor) is to build; parts 1, 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
 4. **The silent failures, made loud.** When Docker is not running, the tools vanish and nothing says why. Look for
    any way the AI tool can be told: the rules file `sv rules` writes into `AGENTS.md` already says to stop when the
    tools are missing; check whether each tool actually reads it, and whether the starting prompt's line about it is
    followed (the prompt trials can measure this cheaply).
+   **Part status:** claimed by securevibe-e2, 9 October 2026: part 3 (sv doctor) is to build; parts 1, 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
 5. **The report read aloud.** A person who is not technical gets `compliance.md`, `report.html`, and a dashboard.
    Test a "read my report with me" prompt, or an MCP tool, that has the AI tool explain the three things to do first,
    what was not checked and why that matters, and nothing that sounds like "your app is secure". The report already
    leads with what was not examined; this is about the person understanding it, and it must not soften it.
+   **Part status:** claimed by securevibe-e2, 9 October 2026: part 3 (sv doctor) is to build; parts 1, 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
 6. **The download (0120's "later").** The single biggest barrier left is `--run`, which needs Rust. Note it here only
    so the recommendation weighs it against parts 1 to 5; the work itself stays in 0119 item 1 and 0120.
+   **Part status:** claimed by securevibe-e2, 9 October 2026: part 3 (sv doctor) is to build; parts 1, 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
 7. **Words.** A short glossary the guide and the reports link to (terminal, Docker, MCP, git, "not assessed"), and a
    pass over the guide for any step that assumes the reader already knows something. American English, plain, as
    everywhere.
+   **Part status:** claimed by securevibe-e2, 9 October 2026: part 3 (sv doctor) is to build; parts 1, 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
 8. **Watch someone do it.** Nothing above is known to help until somebody who is not technical tries it. The test is
    one person, from a computer with nothing installed, with a stopwatch and a note of every place they stopped or
    asked for help, before and after; the owner's own run on 26 September 2026 (0119) is the "before". Who that
    person is and when is the owner's to arrange.
+   **Part status:** claimed by securevibe-e2, 9 October 2026: part 3 (sv doctor) is to build; parts 1, 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
 
 **What needs the owner.** Which parts to build, and in what order. Any trial that spends money (the prompt trials
 cost $18 to $35 each, `docs/prompts/library-trial/`) is asked first, every time. Windows has never been tried at
@@ -105,22 +113,29 @@ What reading the code settled, which the parts above did not know:
    held by a test to the guide's image name and to `sv connect`'s output. **Cost:** one or two pull requests; no
    money. **Trying it:** the owner, once, in the tool they use, from an empty folder; a paid trial is not needed
    for a first answer.
+   **Part status:** claimed by securevibe-e2, 9 October 2026: part 3 (sv doctor) is to build; parts 1, 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
 2. **Part 7, the words.** A glossary of a dozen terms (terminal, Docker, image, MCP, git, folder path, "not
    assessed", "finding"), linked from the guide's first use of each, and a pass over the guide for a step that
    assumes knowledge. Cheap, and it helps whatever else is built.
+   **Part status:** claimed by securevibe-e2, 9 October 2026: part 3 (sv doctor) is to build; parts 1, 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
 3. **Part 5, the report read with you.** A prompt (`sv prompts report`), not a new tool: the AI tool can
    already read `compliance.md`; the prompt tells it to start with what was not checked and why that matters, then the
    three things to do first, and never to say the app is secure. A test holds the prompt to those three
    instructions. No money.
+   **Part status:** claimed by securevibe-e2, 9 October 2026: part 3 (sv doctor) is to build; parts 1, 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
 4. **Part 3, narrowed to what it can know:** `sv doctor` and a `stackvet_status` tool that answer git,
    `securevibe.toml`, version, and `--run` readiness in plain sentences. Worth building after 1, because the setup
    prompt's last step can call it to show the connection works.
+   **Part status:** claimed by securevibe-e2, 9 October 2026: part 3 (sv doctor) is to build; parts 1, 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
 5. **Part 4, measured, not built.** Add one line to the next paid prompt trial that is already happening: remove
    the tools partway and see whether the AI tool says so. No trial of its own.
+   **Part status:** claimed by securevibe-e2, 9 October 2026: part 3 (sv doctor) is to build; parts 1, 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
 6. **Part 8 is the test of all of the above,** and it is the owner's to arrange; until it happens, the guide says
    which tools each step was tried in, and by whom.
+   **Part status:** claimed by securevibe-e2, 9 October 2026: part 3 (sv doctor) is to build; parts 1, 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
 7. **Part 6 stays in 0120.** The download is the biggest barrier left for `--run`, but it needs signed releases
    (0191 part 4), and Mac notarization costs money, so it is the owner's decision there.
+   **Part status:** claimed by securevibe-e2, 9 October 2026: part 3 (sv doctor) is to build; parts 1, 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
 
 Windows: nothing above is tried there, and every part says so until the owner decides whether to support it.
 
