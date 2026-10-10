@@ -1,6 +1,6 @@
 # Packaging `sv` for somebody who is not technical: a container now, a download later
 
-**Status:** partly done: a way to install sv on Windows (Scoop or winget), which needs a published Windows program, the owner's to decide; and the guide's Windows section after it
+**Status:** claimed by stackvet-backlog-org, 10 October 2026
 
 **The
 owner's decision, 26 September 2026: build the container now, and keep the downloadable program
