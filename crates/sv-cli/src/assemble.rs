@@ -2195,7 +2195,12 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
             .iter()
             .filter(|id| frameworks.get(id.as_str()).is_some_and(|r| r.level == 2))
             .count(),
-        hints: level_hints(manifest, listing, &scan_report.set_apart),
+        // A hints file that cannot be read is a gap in the report, not a line on stderr that the MCP
+        // server's caller never sees (backlog 226, part 1, item 6).
+        hints: level_hints(manifest, listing, &scan_report.set_apart).unwrap_or_else(|gap| {
+            gaps.push(gap);
+            Vec::new()
+        }),
         confirmed: scope_confirmed(manifest, seals),
     };
     let mut report = sv_report::build(sv_report::Inputs {
@@ -2280,29 +2285,34 @@ fn at_the_manifest(mut finding: sv_check::Finding, manifest_file: &str) -> sv_ch
 /// analysis of 7 October 2026, finding 17; ADR-024, Later, 9 October 2026). Nothing at level 2,
 /// where there is nothing more to ask; and nothing, said on standard error, when the list of
 /// names cannot be read, since a question missing is not a pass.
+/// The hints file read, or the gap that says the code was not compared with the answers that set
+/// the level, and why.
+fn level_hints_from(path: &Path) -> Result<sv_check::level_hints::Hints, sv_report::Gap> {
+    sv_check::level_hints::Hints::load(path).map_err(|why| sv_report::Gap {
+        what: "whether the code agrees with the answers that set the level".to_owned(),
+        why: format!(
+            "sv's file of what to look for ({}) could not be read: {why}. So nothing here says \
+             whether the code shows a level 1 app needs more, which is not the same as saying it \
+             does not. Reinstall sv, or point SV_DATA_DIR at a complete copy of its data.",
+            path.display()
+        ),
+    })
+}
+
 fn level_hints(
     manifest: &sv_manifest::Manifest,
     listing: &sv_scan::files::Listing,
     set_apart: &std::collections::BTreeSet<String>,
-) -> Vec<sv_check::level_hints::Hint> {
+) -> Result<Vec<sv_check::level_hints::Hint>, sv_report::Gap> {
     if manifest.target_level() != 1 {
-        return Vec::new();
+        return Ok(Vec::new());
     }
-    let hints =
-        match sv_check::level_hints::Hints::load(&sv_frameworks::data::file("level-hints.json")) {
-            Ok(hints) => hints,
-            Err(why) => {
-                eprintln!(
-                    "sv: the code was not compared with the answers that set the level: {why}"
-                );
-                return Vec::new();
-            }
-        };
+    let hints = level_hints_from(&sv_frameworks::data::file("level-hints.json"))?;
     let private_audience = matches!(
         manifest.app.audience,
         sv_manifest::Audience::JustMe | sv_manifest::Audience::MyTeam
     );
-    sv_check::level_hints::find(
+    Ok(sv_check::level_hints::find(
         listing,
         &hints,
         &sv_check::level_hints::Answers {
@@ -2310,7 +2320,7 @@ fn level_hints(
             listed: manifest.data.listed(),
         },
         set_apart,
-    )
+    ))
 }
 
 /// Whether the answers that set the level were confirmed through `sv review`, and whether that

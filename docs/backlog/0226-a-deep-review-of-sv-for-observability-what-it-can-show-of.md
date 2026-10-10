@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 1 items 3, 5 to 7, and 9 to 11; part 2 (9); part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 1 items 3, 7, and 9 to 11; part 2 (9); part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -253,6 +253,19 @@ report and to `sv run`'s printout as the other suites' are, with a test that fai
 anonymous ones, which the evidence, the report's steps, and `sv run`'s printout all read, so the MCP-server and
 fetch suites' steps now reach both. It names every field of `RunOutcome`, so a suite added later does not build
 until it is placed. Break: with those two suites taken out of the list, both new tests fail.
+
+**Part 1, items 5 and 6 claimed on 9 October 2026 by session stackvet-e9**, under the owner's "continue to work off
+the backlog", in branch `claude/stackvet-e9-crash-and-gap`: a panic hook that says `sv` itself failed, where, and
+that nothing was assessed, and exits 3 (item 5); and a data file `sv` cannot read, `level-hints.json` first, made a
+gap in the report rather than a line on stderr, with the others of the same shape found while there (item 6); each
+with a test that fails without it. Open pull requests read first: #1311 changes `main.rs` far from `main()`, and
+#1310 (items 9 and 10, session paper-facts) touches only this file.
+
+**Part 1, items 5 and 6 done the same day** (`docs/design/0345-a-crash-in-sv-ends-as-sv-s-failure-and-an-unreadable-hints.md`): a panic now ends as `sv`'s own failure, exit 3, with what and
+where and that nothing was assessed, after the unwinding has cleaned up; other threads keep Rust's line, so `sv mcp`
+surviving a check thread is not reported as `sv` failing. An unreadable `level-hints.json` is a gap in the report
+rather than a line on stderr; no other data file in the report's path fails silently. Breaks: without the catch, and
+without the gap, each new test fails.
 
 **Part 1, items 9 and 10 claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please do"), in
 branch `claude/explain-seal-and-path`: `sv explain` checking a report's seal before repeating it, and saying when it
