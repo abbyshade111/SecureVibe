@@ -1,6 +1,6 @@
 # A walk-through for building an app from scratch in any AI coding tool, with `sv` alongside
 
-**Status:** partly done: 0 of 7 parts done, 0 claimed, 6 open, as its markers read on 8 October 2026
+**Status:** claimed by stackvet-backlog-org, 10 October 2026
 
 Asked for by the owner on 26 September 2026: "it can't be too difficult, since the whole idea is
 making it easy for people who aren't technical or security experts to vibe code safely." **Claimed
