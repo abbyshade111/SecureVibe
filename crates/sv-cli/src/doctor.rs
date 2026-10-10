@@ -45,6 +45,9 @@ pub struct Line {
     pub topic: &'static str,
     pub state: State,
     pub said: String,
+    /// Whether `said` can quote the app's own text (its stackvet.toml, read or not), which the MCP
+    /// server fences as it fences every quote of the app (ADR-066).
+    pub quotes_app: bool,
 }
 
 fn line(topic: &'static str, state: State, said: impl Into<String>) -> Line {
@@ -52,7 +55,18 @@ fn line(topic: &'static str, state: State, said: impl Into<String>) -> Line {
         topic,
         state,
         said: said.into(),
+        // The two answers read from stackvet.toml quote it: its parse error, the image it names.
+        quotes_app: matches!(topic, "stackvet.toml" | "how to start the app"),
     }
+}
+
+/// `sv --version`'s first line: this copy's version and the commit it was built from.
+pub fn version_line() -> String {
+    format!(
+        "sv {} (commit {})",
+        env!("CARGO_PKG_VERSION"),
+        env!("SV_GIT_COMMIT")
+    )
 }
 
 /// What the answers depend on that is not the folder, given so a test can set each.
@@ -188,17 +202,23 @@ pub fn answers(app_dir: &std::path::Path, asked: &Asked) -> Vec<Line> {
 
 /// The answers as the terminal prints them.
 pub fn text(app_dir: &std::path::Path, lines: &[Line]) -> String {
+    text_quoting(&app_dir.display().to_string(), lines, &|t| t.to_owned())
+}
+
+/// The answers, with each piece that can be the app's own text passed through `quote`: the folder's
+/// name and the answers that read stackvet.toml. The MCP server fences them there.
+pub fn text_quoting(folder: &str, lines: &[Line], quote: &dyn Fn(&str) -> String) -> String {
     let mut out = format!(
         "Is everything ready for {}? Nothing was written, and no network connection was opened.\n\n",
-        app_dir.display()
+        quote(folder)
     );
     for l in lines {
-        out.push_str(&format!(
-            "  {:<11}{}: {}\n",
-            l.state.word(),
-            l.topic,
-            l.said
-        ));
+        let said = if l.quotes_app {
+            quote(&l.said)
+        } else {
+            l.said.clone()
+        };
+        out.push_str(&format!("  {:<11}{}: {said}\n", l.state.word(), l.topic));
     }
     let not_ready = lines.iter().filter(|l| l.state == State::NotReady).count();
     out.push('\n');

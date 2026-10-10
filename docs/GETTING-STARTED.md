@@ -116,7 +116,7 @@ message. Instead:
    path). VS Code fills in `${workspaceFolder}` with the open folder, so there is no path to type.
 4. Name it `stackvet`, and save it for the **Workspace** (this app only).
 5. In the `.vscode/mcp.json` it opens, click **Start** above `stackvet`. In the chat, the tools
-   button should now list the eleven `stackvet_` tools.
+   button should now list the twelve `stackvet_` tools.
 
 The file it writes looks like this:
 
@@ -150,8 +150,9 @@ does not say so: it simply builds without it, and nothing gets checked. In the t
 
 > Which `stackvet_` tools can you call? List their names.
 
-It should list eleven, among them `stackvet_spec` and `stackvet_check`. If it lists none, or says it
-has no such tools, StackVet is not connected. Then, in this order: make sure Docker is running (step
+It should list twelve, among them `stackvet_spec` and `stackvet_check`. If it lists none, or says it
+has no such tools, StackVet is not connected. If it lists them, `stackvet_status` says whether the rest
+is ready: the folder in git, `stackvet.toml`, and how to start the app. Then, in this order: make sure Docker is running (step
 1); check the app folder's path in the settings file, in all three places; and restart the tool, since
 most read their MCP settings only when they start. In Claude Code, `/mcp` lists each server and
 whether it connected. In VS Code, **MCP: List Servers → stackvet → Show Output** says why it did

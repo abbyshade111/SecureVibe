@@ -215,6 +215,25 @@ pub(super) fn output_schema(tool: &str) -> Option<Value> {
                 &["app", "level", "creditsNothing"],
             )
         }
+        // `sv doctor`'s answers (backlog 0217, part 3).
+        "stackvet_status" => object(
+            json!({
+                "lines": {
+                    "type": "array",
+                    "items": object(
+                        json!({
+                            "topic": string,
+                            "state": { "type": "string", "enum": ["ready", "not-ready", "cannot-tell"] },
+                            "says": string,
+                        }),
+                        &["topic", "state", "says"],
+                    ),
+                },
+                "notReady": count.clone(),
+                "creditsNothing": { "type": "boolean" },
+            }),
+            &["lines", "notReady", "creditsNothing"],
+        ),
         "stackvet_preflight" => {
             let items = json!({
                 "type": "array",
@@ -437,6 +456,13 @@ pub(super) fn tool_list() -> Value {
         "description": "Which page of the section, from 1, when the list says it has more than one. Defaults to 1."
     });
     json!([
+        {
+            "name": "stackvet_status",
+            "title": "Is everything ready?",
+            "description": "Whether StackVet is ready for this app, in one plain line each, marked ready, not ready, or can't tell: which StackVet this is, whether the folder is in git, whether stackvet.toml is there and reads, whether it says how to start the app, and whether Docker can start it for `sv report --run`. Inside StackVet's container, which cannot see Docker on the computer, that last one is can't tell. The same answers as `sv doctor` at a terminal. It credits nothing, writes nothing, and opens no network connection, so it cannot say whether a newer StackVet is out. Call it when setting up, or when something does not work and you want to know what is missing.",
+            "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
+            "annotations": { "readOnlyHint": true, "openWorldHint": false }
+        },
         {
             "name": "stackvet_spec",
             "title": "How to describe the app",
