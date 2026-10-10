@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 3, decided and each now an item of its own (0229, 0233 to 0240)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -204,6 +204,10 @@ is asked before it is built. Recommended first: **A**, then **C**, then **D**.
   Medium.
 - **K. The helper images by digest**, not by tag (`busybox`, `mailpit`, `node`, the headless browser), and the app
   image's digest in the report. Changes what `sv` runs. Small.
+
+**The owner's word on the rest of part 3, 10 October 2026** ("yes, agree with all your recommendations, please
+proceed"), each now an item of its own: B (backlog 0233), F (0234), G (0235), H (0236), I (0237), and K (0238) to be
+built; J (0239) if the paper relies on the build-loop record; and E (0240) later, after A and the dashboard.
 
 ### Over time: what the records could feed
 
