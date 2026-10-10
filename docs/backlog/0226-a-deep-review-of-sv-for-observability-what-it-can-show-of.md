@@ -268,6 +268,12 @@ surviving a check thread is not reported as `sv` failing. An unreadable `level-h
 rather than a line on stderr; no other data file in the report's path fails silently. Breaks: without the catch, and
 without the gap, each new test fails.
 
+**Part 1, items 9 and 10 claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please do"), in
+branch `claude/explain-seal-and-path`: `sv explain` checking a report's seal before repeating it, and saying when it
+is not shown to be `sv`'s (item 9); and `sv explain ID PATH` taking the path as the app, as its own documentation
+says (item 10). Open pull requests and recent branches read first: session stackvet-e9 holds items 3, 4, 7, and 8,
+and none touches `crates/sv-cli/src/explain.rs`.
+
 **Part 1, items 3 and 7 done the same day** (`docs/design/0344-the-build-loop-record-read-a-line-at-a-time-and-said-when.md`):
 the record is read as bytes and decoded a line at a time, so a byte that is not UTF-8 costs its line, counted as
 unreadable, and not the whole record; and `BuildLoop::full` says when the record reached its 4 MB limit, which the
