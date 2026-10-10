@@ -99,7 +99,20 @@ fn turned_off_the_report_says_it_cannot_tell() {
     let checked = call(&server, "stackvet_check", json!({ "path": "app" }));
     assert_eq!(checked["isError"], false, "{}", text(&checked));
     call(&server, "stackvet_write_report", json!({ "path": "app" }));
-    assert_eq!(record_lines(&app), 0, "written though turned off");
+    // Turned off, one line says so, holding the time and nothing else, so the gap is seen as one
+    // (ADR-084); no call is written down, the check's or the report's.
+    assert_eq!(record_lines(&app), 1, "a call written though turned off");
+    let line: Value = serde_json::from_str(
+        std::fs::read_to_string(
+            sv_scan::ecosystems::default_report_dir_in(&app)
+                .join(sv_scan::ecosystems::BUILD_LOOP_RECORD),
+        )
+        .unwrap()
+        .trim(),
+    )
+    .unwrap();
+    let keys: Vec<&String> = line.as_object().unwrap().keys().collect();
+    assert_eq!(keys, ["off", "time"], "{line}");
     assert_eq!(report_json(&app)["build_loop"]["off"], true);
     let folder = sv_scan::ecosystems::default_report_dir_in(&app);
     let page = std::fs::read_to_string(folder.join("report.html")).unwrap();

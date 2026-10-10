@@ -16,6 +16,7 @@ fn one_call() -> String {
         time: "2026-10-09T10:00:00Z".to_owned(),
         tool: "stackvet_check".to_owned(),
         counts: Some(sv_report::LoopCounts::default()),
+        ..Default::default()
     };
     format!("{}\n", line.to_json())
 }

@@ -11,3 +11,8 @@ request that builds it, which says where the build differs from the plan. Made a
 so the build has a claim others can see, as item C was (0230); item 0226 still holds the review's write-up. Item A
 (ADR-082) is 0229, claimed by session paper-facts.
 
+**Decisions 1, 2, and 4 built 10 October 2026 by session securevibe-e2** (design entry "The build-loop record says how
+each call ended and who called"): each line says how the call ended, which AI tool named itself, and which `sv`
+answered; a turned-off record says so in one line; a call that could not be written is counted and said. Decisions 3,
+5, and 6 remain, in a pull request of their own.
+

@@ -23,6 +23,7 @@ fn line(time: &str, tool: &str, findings: Option<usize>) -> Line {
             needs_attention: findings,
             not_assessed: 3,
         }),
+        ..Line::default()
     }
 }
 

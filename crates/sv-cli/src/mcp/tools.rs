@@ -12,6 +12,14 @@ impl Server {
     /// and how the person can run it at a terminal, where there is no limit. A thread cannot be
     /// stopped from outside, so the check runs on to its end and its result is dropped; until it
     /// ends, another check is refused rather than started beside it.
+    /// How a check that gave no answer ended, for the record of the build loop (ADR-084).
+    fn ended_as(&self, outcome: &'static str) {
+        *self
+            .last_outcome
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(outcome);
+    }
+
     pub(super) fn report_for(
         &self,
         app_dir: &Path,
@@ -73,20 +81,24 @@ impl Server {
                 }
                 report
             }
-            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => Err(crate::Remedy::error(
-                format!(
-                    "the check did not finish within {} seconds, so nothing was assessed: this is \
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                self.ended_as("timed-out");
+                Err(crate::Remedy::error(
+                    format!(
+                        "the check did not finish within {} seconds, so nothing was assessed: this is \
                      not a pass and not a failure. The folder may be very large. At a terminal, with \
                      no time limit: {}.",
-                    self.time_limit.as_secs_f64(),
-                    at_a_terminal(&app_dir.to_string_lossy(), "")
-                ),
-                "Check a smaller folder with `path`, or ask the person to run that command at a \
+                        self.time_limit.as_secs_f64(),
+                        at_a_terminal(&app_dir.to_string_lossy(), "")
+                    ),
+                    "Check a smaller folder with `path`, or ask the person to run that command at a \
                  terminal.",
-            )),
+                ))
+            }
             // The check's thread ended without sending its report, which only a panic does: a fault
             // in `sv`, not in the app. What the panic said is the cause (backlog 226, part 2, item 16).
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                self.ended_as("crashed");
                 let cause = last
                     .take()
                     .and_then(|check| check.join().err())
