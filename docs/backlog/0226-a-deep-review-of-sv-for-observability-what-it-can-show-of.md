@@ -255,6 +255,13 @@ anonymous ones, which the evidence, the report's steps, and `sv run`'s printout 
 fetch suites' steps now reach both. It names every field of `RunOutcome`, so a suite added later does not build
 until it is placed. Break: with those two suites taken out of the list, both new tests fail.
 
+**Part 1, items 5 and 6 claimed on 9 October 2026 by session stackvet-e9**, under the owner's "continue to work off
+the backlog", in branch `claude/stackvet-e9-crash-and-gap`: a panic hook that says `sv` itself failed, where, and
+that nothing was assessed, and exits 3 (item 5); and a data file `sv` cannot read, `level-hints.json` first, made a
+gap in the report rather than a line on stderr, with the others of the same shape found while there (item 6); each
+with a test that fails without it. Open pull requests read first: #1311 changes `main.rs` far from `main()`, and
+#1310 (items 9 and 10, session paper-facts) touches only this file.
+
 **Part 1, items 3 and 7 done the same day** (`docs/design/0344-the-build-loop-record-read-a-line-at-a-time-and-said-when.md`):
 the record is read as bytes and decoded a line at a time, so a byte that is not UTF-8 costs its line, counted as
 unreadable, and not the whole record; and `BuildLoop::full` says when the record reached its 4 MB limit, which the
