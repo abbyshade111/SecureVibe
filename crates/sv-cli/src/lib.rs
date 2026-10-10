@@ -882,6 +882,8 @@ pub mod brief;
 
 pub mod connect;
 
+pub mod doctor;
+
 pub mod explain;
 
 pub mod parts;
