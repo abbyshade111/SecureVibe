@@ -2535,6 +2535,18 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
     });
     report.run_record = Some(run_record);
     report.seen = seen;
+    // Each tool's own report, kept only when asked (backlog 0229, part 4), and otherwise dropped
+    // here, so nothing past this point holds the app's code twice.
+    if options.keep_tool_output {
+        let seen = report.seen.get_or_insert_with(Default::default);
+        crate::seen::tool_output(secret_rules, &report.examined, seen);
+    }
+    for e in &mut report.examined {
+        if let Some(tool) = e.tool.as_mut() {
+            tool.output_kept = options.keep_tool_output && tool.output.is_some();
+            tool.output = None;
+        }
+    }
     report.manifest_file = manifest_file.to_owned();
     // A contradiction says what in the code contradicted the manifest, so whoever wrote the
     // manifest can see what to correct. "The code says otherwise" alone left the AI coding tool that

@@ -1140,6 +1140,14 @@ pub struct ToolRun {
     pub exit_code: Option<i32>,
     /// From asking its version to reading its report, in milliseconds.
     pub took_ms: u64,
+    /// The report it wrote, as it wrote it, for `--keep-tool-output` to keep beside the report
+    /// (ADR-082, backlog 0229, part 4). Never in `report.json`: it holds the app's code, and is
+    /// kept only when asked, redacted, in `seen.json`.
+    #[serde(skip)]
+    pub output: Option<String>,
+    /// Whether that report was kept in `seen.json`, for a program reading `report.json`.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub output_kept: bool,
 }
 
 /// `run_one_in`, writing down in `record` which program ran, its version, its arguments, and its
@@ -1489,6 +1497,7 @@ fn run_one_recorded(
             cause: NotRunCause::CouldNotRead,
         };
     };
+    record.output = Some(text.clone());
     let scanned = std::fs::read_to_string(&scanned_path).ok();
     std::fs::remove_file(&scanned_path).ok();
     match parse_sarif_relative_to(adapter, &text, app_dir) {

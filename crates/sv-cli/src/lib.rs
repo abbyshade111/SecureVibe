@@ -358,6 +358,9 @@ pub struct ReportOptions {
     pub advisories: Option<PathBuf>,
     /// Said in the report when there was no database to compare with.
     pub why_no_advisories: String,
+    /// With `run_tools`: keep each tool's own report, redacted, in `seen.json` (ADR-082, backlog
+    /// 0229, part 4). Opt-in: a tool's report quotes the app's code, and can be large.
+    pub keep_tool_output: bool,
 }
 
 impl ReportOptions {
@@ -376,6 +379,7 @@ impl ReportOptions {
             why_no_advisories: format!(
                 "{caller} does not compare packages with known vulnerabilities."
             ),
+            keep_tool_output: false,
         }
     }
 
@@ -401,6 +405,7 @@ impl ReportOptions {
                 "{caller} compares against known vulnerabilities only when you pass --advisories \
                  DIR."
             ),
+            keep_tool_output: false,
         }
     }
 }

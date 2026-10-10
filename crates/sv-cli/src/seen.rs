@@ -12,7 +12,7 @@
 use serde_json::Value;
 use sv_check::probes::{ProbeRequest, ProbeResponse};
 use sv_check::secrets::{SecretRules, redact_text};
-use sv_report::seen::{Exchange, KEPT_CHARS, MOST_EXCHANGES, Seen};
+use sv_report::seen::{Exchange, KEPT_CHARS, MOST_EXCHANGES, MOST_TOOL_CHARS, Seen};
 
 /// Headers whose value is a session or a sign-in, so it is cut whatever it looks like.
 const SESSION_HEADERS: &[&str] = &[
@@ -175,6 +175,31 @@ pub fn app_log(rules: &SecretRules, asked: Option<&sv_check::signed_in::Outcome>
         cut: cuts.get(),
     };
     seen.credentials_removed += removed;
+}
+
+/// Each outside tool's own report, from the record of its run in `examined`, made ready to keep
+/// (backlog 0229, part 4): through `redact_text`, and cut at `MOST_TOOL_CHARS` characters. Adds the
+/// credentials cut to `seen.credentials_removed`.
+pub fn tool_output(rules: &SecretRules, examined: &[sv_report::Examined], seen: &mut Seen) {
+    for e in examined {
+        let Some(tool) = &e.tool else { continue };
+        let Some(text) = &tool.output else { continue };
+        let (text, n) = redact_text(rules, text);
+        seen.credentials_removed += n;
+        let total = text.chars().count();
+        let cut_chars = total.saturating_sub(MOST_TOOL_CHARS);
+        let report = if cut_chars == 0 {
+            text
+        } else {
+            text.chars().take(MOST_TOOL_CHARS).collect()
+        };
+        seen.tool_output.push(sv_report::seen::ToolOutput {
+            program: tool.program.clone(),
+            rules: e.rules.clone(),
+            report,
+            cut_chars,
+        });
+    }
 }
 
 /// `text`, cut at `KEPT_CHARS` characters with how many more there were said, counting a cut.
