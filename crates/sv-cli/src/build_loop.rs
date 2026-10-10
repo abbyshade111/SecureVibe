@@ -34,6 +34,38 @@ pub struct Line {
     /// A line that says only that the record was turned off at this time, so the gap after it is
     /// seen as one (ADR-084); `tool` is empty.
     pub off: bool,
+    /// At a check, its findings' fingerprints (hashes, never text), sorted, at most
+    /// `MAX_FINGERPRINTS` (ADR-084, decision 6). `None` in a line that is not a check, or was written
+    /// before it.
+    pub fingerprints: Option<Vec<String>>,
+    /// The check had more findings than `MAX_FINGERPRINTS`, so `fingerprints` holds only some, and
+    /// no comparison is made from it.
+    pub fingerprints_cut: bool,
+}
+
+/// The most findings' fingerprints one line keeps: about 17 KB, so the record's 4 MB still holds
+/// hundreds of checks of the largest apps.
+pub const MAX_FINGERPRINTS: usize = 1000;
+
+/// A check's findings' fingerprints as a line keeps them: sorted, each once, empty ones left out,
+/// at most `MAX_FINGERPRINTS`; and whether some were left out for that limit.
+pub fn fingerprints_of<'a>(fingerprints: impl IntoIterator<Item = &'a str>) -> (Vec<String>, bool) {
+    let mut all: Vec<String> = fingerprints
+        .into_iter()
+        .filter(|f| !f.is_empty())
+        .map(str::to_owned)
+        .collect();
+    all.sort();
+    all.dedup();
+    let cut = all.len() > MAX_FINGERPRINTS;
+    all.truncate(MAX_FINGERPRINTS);
+    (all, cut)
+}
+
+/// Whether `s` is a fingerprint as `sv` writes one (`882dedc677bff5a5`, `v2-61eb1668992f3990`):
+/// letters, digits, and hyphens, and not too long to be one. A finding's words have spaces.
+fn is_fingerprint(s: &str) -> bool {
+    !s.is_empty() && s.len() <= 64 && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
 }
 
 /// The outcomes a line may name, and nothing else.
@@ -75,6 +107,12 @@ impl Line {
                 line[key] = json!(value);
             }
         }
+        if let Some(fingerprints) = &self.fingerprints {
+            line["fingerprints"] = json!(fingerprints);
+        }
+        if self.fingerprints_cut {
+            line["fingerprints_cut"] = json!(true);
+        }
         if let Some(c) = &self.counts {
             line["counts"] = json!({
                 "findings": c.findings,
@@ -97,6 +135,21 @@ impl Line {
                 ..Line::default()
             });
         }
+        // Fingerprints that are not hex are not ones `sv` wrote, nor is a list past the limit.
+        let fingerprints = match v.get("fingerprints") {
+            None => None,
+            Some(list) => {
+                let list = list.as_array()?;
+                if list.len() > MAX_FINGERPRINTS {
+                    return None;
+                }
+                Some(
+                    list.iter()
+                        .map(|f| f.as_str().filter(|f| is_fingerprint(f)).map(str::to_owned))
+                        .collect::<Option<Vec<String>>>()?,
+                )
+            }
+        };
         // An outcome `sv` does not write makes the line one it did not write.
         let outcome = match v.get("outcome") {
             None => None,
@@ -122,6 +175,8 @@ impl Line {
             client: text("client"),
             sv: text("sv"),
             off: false,
+            fingerprints,
+            fingerprints_cut: v.get("fingerprints_cut") == Some(&Value::Bool(true)),
         })
     }
 }
@@ -233,6 +288,27 @@ fn read_record(app_dir: &Path) -> BuildLoop {
     }
 }
 
+/// Between the first check and the last, how many findings were no longer found, how many of those
+/// a person set aside as false alarms in the report about to be written (`set_aside`, the
+/// fingerprints of its false alarms), and how many were new (ADR-084, decision 6). Left unsaid
+/// when there was one check, or either check's line did not keep every fingerprint.
+pub fn settle(summary: &mut BuildLoop, set_aside: &[String]) {
+    let (Some(first), Some(last)) = (&summary.first_fingerprints, &summary.last_fingerprints)
+    else {
+        return;
+    };
+    if summary.checks < 2 {
+        return;
+    }
+    let gone: Vec<&String> = first.iter().filter(|f| !last.contains(f)).collect();
+    let set = gone.iter().filter(|f| set_aside.contains(f)).count();
+    summary.findings_moved = Some(sv_report::FindingsMoved {
+        no_longer_found: gone.len() - set,
+        set_aside: set,
+        new: last.iter().filter(|f| !first.contains(f)).count(),
+    });
+}
+
 /// The record's first `MAX_BYTES`, as bytes, since one byte that is not UTF-8 must cost one line
 /// and not the whole record. Cut at the limit, the line it cuts through is left out, not counted
 /// as unreadable: `sv` wrote it whole.
@@ -294,6 +370,14 @@ pub fn summarize(bytes: &[u8]) -> BuildLoop {
             summary.first = Some(line.time.clone());
         }
         summary.last = Some(line.time);
+        if line.counts.is_some() {
+            // What the first and the last check found, when the line kept all of it.
+            let kept = line.fingerprints.clone().filter(|_| !line.fingerprints_cut);
+            if summary.checks == 0 {
+                summary.first_fingerprints = kept.clone();
+            }
+            summary.last_fingerprints = kept;
+        }
         if let Some(counts) = line.counts {
             summary.checks += 1;
             if summary.first_counts.is_none() {
@@ -305,6 +389,8 @@ pub fn summarize(bytes: &[u8]) -> BuildLoop {
     summary
 }
 
+#[cfg(test)]
+mod fingerprint_tests;
 #[cfg(test)]
 mod limit_tests;
 #[cfg(test)]

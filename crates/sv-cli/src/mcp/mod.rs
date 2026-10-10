@@ -36,10 +36,12 @@ use std::io::{BufRead, Write};
 use std::path::{Component, Path, PathBuf};
 use sv_frameworks::paths::Canonical;
 
-#[cfg(test)]
-mod build_loop_limit_tests;
 /// Protocol versions a client that opens with `initialize` can have, newest first. A client asking
 /// for one of these gets it; any other gets the newest, and decides for itself whether it can go on.
+#[cfg(test)]
+mod build_loop_fingerprint_tests;
+#[cfg(test)]
+mod build_loop_limit_tests;
 #[cfg(test)]
 mod build_loop_outcome_tests;
 #[cfg(test)]
@@ -266,6 +268,9 @@ pub struct Server {
     /// What the last check this call ran came to, for the record of the build loop (ADR-076): set
     /// when a check finishes, taken when the call is written down.
     last_counts: std::sync::Mutex<Option<sv_report::LoopCounts>>,
+    /// The last check's findings' fingerprints, and whether some were left out for the limit,
+    /// taken with `last_counts` (ADR-084, decision 6).
+    last_fingerprints: std::sync::Mutex<Option<(Vec<String>, bool)>>,
     /// Whether calls are written down in the record of the build loop. Off unless the server is the
     /// one `sv mcp` starts, or a test asks, so the tests that serve the repository's own examples
     /// leave nothing in them.
@@ -350,6 +355,7 @@ impl Server {
             last_check: std::sync::Mutex::new(None),
             check: std::sync::Arc::new(assemble),
             last_counts: std::sync::Mutex::new(None),
+            last_fingerprints: std::sync::Mutex::new(None),
             recording: false,
             client: std::sync::Mutex::new(None),
             last_outcome: std::sync::Mutex::new(None),
@@ -588,6 +594,11 @@ impl Server {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .take();
+        let fingerprints = self
+            .last_fingerprints
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
         // A check that gave no answer says how it ended; otherwise the answer says.
         let outcome = self
             .last_outcome
@@ -644,6 +655,8 @@ impl Server {
                     .clone(),
                 sv: Some(env!("CARGO_PKG_VERSION").to_owned()),
                 off: false,
+                fingerprints_cut: fingerprints.as_ref().is_some_and(|(_, cut)| *cut),
+                fingerprints: fingerprints.map(|(list, _)| list),
             },
         );
     }
