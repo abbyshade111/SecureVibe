@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 1 items 3, 7, and 11; part 2 items 13, 14, 15 (a line per outside tool and per running-app suite), and 16 to 20; part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 1 item 11; part 2 items 13, 14, 15 (a line per outside tool and per running-app suite), and 16 to 20; part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -74,7 +74,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
    the buffer stays empty, `summarize` counts no call and no unreadable line, and the report says "Nothing shows that
    sv was used". ADR-076 says a line that cannot be read is counted and said. Fix: read bytes, decode line by line,
    count a bad line as unreadable.
-   **Part status:** claimed by stackvet-e9, 9 October 2026
+   **Part status:** done, 10 October 2026
 4. **Two running-app suites' steps never reach anyone.** **(read twice)** The steps of the MCP-server suite (eight
    `steps.push` in `crates/sv-check/src/mcp_server.rs`) and the fetch suite (two in `fetch.rs`) are collected
    nowhere: `run_steps` (`assemble.rs`) and `sv run`'s printout take only the signed-in, sign-in-provider, and AI
@@ -94,7 +94,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
    `build_loop.rs` says "a report reads the first part and says the rest was left out"; `record` just returns at the
    cap and `BuildLoop` has no field for it, so "the last check came to …" names a check that was not the last.
    Fix: a `full` flag and a sentence.
-   **Part status:** claimed by stackvet-e9, 9 October 2026
+   **Part status:** done, 10 October 2026
 8. **The dashboard's history drops a run it cannot read, silently.** **(read twice)** `runs_in`
    (`crates/sv-cli/src/history.rs`) passes over a file that does not parse, and `Run`
    (`crates/sv-report/src/dashboard.rs`) has no `#[serde(default)]`, so the first field added to `Run` makes every
@@ -124,13 +124,13 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
    **Part status:** done, 10 October 2026
 13. **How long each part took.** Every `Instant::now()` outside tests sets a deadline and is never recorded.
     `started_ms` and `took_ms` on each `Examined` entry and each running-app step; "the slowest five" on the page.
-   **Part status:** open
+   **Part status:** claimed by stackvet-e9, 10 October 2026
 14. **What each outside tool was.** Its version line (asked, then thrown away), its arguments, its exit code, and
     its time, in `Examined` (`crates/sv-check/src/adapters.rs`). Keeping its raw output is part 3, item A.
-   **Part status:** open
+   **Part status:** claimed by stackvet-e9, 10 October 2026
 15. **Progress at a terminal.** The terminal path passes an empty progress callback, and `sv report --run --tools`
     is silent for minutes. A line per stage on stderr, with a stage per outside tool and per running-app suite.
-   **Part status:** partly done: a line for each outside tool and each running-app suite within their stages (stackvet-e9's note, 10 October 2026)
+   **Part status:** partly done: a line for each outside tool and each running-app suite within their stages
 16. **Errors that say what to do.** Of 36 sampled, 14 say what failed, what it means for the report, and what to do;
     9 say only what failed. The worst: a data file that does not parse (`format!("parsing {}")` in nine places), which
     a person cannot fix and which most likely means the data folder does not match this `sv`. One wrapper in
@@ -241,6 +241,7 @@ bytes and decoded a line at a time, a line that is not UTF-8 counted as unreadab
 sentence when the record stopped at its size limit (item 7), each with a test that fails without it. No open pull
 request or branch of the last few hours touches `crates/sv-cli/src/build_loop.rs`; item 2 is session paper-facts's,
 in #1300.
+
 **Part 1, item 2 claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please go ahead with item
 2"), in branch `claude/explain-whose-word`: `sv explain` reading whose word a status rests on as the report does, so
 an answer only the AI coding tool gave, confirmed through `sv review`, is never told to the owner as their own.
@@ -311,3 +312,15 @@ name the run's start and a run id from `run_record`; `sv report` says each of te
 the old last stage split so the outside tools and the running app are stages of their own. Still open in item 15: a
 line for each outside tool and each running-app suite within their stages. Breaks: undated pages, and silent
 stages, each fail their new test.
+
+**Part 1, items 3 and 7 done the same day** (`docs/design/0344-the-build-loop-record-read-a-line-at-a-time-and-said-when.md`):
+the record is read as bytes and decoded a line at a time, so a byte that is not UTF-8 costs its line, counted as
+unreadable, and not the whole record; and `BuildLoop::full` says when the record reached its 4 MB limit, which the
+report turns into a sentence that the last check named is the last one written. Breaks: with the old reading put back
+and `full` never set, four of the five new tests fail.
+
+**Part 2, items 13 and 14 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue to work off
+the backlog", in branch `claude/stackvet-e9-timings`: how long each examined family and each running-app suite took,
+with the slowest named on the page (item 13), and each outside tool's version line, arguments, exit code, and time
+kept in `Examined` (item 14); each with a test that fails without it. Open pull requests read first: #1325 and #1326
+(other sessions) touch neither `crates/sv-check/src/adapters.rs` nor `Examined`.

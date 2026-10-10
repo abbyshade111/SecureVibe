@@ -14,7 +14,7 @@ use std::path::Path;
 use sv_report::{BuildLoop, LoopCounts};
 
 /// The largest record written to or read: tens of thousands of calls. Beyond it, nothing more is
-/// written, and a report reads the first part and says the rest was left out.
+/// written, and a report reads the first part and says the record is full (`BuildLoop::full`).
 pub const MAX_BYTES: u64 = 4 * 1024 * 1024;
 
 /// One call, as a line of the record.
@@ -121,27 +121,48 @@ pub fn read(app_dir: &Path) -> BuildLoop {
     }
     let path = sv_scan::ecosystems::default_report_dir_in(app_dir)
         .join(sv_scan::ecosystems::BUILD_LOOP_RECORD);
-    let text = match std::fs::symlink_metadata(&path) {
-        Ok(meta) if meta.is_file() => read_at_most(&path),
+    match std::fs::symlink_metadata(&path) {
+        Ok(meta) if meta.is_file() => {
+            let mut summary = summarize(&read_at_most(&path));
+            summary.full = meta.len() >= MAX_BYTES;
+            summary
+        }
         // A link, a folder, or nothing at all: no record sv wrote.
-        _ => String::new(),
-    };
-    summarize(&text)
-}
-
-fn read_at_most(path: &Path) -> String {
-    use std::io::Read;
-    let mut text = String::new();
-    if let Ok(file) = std::fs::File::open(path) {
-        let _ = file.take(MAX_BYTES).read_to_string(&mut text);
+        _ => BuildLoop::default(),
     }
-    text
 }
 
-/// What a record's text shows: every line read, in order; one that does not read is counted.
-pub fn summarize(text: &str) -> BuildLoop {
+/// The record's first `MAX_BYTES`, as bytes, since one byte that is not UTF-8 must cost one line
+/// and not the whole record. Cut at the limit, the line it cuts through is left out, not counted
+/// as unreadable: `sv` wrote it whole.
+fn read_at_most(path: &Path) -> Vec<u8> {
+    use std::io::Read;
+    let mut bytes = Vec::new();
+    if let Ok(file) = std::fs::File::open(path) {
+        let _ = file.take(MAX_BYTES).read_to_end(&mut bytes);
+    }
+    if bytes.len() as u64 >= MAX_BYTES {
+        let whole = bytes
+            .iter()
+            .rposition(|&b| b == b'\n')
+            .map_or(0, |at| at + 1);
+        bytes.truncate(whole);
+    }
+    bytes
+}
+
+/// What a record's bytes show: every line read, in order; one that is not UTF-8 or does not read
+/// as a line `sv` writes is counted, not skipped quietly (ADR-076).
+pub fn summarize(bytes: &[u8]) -> BuildLoop {
     let mut summary = BuildLoop::default();
-    for raw in text.lines().filter(|l| !l.trim().is_empty()) {
+    for raw in bytes.split(|&b| b == b'\n') {
+        let Ok(raw) = std::str::from_utf8(raw) else {
+            summary.unreadable += 1;
+            continue;
+        };
+        if raw.trim().is_empty() {
+            continue;
+        }
         let Some(line) = Line::parse(raw) else {
             summary.unreadable += 1;
             continue;
@@ -162,5 +183,7 @@ pub fn summarize(text: &str) -> BuildLoop {
     summary
 }
 
+#[cfg(test)]
+mod limit_tests;
 #[cfg(test)]
 mod tests;
