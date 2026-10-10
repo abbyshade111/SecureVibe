@@ -23,3 +23,8 @@ settled with the owner, with a mock-up first:
 Whether it extends `sv dashboard` or is a page of its own is part of the plan. It opens no network connection, keeps
 everything on the owner's computer, and adds no record of its own beyond what ADR-057, 082, 083, and 084 decide; a page
 that would need more is the owner's decision.
+
+**Later, 9 October 2026, at the owner's word:** the overview of the backlog belongs here too ("this can be part of the
+dashboard work whenever we get to that"): each item with its numbered parts under it, from the parts' own status lines
+that 0228 adds, with who holds what and what is open, in place of the board in the documentation set, which guessed
+the parts from their prose.
