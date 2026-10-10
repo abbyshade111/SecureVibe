@@ -120,7 +120,10 @@ jobs:
             --jq '.[] | "\(.number)\t\(.rule.id)\t\(.rule.security_severity_level // .rule.severity)\t\(.most_recent_instance.location.path):\(.most_recent_instance.location.start_line)"' \
             > open.tsv
           count=$(wc -l < open.tsv)
-          echo "::notice title=Open CodeQL findings::${count} open on ${GITHUB_SHA::7}"
+          # The control: every finding ever recorded, dismissed and fixed ones too, so "0 open" is seen to come
+          # from a list that could be read, not from one that came back empty.
+          ever=$(gh api --paginate "repos/$REPO/code-scanning/alerts?per_page=100" --jq '.[].number' | wc -l)
+          echo "::notice title=Open CodeQL findings::${count} open, of ${ever} ever recorded, on ${GITHUB_SHA::7}"
           # GitHub keeps ten notes of each kind per step, so after the first ten they go twenty to a line.
           head -10 open.tsv | while IFS=$'\t' read -r number rule severity place; do
             echo "::warning title=Open CodeQL finding::#${number} ${rule} (${severity}) at ${place}"
