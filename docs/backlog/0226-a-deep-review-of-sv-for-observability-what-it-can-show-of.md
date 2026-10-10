@@ -134,7 +134,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
    **Part status:** done, 10 October 2026
 15. **Progress at a terminal.** The terminal path passes an empty progress callback, and `sv report --run --tools`
     is silent for minutes. A line per stage on stderr, with a stage per outside tool and per running-app suite.
-   **Part status:** partly done: a line for each outside tool and each running-app suite within their stages
+   **Part status:** claimed by securevibe-e2, 10 October 2026
 16. **Errors that say what to do.** Of 36 sampled, 14 say what failed, what it means for the report, and what to do;
     9 say only what failed. The worst: a data file that does not parse (`format!("parsing {}")` in nine places), which
     a person cannot fix and which most likely means the data folder does not match this `sv`. One wrapper in
@@ -376,6 +376,12 @@ on every failing path; with a test that fails without it.
 remove, with what Docker said and the command to remove it, in the same sentence a finished run uses
 (`RunFailed::not_removed`). Breaks: with the answer dropped, the list left empty, or the sentence left out, the new
 test fails.
+
+**Part 2, item 15 claimed on 10 October 2026 by session securevibe-e2**, its remainder, under the owner's
+"continue to work through and pick up new items", in branch `claude/securevibe-e2-progress`: at a terminal, a line
+under the outside tools' stage for each tool as it starts, and one under the running-app stage for each suite as it
+starts (the anonymous questions, the signed-in suites, the test provider, the app as an MCP server, the fetch, the AI
+feature, the declared tests), on stderr; the MCP server unchanged. With a test that fails without each.
 
 **Part 2, item 20 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue", in branch
 `claude/stackvet-e9-obs-20`: a version catalog that does not parse said as not understood, among the package lists
