@@ -1,0 +1,10 @@
+# Build ADR-083: history that can show a trend (0226, part 3, item C)
+
+**Status:** claimed by securevibe-e2, 10 October 2026
+
+Item C of the observability review's part 3 (backlog 0226), which the owner said yes to on 9 October 2026 ("please go
+ahead and yes to A, C, and D as well"). The plan is ADR-083, `Status: proposed`: the dashboard's history keeps each
+requirement's status in each run, not only the counts and findings, and says why two runs differ, so a trend can be
+shown. It extends ADR-057. The record is made accepted in the pull request that builds it, which says where the build
+differs from the plan. Made an item of its own on 10 October 2026, so the build has a claim others can see; item 0226
+still holds the review's write-up.
