@@ -84,8 +84,23 @@ impl Server {
                 "Check a smaller folder with `path`, or ask the person to run that command at a \
                  terminal.",
             )),
+            // The check's thread ended without sending its report, which only a panic does: a fault
+            // in `sv`, not in the app. What the panic said is the cause (backlog 226, part 2, item 16).
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
-                anyhow::bail!("the check stopped before it finished, so nothing was assessed")
+                let cause = last
+                    .take()
+                    .and_then(|check| check.join().err())
+                    .map_or_else(|| "it gave no reason".to_owned(), |p| panic_words(&*p));
+                Err(crate::Remedy::error(
+                    format!(
+                        "the check stopped before it finished, so nothing was assessed: this is not \
+                         a pass and not a failure. It stopped on a fault in `sv`, not in the app: \
+                         {cause}. At a terminal, the same check shows the whole error: {}.",
+                        at_a_terminal(&app_dir.to_string_lossy(), "")
+                    ),
+                    "Ask the person to run that command at a terminal, and to pass what it says to \
+                     whoever looks after `sv`.",
+                ))
             }
         }
     }
@@ -580,4 +595,13 @@ fn questions_answer(report: &sv_report::Report) -> Value {
         "structuredContent": { "questions": report.questions_for_you },
         "isError": false,
     })
+}
+
+/// What a panic said, when it said it in words.
+fn panic_words(payload: &(dyn std::any::Any + Send)) -> String {
+    payload
+        .downcast_ref::<&str>()
+        .map(|s| (*s).to_owned())
+        .or_else(|| payload.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "it gave no reason in words".to_owned())
 }

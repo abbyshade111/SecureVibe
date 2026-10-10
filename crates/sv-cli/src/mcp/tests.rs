@@ -4694,3 +4694,58 @@ fn the_sections_offered_are_the_sections_answered() {
         assert!(crate::plan::SECTIONS.contains(first), "{first}");
     }
 }
+
+#[test]
+fn a_check_that_stops_on_a_fault_says_why_and_where_to_see_the_whole_error() {
+    // Backlog 226, part 2, item 16: it said only that the check stopped, with no cause and no
+    // pointer to the terminal.
+    let root = scratch_app("stopped", "flask-booking");
+    let check: std::sync::Arc<Check> = std::sync::Arc::new(
+        |_: &Path,
+         _: &crate::Loaded,
+         _: &dyn Fn(usize, &'static str)|
+         -> Result<sv_report::Report> { panic!("a rule file said two things at once") },
+    );
+    let server = Server::new(&root).unwrap().with_check(check);
+    let stopped = call(&server, "stackvet_check", json!({ "path": "app" }));
+    let said = text(&stopped).to_owned();
+    assert_eq!(stopped["isError"], true, "{said}");
+    for words in [
+        "stopped before it finished",
+        "not a pass and not a failure",
+        "a fault in `sv`, not in the app",
+        "a rule file said two things at once",
+        "report",
+    ] {
+        assert!(said.contains(words), "missing {words:?} in {said}");
+    }
+    assert!(
+        sv_own_words(&said).contains("What to do: Ask the person to run that command"),
+        "{said}"
+    );
+}
+
+#[test]
+fn an_error_answer_leaves_one_line_naming_the_tool_and_the_kind_and_no_app_text() {
+    // Backlog 226, part 2, item 19.
+    let asked = r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"stackvet_check","arguments":{"path":"secret-place"}}}"#;
+    let refused = json!({"jsonrpc":"2.0","id":4,"result":{"content":[{"type":"text","text":"sv could not do this: secret-place is outside\n\nWhat to do: Check a folder inside."}],"isError":true}}).to_string();
+    let line = super::protocol::error_line(Some(asked), &refused).unwrap();
+    assert_eq!(
+        line,
+        "sv mcp: stackvet_check answered with an error: it could not do this, and said what to do"
+    );
+    assert!(!line.contains("secret-place"), "{line}");
+
+    let odd = r#"{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"Secret Place"}}"#;
+    let protocol = json!({"jsonrpc":"2.0","id":5,"error":{"code":-32602,"message":"there is no tool called Secret Place"}}).to_string();
+    let line = super::protocol::error_line(Some(odd), &protocol).unwrap();
+    assert_eq!(
+        line,
+        "sv mcp: tools/call was answered with protocol error -32602 (parameters it could not use)"
+    );
+    assert!(!line.contains("Secret"), "{line}");
+
+    let fine = json!({"jsonrpc":"2.0","id":6,"result":{"content":[],"isError":false}}).to_string();
+    assert_eq!(super::protocol::error_line(Some(asked), &fine), None);
+}

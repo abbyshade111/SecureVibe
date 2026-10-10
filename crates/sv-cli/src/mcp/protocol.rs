@@ -21,6 +21,7 @@ pub fn serve(server: &Server, mut input: impl BufRead, output: impl Write) -> Re
         let _ = writeln!(output, "{note}").and_then(|()| output.flush());
     };
     loop {
+        let mut asked = None;
         let reply = match read_request(&mut input, MAX_REQUEST_BYTES).context("reading stdin")? {
             Request::End => return Ok(()),
             Request::TooLong => Some(
@@ -35,14 +36,81 @@ pub fn serve(server: &Server, mut input: impl BufRead, output: impl Write) -> Re
                 Some(error_reply(Value::Null, -32700, "a request has to be UTF-8 text").to_string())
             }
             Request::Line(line) if line.trim().is_empty() => None,
-            Request::Line(line) => server.handle_line_telling(&line, &tell),
+            Request::Line(line) => {
+                let reply = server.handle_line_telling(&line, &tell);
+                asked = Some(line);
+                reply
+            }
         };
         if let Some(reply) = reply {
+            if let Some(line) = error_line(asked.as_deref(), &reply) {
+                eprintln!("{line}");
+            }
             let mut output = output.borrow_mut();
             writeln!(output, "{reply}").context("writing stdout")?;
             output.flush().context("flushing stdout")?;
         }
     }
+}
+
+/// The line `serve` writes on stderr when its answer is an error, or `None` (backlog 226, part 2,
+/// item 19): the method or tool, and the kind of error, so the AI coding tool's own log of the server
+/// keeps a record of it. No words of the app's are in it: a tool's name is kept only when it is a
+/// plain name, and what the error says is left to the answer.
+pub(super) fn error_line(request: Option<&str>, reply: &str) -> Option<String> {
+    // Most answers are not errors, and some are large; only one that could be is read.
+    if !reply.contains("\"isError\":true") && !reply.contains("\"error\":{") {
+        return None;
+    }
+    let reply: Value = serde_json::from_str(reply).ok()?;
+    let request: Option<Value> = request.and_then(|r| serde_json::from_str(r).ok());
+    let plain = |s: &&str| {
+        !s.is_empty()
+            && s.len() <= 64
+            && s.bytes()
+                .all(|b| b.is_ascii_lowercase() || b == b'_' || b == b'/')
+    };
+    let method = request
+        .as_ref()
+        .and_then(|r| r.get("method"))
+        .and_then(Value::as_str)
+        .filter(plain);
+    if let Some(code) = reply.pointer("/error/code").and_then(Value::as_i64) {
+        let kind = match code {
+            -32700 => "not JSON",
+            -32600 => "not a request it reads",
+            -32601 => "no such method",
+            -32602 => "parameters it could not use",
+            RESOURCE_NOT_FOUND => "no such resource",
+            _ => "another error",
+        };
+        return Some(format!(
+            "sv mcp: {} was answered with protocol error {code} ({kind})",
+            method.unwrap_or("a request")
+        ));
+    }
+    let result = reply.get("result")?;
+    if result.get("isError") != Some(&Value::Bool(true)) {
+        return None;
+    }
+    let tool = request
+        .as_ref()
+        .and_then(|r| r.pointer("/params/name"))
+        .and_then(Value::as_str)
+        .filter(plain);
+    let said = result
+        .pointer("/content/0/text")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let kind = if said.contains("\n\nWhat to do: ") {
+        "it could not do this, and said what to do"
+    } else {
+        "it could not do this"
+    };
+    Some(format!(
+        "sv mcp: {} answered with an error: {kind}",
+        tool.unwrap_or("a tool")
+    ))
 }
 
 /// One line of input, as `serve` reads it.

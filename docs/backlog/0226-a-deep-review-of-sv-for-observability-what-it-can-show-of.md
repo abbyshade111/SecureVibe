@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 2 items 13 (a time on each running-app step), 15 (a line per outside tool and per running-app suite), 16 (the MCP server's stopped check), and 17 to 20; part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 2 items 13 (a time on each running-app step), 15 (a line per outside tool and per running-app suite), 17, 18, and 20; part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -145,7 +145,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
     `sv_frameworks::data` saying so, and "Nothing about the app was checked". Also the missing next step in
     `NoBackend` and `BackendFailed` (start Docker or Colima), and the MCP "check stopped before it finished", which
     gives no cause and no pointer to the terminal.
-   **Part status:** partly done: the MCP server's "check stopped before it finished"
+   **Part status:** done, 10 October 2026
 17. **Credit rows that explain themselves.** A needs-attention row shows only the finding, not the checks that
     passed for the same requirement nor the rule that a finding outranks every credit (now only a comment above
     `status_of`); a false alarm set aside turns "checked" into a bare "not verified" with no pointer to why
@@ -160,7 +160,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
    **Part status:** open
 19. **The MCP server's errors.** It keeps no record of an error it returns; one stderr line per error (tool and
     kind, no app text), which the AI tool's own log usually keeps.
-   **Part status:** open
+   **Part status:** done, 10 October 2026
 20. **Smaller ones.** A version catalog that does not parse reads as "not found" (`crates/sv-scan/src/jvm.rs`):
     say "not understood". Gaps are prose only (`Gap { what, why }`), and the trial scorer splits them on commas: add
     requirement ids and a reason code. `report.json` has no format version. Whether a report names the advisory
@@ -345,7 +345,15 @@ does not match this `sv`, and that nothing about the app was checked; `NoBackend
 Docker or Colima; each with a test that fails without it. Not the MCP server's "check stopped before it finished",
 nor item 19: open pull request #1325 (another session) rewrites `crates/sv-cli/src/mcp/`, so both wait for it.
 
+**Part 3, A, became item 0229 on 9 October 2026**, at the owner's word ("yes, please go ahead"), claimed by session
+paper-facts: a review's finding is now an item of its own (backlog 0228, part 7).
 **Part 2, item 16 partly done on 10 October 2026** (`docs/design/0348-errors-that-say-what-to-do-shipped-data-that-does-not-parse.md`): the fourteen data files `sv` ships say, when one does
 not parse, that it most likely belongs to another `sv`, what to do, and that nothing about the app was checked;
 `NoBackend` and `BackendFailed` end with the next step. Still open: the MCP server's "check stopped before it
 finished", after #1325. Breaks: with the old wording, each new test fails.
+
+**Part 2, item 19 claimed and done, and item 16 finished, on 10 October 2026 by session stackvet-e9**, under the
+owner's "continue to work off the backlog", once #1325 had merged (`docs/design/0349-the-mcp-server-s-errors-a-stopped-check-says-why-and-each.md`). A check that stops on a fault in `sv` now
+says the cause and the command that shows the whole error at a terminal. Each error the MCP server returns leaves
+one line on stderr, naming the tool or method and the kind of error, with no app text. Breaks: with each fix
+undone, its test fails.
