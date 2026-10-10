@@ -93,3 +93,44 @@ fn a_whole_session_over_stdio() {
         "refused for the right reason: {escaped}"
     );
 }
+
+#[test]
+fn each_error_answer_leaves_a_line_on_stderr_and_no_app_text() {
+    // Backlog 226, part 2, item 19: the AI coding tool's log of the server keeps its stderr.
+    let examples = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples");
+    let mut child = Command::new(env!("CARGO_BIN_EXE_sv"))
+        .args(["mcp", "--root"])
+        .arg(&examples)
+        .env("SV_BUILD_LOOP_RECORD", "off")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("sv starts");
+    {
+        let stdin = child.stdin.as_mut().unwrap();
+        for m in [
+            json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"stackvet_check","arguments":{"path":"../no-such-place-outside"}}}),
+            json!({"jsonrpc":"2.0","id":2,"method":"no/such/method"}),
+            json!({"jsonrpc":"2.0","id":3,"method":"tools/list"}),
+        ] {
+            writeln!(stdin, "{m}").unwrap();
+        }
+    }
+    drop(child.stdin.take());
+    let output = child.wait_with_output().unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let lines: Vec<&str> = stderr
+        .lines()
+        .filter(|l| l.contains("answered with"))
+        .collect();
+    assert_eq!(
+        lines,
+        [
+            "sv mcp: stackvet_check answered with an error: it could not do this",
+            "sv mcp: no/such/method was answered with protocol error -32601 (no such method)",
+        ],
+        "{stderr}"
+    );
+    assert!(!stderr.contains("no-such-place-outside"), "{stderr}");
+}
