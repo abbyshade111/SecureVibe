@@ -680,6 +680,9 @@ pub struct RunOutcome {
     pub stand_ins: stand_ins::StandIns,
     /// What happened to the run's containers (backlog 226, part 2, item 18).
     pub container: ContainerRecord,
+    /// How long each suite of questions took, and the app's own tests, in milliseconds, in the
+    /// order run (backlog 226, part 2, item 13).
+    pub suite_timings: Vec<(&'static str, u64)>,
 }
 
 impl RunOutcome {
@@ -706,6 +709,7 @@ impl RunOutcome {
             installed: _,
             stand_ins: _,
             container: _,
+            suite_timings: _,
         } = self;
         [
             ("as two test users", signed_in),

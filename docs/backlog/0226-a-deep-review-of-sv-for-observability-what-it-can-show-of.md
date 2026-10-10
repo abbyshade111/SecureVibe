@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 2 items 13 (a time on each running-app step) and 20 (ids and a reason code on each gap); part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 2 items 13 (a time on each request inside a running-app suite) and 20 (ids and a reason code on each gap); part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -128,7 +128,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
    **Part status:** done, 10 October 2026
 13. **How long each part took.** Every `Instant::now()` outside tests sets a deadline and is never recorded.
     `started_ms` and `took_ms` on each `Examined` entry and each running-app step; "the slowest five" on the page.
-   **Part status:** partly done: a time on each step inside the running-app suites
+   **Part status:** partly done: a time on each request inside a running-app suite
 14. **What each outside tool was.** Its version line (asked, then thrown away), its arguments, its exit code, and
     its time, in `Examined` (`crates/sv-check/src/adapters.rs`). Keeping its raw output is part 3, item A.
    **Part status:** done, 10 October 2026
@@ -387,6 +387,12 @@ feature, the declared tests), on stderr; the MCP server unchanged. With a test t
 suite of questions to the running app, and the app's own tests, are said on stderr as each begins, indented under
 their stage; the MCP server, which starts neither, is unchanged. Breaks: with each line taken away, its test fails;
 the Docker harness's lines are caught where a container backend is present (CI).
+
+**Part 2, item 13 partly done on 10 October 2026** (`docs/design/0362-a-time-on-each-running-app-suite-10-october-2026.md`): each suite of questions to the running app, and the
+app's own tests, timed and listed in `report.json`'s `timings` after the stages and the tools, named so the total
+counts each moment once; the slowest five can name one. Still open: a time on each request inside a suite. Breaks:
+with each suite's time cut short, left out, counted in the total, or not added to the report, a test fails; the
+Docker run's own times are caught by `report_suite_timings.rs` where a container backend is present (CI).
 
 **Part 2, item 20 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue", in branch
 `claude/stackvet-e9-obs-20`: a version catalog that does not parse said as not understood, among the package lists

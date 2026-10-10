@@ -102,6 +102,9 @@ pub struct Outcome {
     pub fetch: Option<crate::signed_in::Outcome>,
     pub ai: Option<crate::signed_in::Outcome>,
     pub liveness: Vec<Liveness>,
+    /// How long each suite took, in milliseconds, in the order asked: from its start to the next
+    /// one's, the last to the end of the script (backlog 226, part 2, item 13).
+    pub timings: Vec<(&'static str, u64)>,
 }
 
 /// What the suites that ask as a signed-in user are given: the second test user, so nothing after
@@ -124,6 +127,12 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
     // One budget of waiting for a rate limiter for the whole run (`MOST_WAITING`), shared by every
     // suite, so the run cannot wait five minutes in each of them (ADR-021, Later, 8 October 2026).
     let spent = Cell::new(0);
+    // Each suite as it begins: said to the harness, and its start kept for its time.
+    let begun: std::cell::RefCell<Vec<(&'static str, std::time::Instant)>> = Default::default();
+    let begin = |suite: &'static str| {
+        services.starting(suite);
+        begun.borrow_mut().push((suite, std::time::Instant::now()));
+    };
 
     // 4. The probes, while the app is up and the fence is in place. A request that gets no
     //    answer is left out rather than recorded as an empty response: "the app said nothing"
@@ -131,7 +140,7 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
     //    app's rate limiter was still answering after waiting as it asked: its page is not the
     //    app's (`ask_anonymously`).
     {
-        services.starting("the questions asked as somebody not signed in");
+        begin("the questions asked as somebody not signed in");
         let mut http = services.http(Target::App, With::default());
         let (responses, limited) =
             crate::signed_in::ask_anonymously_within(http.as_mut(), probes, &spent);
@@ -144,7 +153,7 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
     // 4b. As signed-in users, when stackvet.toml says how. After the anonymous probes, so
     //     those see the app as a stranger first; before the tests, which may change its data.
     out.signed_in = plan.users.zip(plan.accounts).map(|(users, accounts)| {
-        services.starting("the questions asked as the test users");
+        begin("the questions asked as the test users");
         signed_in(services, plan, users, accounts, &spent)
     });
 
@@ -153,7 +162,7 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
     // 4c, 4c', 4c'': each with a rate limiter's answer waited out, as the signed-in suites have
     //     it (`Patient`); until 8 October 2026 these three took the app's answers as they came.
     out.oidc = plan.oidc.map(|section| {
-        services.starting("signing in through the test provider");
+        begin("signing in through the test provider");
         let mut http = services.http(
             Target::App,
             With {
@@ -169,7 +178,7 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
 
     // 4c'. The app as an MCP server, when stackvet.toml says where it answers.
     out.mcp_server = plan.mcp_server.map(|section| {
-        services.starting("the app as an MCP server");
+        begin("the app as an MCP server");
         let mut http = services.http(Target::App, With::default());
         let mut patient = Patient::within(http.as_mut(), &spent);
         let mut out = crate::mcp_server::run(&mut patient, section, plan.mcp_token);
@@ -180,7 +189,7 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
     // 4c''. A feature that fetches an address a person gives it, pointed at the test model's
     //      server, which records each fetch.
     out.fetch = plan.fetch.map(|section| {
-        services.starting("the feature that fetches an address");
+        begin("the feature that fetches an address");
         let canary = services.model_canary();
         let mut http = services.http(
             Target::App,
@@ -205,7 +214,7 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
     //     itself where an answer matters, and its rate check (C11.2.2) sets out to make the app
     //     refuse, which a wait and a second try would unmake.
     out.ai = plan.ai.map(|section| {
-        services.starting("the AI feature");
+        begin("the AI feature");
         ai(services, plan, section)
     });
 
@@ -219,6 +228,17 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
         out.liveness
             .push(services.liveness("the signed-in, sign-in, and AI questions as well"));
     }
+    let ended = std::time::Instant::now();
+    let begun = begun.into_inner();
+    out.timings = begun
+        .iter()
+        .enumerate()
+        .map(|(i, (suite, at))| {
+            let until = begun.get(i + 1).map_or(ended, |(_, next)| *next);
+            let took = until.saturating_duration_since(*at).as_millis();
+            (*suite, u64::try_from(took).unwrap_or(u64::MAX))
+        })
+        .collect();
     out
 }
 

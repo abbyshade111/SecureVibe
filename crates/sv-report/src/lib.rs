@@ -1681,7 +1681,12 @@ pub struct Timing {
 /// "The slowest parts of this run: …", naming the five that took longest, for the top of a page, or
 /// `None` when the report has no timings.
 pub fn slowest_line(report: &Report) -> Option<String> {
-    let mut slowest: Vec<&Timing> = report.timings.iter().collect();
+    slowest_of(&report.timings)
+}
+
+/// `slowest_line`, from the timings alone.
+fn slowest_of(timings: &[Timing]) -> Option<String> {
+    let mut slowest: Vec<&Timing> = timings.iter().collect();
     slowest.sort_by_key(|a| std::cmp::Reverse(a.took_ms));
     let named: Vec<String> = slowest
         .iter()
@@ -1691,10 +1696,9 @@ pub fn slowest_line(report: &Report) -> Option<String> {
     if named.is_empty() {
         return None;
     }
-    let total: u64 = report
-        .timings
+    let total: u64 = timings
         .iter()
-        .filter(|t| !t.what.starts_with(TOOL_TIMING))
+        .filter(|t| !t.what.starts_with(TOOL_TIMING) && !t.what.starts_with(SUITE_TIMING))
         .map(|t| t.took_ms)
         .sum();
     Some(format!(
@@ -1707,6 +1711,10 @@ pub fn slowest_line(report: &Report) -> Option<String> {
 /// How an outside tool's timing is named, so the total counts each moment once: a tool runs
 /// inside its stage, whose time already holds it.
 pub const TOOL_TIMING: &str = "the outside tool ";
+
+/// How a suite of questions to the running app is named in the timings, for the same reason: it
+/// runs inside the stage that runs the app (backlog 226, part 2, item 13).
+pub const SUITE_TIMING: &str = "the running app, ";
 
 /// One paragraph saying what the record of the build loop shows, for the top of the report. `None`
 /// for a report that was not written into a report folder.
@@ -2752,6 +2760,8 @@ fn stake(level: u8) -> u8 {
     u8::from(level != 1)
 }
 
+#[cfg(test)]
+mod timing_tests;
 #[cfg(test)]
 mod whose_word_tests;
 

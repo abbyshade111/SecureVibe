@@ -27,6 +27,7 @@ fn outcome() -> RunOutcome {
         installed: Vec::new(),
         stand_ins: Default::default(),
         container: Default::default(),
+        suite_timings: Vec::new(),
     }
 }
 
