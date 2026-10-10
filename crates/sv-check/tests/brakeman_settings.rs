@@ -113,7 +113,7 @@ fn the_apps_own_settings_file_is_not_read_when_brakeman_really_runs() {
     let brakeman_not_run: Vec<_> = run
         .not_run
         .iter()
-        .filter(|(id, _)| id == "brakeman")
+        .filter(|(id, _, _)| id == "brakeman")
         .collect();
     assert!(brakeman_not_run.is_empty(), "{brakeman_not_run:?}");
     assert!(run.ran.contains(&"brakeman".to_owned()), "{:?}", run.ran);

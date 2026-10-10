@@ -546,8 +546,26 @@ pub enum Outcome {
         /// the folder. A rule that reads only some files is evidence only when one of these is one.
         handed: Vec<String>,
     },
-    /// It did not run, and this is why, in words somebody can act on.
-    NotRun { why: String },
+    /// It did not run, and this is why, in words somebody can act on, and what kind of reason it is.
+    NotRun { why: String, cause: NotRunCause },
+}
+
+/// What kind of reason an outside tool did not run, for a program reading the report (backlog 226,
+/// part 2, item 20): `why` says the same to a person.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NotRunCause {
+    /// Its program is not on this computer.
+    NotInstalled,
+    /// It was started, or about to be, and did not finish: it would not start, failed, was given
+    /// too long, was stopped with Ctrl-C, or `sv` could not get ready for it.
+    Stopped,
+    /// It finished and left no report `sv` could read.
+    CouldNotRead,
+    /// `sv`'s own rule kept it from running: a link in the app, too many files to name, or a
+    /// program of its inside the app or found only through a relative `PATH` entry.
+    LeftOut,
+    /// The app has no code it could be given.
+    NothingToRead,
 }
 
 #[derive(Debug, Default)]
@@ -555,8 +573,9 @@ pub struct AdapterRun {
     pub findings: Vec<Finding>,
     /// Adapters that were satisfied: they ran over the app and reported nothing.
     pub verified: Vec<Verified>,
-    /// Adapter id and why it did not run. Never folded into "found nothing".
-    pub not_run: Vec<(String, String)>,
+    /// Adapter id, why it did not run, and what kind of reason that is. Never folded into "found
+    /// nothing".
+    pub not_run: Vec<(String, String, NotRunCause)>,
     /// Adapters that ran over everything they read, found something or not.
     pub ran: Vec<String>,
     /// Adapters that ran but did not look at all of the app (told not to, or unable to), and why. One
@@ -1139,7 +1158,12 @@ fn run_one_recorded(
     // not even for its version.
     let programs = match Programs::of(adapter, app_dir) {
         Ok(programs) => programs,
-        Err(why) => return Outcome::NotRun { why },
+        Err(why) => {
+            return Outcome::NotRun {
+                why,
+                cause: NotRunCause::LeftOut,
+            };
+        }
     };
     let (own, own_version) = presence_of(adapter, &programs.version);
     // Asked only when the adapter's own program is missing, so a stand-in never runs beside it.
@@ -1199,6 +1223,7 @@ fn run_one_recorded(
                     adapter.name,
                     adapter.install_hint()
                 ),
+                cause: NotRunCause::NotInstalled,
             };
         }
         Presence::Broken { detail } => {
@@ -1209,6 +1234,7 @@ fn run_one_recorded(
                     adapter.name,
                     said(rules, &detail, PRESENCE_CHARS)
                 ),
+                cause: NotRunCause::Stopped,
             };
         }
     }
@@ -1242,6 +1268,7 @@ fn run_one_recorded(
                 if one { "it" } else { "each" },
                 if one { "its" } else { "their" },
             ),
+            cause: NotRunCause::LeftOut,
         };
     }
 
@@ -1271,6 +1298,7 @@ fn run_one_recorded(
                         adapter.language, adapter.name
                     )
                 },
+                cause: NotRunCause::NothingToRead,
             };
         }
         let bytes: usize = files.iter().map(|f| f.len() + 3).sum();
@@ -1282,6 +1310,7 @@ fn run_one_recorded(
                     files.len(),
                     adapter.name
                 ),
+                cause: NotRunCause::LeftOut,
             };
         }
     }
@@ -1304,6 +1333,7 @@ fn run_one_recorded(
                 adapter.name,
                 settings.display()
             ),
+            cause: NotRunCause::Stopped,
         };
     }
     // Only a report the tool writes in this run is read. One already there, left by an earlier run
@@ -1317,6 +1347,7 @@ fn run_one_recorded(
                 adapter.name,
                 report_path.display()
             ),
+            cause: NotRunCause::Stopped,
         };
     }
     let limit = adapter.time_limit_seconds.unwrap_or(TOOL_SECONDS);
@@ -1356,6 +1387,7 @@ fn run_one_recorded(
                      run ({detail})",
                     adapter.name
                 ),
+                cause: NotRunCause::Stopped,
             };
         }
     }
@@ -1381,6 +1413,7 @@ fn run_one_recorded(
         Err(e) => {
             return Outcome::NotRun {
                 why: format!("{} could not be started: {e}", adapter.name),
+                cause: NotRunCause::Stopped,
             };
         }
     };
@@ -1392,6 +1425,7 @@ fn run_one_recorded(
                  written is not read",
                 adapter.name
             ),
+            cause: NotRunCause::Stopped,
         };
     }
     if output.timed_out {
@@ -1403,6 +1437,7 @@ fn run_one_recorded(
                 adapter.name,
                 minutes(limit)
             ),
+            cause: NotRunCause::Stopped,
         };
     }
 
@@ -1425,6 +1460,7 @@ fn run_one_recorded(
                      finishing, so its report is not read ({detail})",
                     adapter.name
                 ),
+                cause: NotRunCause::Stopped,
             };
         }
         None => {
@@ -1434,6 +1470,7 @@ fn run_one_recorded(
                     "{} was stopped before it finished, so its report is not read ({detail})",
                     adapter.name
                 ),
+                cause: NotRunCause::Stopped,
             };
         }
     }
@@ -1449,6 +1486,7 @@ fn run_one_recorded(
                 "{} ran and wrote no report, so nothing can be concluded from it either way ({detail})",
                 adapter.name
             ),
+            cause: NotRunCause::CouldNotRead,
         };
     };
     let scanned = std::fs::read_to_string(&scanned_path).ok();
@@ -1480,6 +1518,7 @@ fn run_one_recorded(
         },
         Err(e) => Outcome::NotRun {
             why: format!("{}'s report could not be read: {e}", adapter.name),
+            cause: NotRunCause::CouldNotRead,
         },
     }
 }
@@ -1579,6 +1618,7 @@ pub fn run_all_in(
                         adapter.name,
                         scratch.display()
                     ),
+                    NotRunCause::Stopped,
                 ));
             }
             return run;
@@ -1639,6 +1679,7 @@ pub fn run_all_in(
                             name,
                             looked_away.join("; ")
                         ),
+                        NotRunCause::LeftOut,
                     ));
                 } else if findings.is_empty() {
                     let ids = clean_run_evidence(adapter, &loaded, languages, &handed);
@@ -1653,7 +1694,7 @@ pub fn run_all_in(
                 }
                 run.findings.extend(findings);
             }
-            Outcome::NotRun { why } => run.not_run.push((adapter.id.clone(), why)),
+            Outcome::NotRun { why, cause } => run.not_run.push((adapter.id.clone(), why, cause)),
         }
         std::fs::remove_file(&report_path).ok();
     }
@@ -2464,6 +2505,8 @@ mod interrupt_tests;
 
 #[cfg(all(test, unix))]
 mod fence_tests;
+#[cfg(all(test, unix))]
+mod not_run_cause_tests;
 #[cfg(all(test, unix))]
 mod progress_tests;
 #[cfg(all(test, unix))]

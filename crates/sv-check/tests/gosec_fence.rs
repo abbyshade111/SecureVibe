@@ -258,7 +258,7 @@ fn gosec_runs_no_c_compiler_downloads_nothing_says_what_it_read_and_follows_no_l
         "the control: gosec run bare reads through the link and reports the file outside"
     );
     let outcome = adapters::run_one(&gosec, &linked, &dir.join("linked.sarif"), &secret_rules());
-    let Outcome::NotRun { why } = &outcome else {
+    let Outcome::NotRun { why, .. } = &outcome else {
         panic!("{outcome:?}");
     };
     assert!(

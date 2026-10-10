@@ -47,7 +47,7 @@ fn a_tool_that_is_not_installed_is_not_run_rather_than_clean() {
     std::fs::remove_dir_all(&dir).ok();
 
     match outcome {
-        Outcome::NotRun { why } => {
+        Outcome::NotRun { why, .. } => {
             assert!(
                 why.contains("not installed"),
                 "it must say the tool is missing: {why}"
@@ -86,7 +86,7 @@ fn a_tool_that_writes_no_report_is_not_run_either() {
     std::fs::remove_dir_all(&dir).ok();
 
     match outcome {
-        Outcome::NotRun { why } => assert!(
+        Outcome::NotRun { why, .. } => assert!(
             why.contains("no report"),
             "the reason must say the report is missing: {why}"
         ),
@@ -337,7 +337,7 @@ fn a_tool_that_is_there_and_will_not_start_is_told_apart_from_a_missing_one() {
     let outcome = adapters::run_one(bandit, &dir, &dir.join("out.sarif"), &secret_rules());
     std::fs::remove_dir_all(&dir).ok();
     match outcome {
-        Outcome::NotRun { why } => {
+        Outcome::NotRun { why, .. } => {
             assert!(why.contains("would not start"), "{why}");
             assert!(
                 !why.contains("pip install"),

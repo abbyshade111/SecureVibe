@@ -415,7 +415,7 @@ fn the_real_codeql_finds_the_same_things_when_it_is_installed() {
     let not_run: Vec<_> = out
         .not_run
         .iter()
-        .filter(|(id, _)| id.starts_with("codeql"))
+        .filter(|(id, _, _)| id.starts_with("codeql"))
         .collect();
     assert!(not_run.is_empty(), "{not_run:?}");
     assert!(
@@ -514,7 +514,7 @@ fn the_real_codeql_for_ruby_runs_nothing_the_app_plants_and_follows_no_link() {
     let not_run: Vec<_> = out
         .not_run
         .iter()
-        .filter(|(id, _)| id == "codeql-ruby")
+        .filter(|(id, _, _)| id == "codeql-ruby")
         .collect();
     assert!(not_run.is_empty(), "{not_run:?}");
     let sql: Vec<_> = out
@@ -603,7 +603,7 @@ fn the_real_codeql_runs_nothing_the_app_plants_and_follows_no_link() {
     let codeql_not_run: Vec<_> = out
         .not_run
         .iter()
-        .filter(|(id, _)| id.starts_with("codeql"))
+        .filter(|(id, _, _)| id.starts_with("codeql"))
         .collect();
     assert!(codeql_not_run.is_empty(), "{codeql_not_run:?}");
     assert!(
@@ -663,7 +663,7 @@ fn the_real_codeql_runs_nothing_the_app_plants_and_follows_no_link() {
     let codeql_not_run: Vec<_> = out
         .not_run
         .iter()
-        .filter(|(id, _)| id.starts_with("codeql"))
+        .filter(|(id, _, _)| id.starts_with("codeql"))
         .collect();
     assert!(codeql_not_run.is_empty(), "{codeql_not_run:?}");
     assert!(

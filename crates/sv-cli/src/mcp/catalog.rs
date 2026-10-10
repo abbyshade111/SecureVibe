@@ -131,7 +131,18 @@ pub(super) fn output_schema(tool: &str) -> Option<Value> {
                     Value::Object(counts.iter().map(|c| ((*c).to_owned(), count.clone())).collect()),
                     &counts,
                 ),
-                "notExamined": { "type": "array", "items": object(json!({ "what": string, "why": string }), &["what", "why"]) },
+                "notExamined": { "type": "array", "items": object(
+                    json!({
+                        "what": string,
+                        "why": string,
+                        "reason": { "type": "string", "enum": [
+                            "not-asked", "not-installed", "could-not-read", "no-reader", "stopped",
+                            "person-only", "planned", "partial", "left-out", "outdated",
+                        ] },
+                        "requirements": strings,
+                    }),
+                    &["what", "why", "reason"],
+                ) },
                 "findings": { "type": "array", "items": finding },
                 "needsAttention": strings,
                 "claims": { "type": "array", "items": object(

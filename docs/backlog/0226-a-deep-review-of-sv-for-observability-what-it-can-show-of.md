@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 2 items 13 (a time on each request inside a running-app suite) and 20 (ids and a reason code on each gap); part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 2 item 13 (a time on each request inside a running-app suite); part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -161,7 +161,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
     say "not understood". Gaps are prose only (`Gap { what, why }`), and the trial scorer splits them on commas: add
     requirement ids and a reason code. `report.json` has no format version. Whether a report names the advisory
     database it used, its size, and its newest record was not settled: read `assemble.rs` past the part read.
-   **Part status:** claimed by securevibe-e2, 10 October 2026
+   **Part status:** done, 10 October 2026
 
 ### Part 3: the owner's decisions
 
@@ -427,6 +427,12 @@ requirement ids on each gap. **Status: proposed**, the set of codes settled here
   so a gap that does not name its requirements carries none, and nothing is guessed.
 - The pages are unchanged; the trial scorer (`tools/prompt_trial.py`) reads `requirements` instead of splitting the
   text on commas. The record is a dated "Later" entry on the ADR that governs `report.json`'s fields.
+
+**Part 2, item 20 done on 10 October 2026** (`docs/design/0363-each-gap-says-why-in-a-word-and-names-its-requirements-10.md`; ADR-066, Later): every gap says why in one of ten words, and
+names the requirements it names in its own words, in `report.json` and in the MCP check's `notExamined`; the proposed
+eight became ten when three gaps fitted none (`left-out`, `outdated`), and an outside tool that did not run says
+which of its causes stopped it. Breaks: with the running app's word changed, empty ids kept, or the tools' causes
+swapped, a test fails.
 
 **Part 2, item 17 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue", in branch
 `claude/stackvet-e9-obs-17`: rendering and JSON only, no status changes. On the pages, a needs-attention row names

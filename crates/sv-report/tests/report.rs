@@ -547,6 +547,8 @@ fn the_reports_say_how_much_was_not_examined_before_they_say_what_was_found() {
     i.gaps = vec![Gap {
         what: "the running app".into(),
         why: "no container backend".into(),
+        reason: sv_report::GapReason::NotInstalled,
+        requirements: Vec::new(),
     }];
     let report = build(i);
     let security = sv_report::markdown::security(&report);
@@ -857,6 +859,8 @@ fn the_rendered_pages_tell_the_same_story_as_the_model() {
     i.gaps = vec![Gap {
         what: "the running app".into(),
         why: "no container backend".into(),
+        reason: sv_report::GapReason::NotInstalled,
+        requirements: Vec::new(),
     }];
     let report = build(i);
 
@@ -1874,6 +1878,8 @@ mod same_story {
         i.gaps = vec![sv_report::Gap {
             what: "the app while it was running".into(),
             why: "it was not started".into(),
+            reason: sv_report::GapReason::NotAsked,
+            requirements: Vec::new(),
         }];
         i.claims = CLAIMS.get_or_init(|| {
             vec![sv_manifest::ResolvedClaim {

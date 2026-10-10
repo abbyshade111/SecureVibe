@@ -149,12 +149,13 @@ pub fn probe_the_running_app(
     manifest: &Manifest,
     app_dir: &Path,
     slow: bool,
-) -> std::result::Result<(sv_run::RunOutcome, sv_run::RunPlan), String> {
+) -> std::result::Result<(sv_run::RunOutcome, sv_run::RunPlan), (String, sv_report::GapReason)> {
     let mut plan = RunPlan::from_manifest(manifest, app_dir)
-        .map_err(|e| cannot_run_said(&e.explain(), e.kind()))?;
+        .map_err(|e| (cannot_run_said(&e.explain(), e.kind()), run_gap_reason(&e)))?;
     plan.slow = slow;
     plan.on_step = Some(sv_run::OnStep(assemble::say_step));
-    let backend = sv_run::detect().map_err(|e| cannot_run_said(&e.explain(), e.kind()))?;
+    let backend = sv_run::detect()
+        .map_err(|e| (cannot_run_said(&e.explain(), e.kind()), run_gap_reason(&e)))?;
     // Said before the wait, not only after it: the wait is a minute (family-hub, 3 October 2026).
     if let Some(warning) = sv_run::loopback_warning(&plan.start) {
         eprintln!("{warning}");
@@ -176,9 +177,40 @@ pub fn probe_the_running_app(
         exit::exit_with(exit::INTERRUPTED);
     }
     Ok((
-        outcome.map_err(|e| cannot_run_said(&e.explain(), e.reason.kind()))?,
+        outcome.map_err(|e| {
+            (
+                cannot_run_said(&e.explain(), e.reason.kind()),
+                run_gap_reason(&e.reason),
+            )
+        })?,
         plan,
     ))
+}
+
+/// Which kind of gap a run that could not happen leaves (`sv_report::GapReason`).
+fn run_gap_reason(why: &sv_run::CannotRun) -> sv_report::GapReason {
+    use sv_report::GapReason;
+    use sv_run::CannotRun;
+    match why {
+        CannotRun::NoBackend { .. } => GapReason::NotInstalled,
+        CannotRun::NoRunCommand { .. } => GapReason::NotAsked,
+        CannotRun::BadImage { .. } => GapReason::CouldNotRead,
+        CannotRun::BackendFailed { .. }
+        | CannotRun::NeverReady { .. }
+        | CannotRun::AppFolderUnseen { .. }
+        | CannotRun::InstallRefused { .. }
+        | CannotRun::InstallFailed { .. } => GapReason::Stopped,
+    }
+}
+
+/// The requirement ids in a list a gap already names, such as "V8.2.1, V3.5.1": the same ids, one
+/// each, for `sv_report::Gap::requirements`.
+pub fn requirement_ids(list: &str) -> Vec<String> {
+    list.split(',')
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+        .map(str::to_owned)
+        .collect()
 }
 
 /// Why the app could not be run, with every credential in it cut down as a finding shows one. The
@@ -211,6 +243,8 @@ fn said_without_credentials(said: &str, kind: &str, rules: Option<&SecretRules>)
 
 #[cfg(test)]
 mod cannot_run_said_tests;
+#[cfg(test)]
+mod requirement_ids_tests;
 
 /// Every request the anonymous probes make: the fixed suite, and the GraphQL and WebSocket
 /// questions when stackvet.toml says where those are. One function, because `sv run` also counts
@@ -283,6 +317,8 @@ pub fn sidecar_lost_gap(lost: Option<&str>) -> Option<sv_report::Gap> {
              again; if it happens again, the run is taking longer than the container it asks \
              through is allowed to live, which is a fault in sv to report."
         ),
+        reason: sv_report::GapReason::Stopped,
+        requirements: Vec::new(),
     })
 }
 
@@ -301,6 +337,8 @@ pub fn rate_limited_gap(limited: &[String]) -> Option<sv_report::Gap> {
              it, neither a finding nor a pass. Raise the limit for the test run and run it again.",
             limited.join(", ")
         ),
+        reason: sv_report::GapReason::Partial,
+        requirements: Vec::new(),
     })
 }
 
@@ -407,6 +445,8 @@ pub fn dependency_gaps(sbom: &sbom::Sbom) -> Vec<sv_report::Gap> {
                     "{why}. The list of this app's {ecosystem} dependencies leaves these out, so \
                      nothing here can say whether a package with a known vulnerability is among them"
                 ),
+                reason: sv_report::GapReason::Partial,
+                requirements: Vec::new(),
             }
         } else {
             sv_report::Gap {
@@ -416,6 +456,8 @@ pub fn dependency_gaps(sbom: &sbom::Sbom) -> Vec<sv_report::Gap> {
                      dependencies, it is an empty one: nothing here can say whether a package \
                      with a known vulnerability is among them"
                 ),
+                reason: sv_report::GapReason::NoReader,
+                requirements: Vec::new(),
             }
         });
     }
@@ -444,6 +486,8 @@ pub fn dependency_gaps(sbom: &sbom::Sbom) -> Vec<sv_report::Gap> {
                      lockfile again), and the next report describes both",
                     disagreement.explain()
                 ),
+                reason: sv_report::GapReason::Partial,
+                requirements: Vec::new(),
             });
         }
         if disagreement.comparison.not_all_compared() {
@@ -453,6 +497,8 @@ pub fn dependency_gaps(sbom: &sbom::Sbom) -> Vec<sv_report::Gap> {
                     disagreement.manifest, disagreement.lockfile
                 ),
                 why: disagreement.explain_not_compared(),
+                reason: sv_report::GapReason::Partial,
+                requirements: Vec::new(),
             });
         }
     }
@@ -463,6 +509,8 @@ pub fn dependency_gaps(sbom: &sbom::Sbom) -> Vec<sv_report::Gap> {
                 "{}. Remove the lockfile that is not in use, and the next report reads the one that is",
                 passed.explain()
             ),
+            reason: sv_report::GapReason::Partial,
+            requirements: Vec::new(),
         });
     }
 
@@ -476,6 +524,8 @@ pub fn dependency_gaps(sbom: &sbom::Sbom) -> Vec<sv_report::Gap> {
                 if count == 1 { "was" } else { "were" },
                 if count == 1 { "it is" } else { "they are" }
             ),
+            reason: sv_report::GapReason::Partial,
+            requirements: Vec::new(),
         });
     }
 
@@ -526,6 +576,8 @@ pub fn not_the_app_gaps(manifest: &Manifest, scan: &sv_scan::ScanReport) -> Vec<
         gaps.push(sv_report::Gap {
             what: "what the folders named as not the app use".to_owned(),
             why,
+            reason: sv_report::GapReason::LeftOut,
+            requirements: Vec::new(),
         });
     }
     // What only the folders set apart show (gap analysis, item 19): not read as a "no", so each is a
@@ -551,6 +603,8 @@ pub fn not_the_app_gaps(manifest: &Manifest, scan: &sv_scan::ScanReport) -> Vec<
                 "The only sign of it is {shown_by}, in a folder stackvet.toml says is not the app \
                  (`[repository] not-the-app`), so it is not counted as a \"no\": {answer}."
             ),
+            reason: sv_report::GapReason::PersonOnly,
+            requirements: Vec::new(),
         });
     }
     if !refused.is_empty() {
@@ -560,6 +614,8 @@ pub fn not_the_app_gaps(manifest: &Manifest, scan: &sv_scan::ScanReport) -> Vec<
                 "{}. Everything they would have named is read as the app.",
                 refused.join("; ")
             ),
+            reason: sv_report::GapReason::CouldNotRead,
+            requirements: Vec::new(),
         });
     }
     gaps
@@ -595,8 +651,10 @@ pub fn adapters_examined(
                     Some(why) => looked.stood_in_by(why),
                     None => looked,
                 }
-            } else if let Some(why) = reason(&run.not_run) {
-                sv_report::Examined::not_run(rules, why)
+            } else if let Some((_, why, _)) =
+                run.not_run.iter().find(|(id, _, _)| id == &adapter.id)
+            {
+                sv_report::Examined::not_run(rules, why.clone())
             } else if !languages.iter().any(|l| adapter.reads(l)) {
                 sv_report::Examined::nothing_to_examine(
                     rules,
@@ -676,6 +734,8 @@ pub fn untaught_gaps(untaught: &[sv_check::ast::Untaught]) -> Vec<sv_report::Gap
                  app; what it found elsewhere stands",
                 u.languages.join(" or ")
             ),
+            reason: sv_report::GapReason::NoReader,
+            requirements: Vec::new(),
         })
         .collect()
 }

@@ -81,7 +81,9 @@ def summary(report):
             state = 'FOUND' if found else ('credited' if credited else '-')
             lines.append(f'    {rule}: {state}')
         for req in REQS[p]:
-            gaps = [g['why'][:160] for g in report['gaps'] if req in g['what'].split(',')[0].split()[0:1] or g['what'].startswith(req)]
+            # Each gap names its requirements in `requirements` (backlog 226, part 2, item 20); a report from
+            # before then has none, and its text is read as it was.
+            gaps = [g['why'][:160] for g in report['gaps'] if req in g.get('requirements', []) or ('requirements' not in g and (req in g['what'].split(',')[0].split()[0:1] or g['what'].startswith(req)))]
             for g in gaps:
                 lines.append(f'      gap {req}: {g}')
     return '\n'.join(lines)
