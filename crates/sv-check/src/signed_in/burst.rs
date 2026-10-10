@@ -232,7 +232,9 @@ fn burst_one(
                  states. One action, not every function V2.4.1 names",
                 create.path
             ),
-        ));
+        )
+        // One action stands for none of the others V2.4.1 names (ADR-053, Later).
+        .in_part());
     }
 }
 
@@ -324,6 +326,12 @@ mod tests {
             "{}\n{:#?}",
             why_not(&o),
             o.steps
+        );
+        assert!(
+            o.verified
+                .iter()
+                .all(|v| v.check_id != CREATE_UNLIMITED.rule_id || v.in_part),
+            "one action is credited in part"
         );
         // A token taken once refuses the second record before a limit could: not assessed, never
         // credited, whatever the limit.
