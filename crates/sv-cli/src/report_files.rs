@@ -1,4 +1,4 @@
-//! The five files a report is written as: each name, what kind of file it is, and how it is rendered.
+//! The six files a report is written as: each name, what kind of file it is, and how it is rendered.
 //!
 //! The one table in this crate that every reader of a report folder's names derives from (BACKLOG,
 //! "From the architecture assessment of 8 October 2026", item 5): `write_report` writes these in this
@@ -6,7 +6,7 @@
 //! `sv-scan`'s walk leaves a folder out that holds nothing but these names and the marker and lock,
 //! and that crate cannot see this one, so the names are its (`sv_scan::ecosystems::REPORT_FILES`)
 //! and this table's are held to them by the compiler: the build fails when a name here is not the
-//! name there, in the same place. Before 8 October 2026 the five names were written out four times,
+//! name there, in the same place. Before 8 October 2026 the names (five then) were written out four times,
 //! held together by a test.
 
 /// One file of a report.
@@ -19,8 +19,8 @@ pub struct ReportFile {
     pub render: fn(&sv_report::Report) -> String,
 }
 
-/// The five files, in the order they are written and sealed.
-pub const REPORT_FILES: [ReportFile; 5] = [
+/// The six files, in the order they are written and sealed.
+pub const REPORT_FILES: [ReportFile; 6] = [
     ReportFile {
         name: "report.html",
         mime: "text/html",
@@ -45,6 +45,12 @@ pub const REPORT_FILES: [ReportFile; 5] = [
         name: "report.json",
         mime: "application/json",
         render: sv_report::json::to_string,
+    },
+    // What `sv` saw of the running app, credentials removed (ADR-082).
+    ReportFile {
+        name: sv_report::seen::FILE,
+        mime: "application/json",
+        render: sv_report::seen::render,
     },
 ];
 

@@ -327,6 +327,7 @@ mod tests {
             level_why: None,
             baseline: None,
             build_loop: None,
+            seen: None,
             timings: Vec::new(),
             app_name: "test".into(),
             target_level: 1,

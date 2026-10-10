@@ -33,7 +33,7 @@ pub struct ReportFolder {
 /// 2. The report is built, which may start the app and take as long as it takes.
 /// 3. A manifest that changed while it was built is said, and goes into the report as a gap.
 /// 4. A report already in the folder from a newer run is refused, so this one does not replace it.
-/// 5. The five files are written (`write_report`), each under a new name and renamed into place.
+/// 5. The six report files are written (`write_report`), each under a new name and renamed into place.
 /// 6. The folder is sealed (`seal_report_folder`), so the MCP server can tell the report is `sv`'s.
 /// 7. The claim is released as written: the lock goes, the folder and the report stay.
 ///

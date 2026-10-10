@@ -131,6 +131,9 @@ pub struct RunningApp {
     pub tests_examined: sv_report::Examined,
     pub probe_verified: Vec<sv_check::Verified>,
     pub test_verified: Vec<sv_check::Verified>,
+    /// What the app answered, kept beside the report as `seen.json` (ADR-082). `None` when it
+    /// was not asked anything.
+    pub seen: Option<sv_report::seen::Seen>,
 }
 
 /// The owner's word, from the notes, the decisions file, and the manifest's design and hand-check
@@ -757,6 +760,7 @@ fn running_app(
     let mut tests_examined =
         sv_report::Examined::not_run("tests.", "the app's own tests run only with --run");
     let mut run_note = None;
+    let mut seen = None;
     let mut run_steps: Vec<String> = Vec::new();
     let run_status;
 
@@ -778,6 +782,12 @@ fn running_app(
                 };
                 let (running_findings, running_verified, signed_in_not_assessed) =
                     running_app_evidence(&outcome, &plan);
+                seen = Some(crate::seen::record(
+                    secret_rules,
+                    &anonymous_requests(&plan),
+                    &outcome.probe_responses,
+                    &outcome.probes_rate_limited,
+                ));
                 findings.extend(running_findings);
                 probe_verified = running_verified;
                 // The summary, and the steps kept apart from it. Joining them made one
@@ -838,6 +848,13 @@ fn running_app(
                     plan.health_path,
                     outcome.fence.explain()
                 ));
+                if let Some(note) = run_note.as_mut() {
+                    note.push_str(&format!(
+                        " What it answered is kept beside this report in {}, with the \
+                         credentials sv recognized cut out: it is the app's own text.",
+                        sv_report::seen::FILE
+                    ));
+                }
                 if let (Some(note), Some(installed)) = (
                     run_note.as_mut(),
                     sv_run::install::sentence(&outcome.installed),
@@ -1059,6 +1076,7 @@ fn running_app(
         tests_examined,
         probe_verified,
         test_verified,
+        seen,
     }
 }
 
@@ -2116,6 +2134,7 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
         steps: run_steps,
         test_output,
         tests_examined,
+        seen,
         ..
     } = run;
     let PersonsWord {
@@ -2306,6 +2325,7 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
     report.could_not_run = file_gaps.could_not_run;
     report.partly_read = file_gaps.partly;
     report.run_record = Some(run_record);
+    report.seen = seen;
     report.manifest_file = manifest_file.to_owned();
     // A contradiction says what in the code contradicted the manifest, so whoever wrote the
     // manifest can see what to correct. "The code says otherwise" alone left the AI coding tool that
