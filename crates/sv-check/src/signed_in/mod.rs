@@ -67,6 +67,7 @@ mod forgery;
 mod once;
 mod owner_field;
 mod passwords;
+pub mod recording;
 mod redirects;
 mod reset;
 mod rules;
@@ -212,6 +213,8 @@ pub struct Outcome {
     pub steps: Vec<String>,
     /// The strings the probes planted for the log check to look for afterwards. See `logs.rs`.
     pub log_markers: crate::logs::Markers,
+    /// Every question this suite asked the app and what it answered, in order (ADR-082, part 1).
+    pub exchanges: Vec<recording::Recorded>,
     /// The lines of the app's output the log checks read, each with what for (ADR-082).
     pub log_lines: Vec<crate::logs::KeptLine>,
     /// The last lines of the app's output when the log was read, at most `crate::logs::TAIL`.

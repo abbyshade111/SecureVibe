@@ -308,3 +308,71 @@ fn a_tool_report_past_its_most_is_cut_and_says_by_how_much() {
         sv_report::seen::MOST_TOOL_CHARS
     );
 }
+
+#[test]
+fn no_credential_a_signed_in_answer_carries_reaches_the_record() {
+    let rules = rules();
+    let (key, session) = planted();
+    let asked = sv_check::signed_in::Outcome {
+        exchanges: vec![
+            sv_check::signed_in::recording::Recorded {
+                method: "GET".to_owned(),
+                path: "/account".to_owned(),
+                status: Some(200),
+                headers: vec![
+                    (
+                        "set-cookie".to_owned(),
+                        format!("sid={session}; Path=/; HttpOnly"),
+                    ),
+                    ("x-debug-key".to_owned(), key.clone()),
+                ],
+                body: format!("<p>your key is {key}</p>"),
+            },
+            // A question no answer came to: counted, not kept.
+            sv_check::signed_in::recording::Recorded {
+                method: "GET".to_owned(),
+                path: "/silent".to_owned(),
+                status: None,
+                headers: Vec::new(),
+                body: String::new(),
+            },
+        ],
+        ..Default::default()
+    };
+    // The setup: the key and the session are in what the signed-in suite was answered with.
+    assert!(format!("{asked:?}").matches(key.as_str()).count() >= 2);
+    let mut seen = Seen::default();
+    signed_in(&rules, Some(&asked), &mut seen);
+    let kept = serde_json::to_string(&seen).unwrap();
+    assert!(!kept.contains(&key), "a key reached the record: {kept}");
+    assert!(
+        !kept.contains(&session),
+        "a session reached the record: {kept}"
+    );
+    assert_eq!(seen.signed_in.len(), 1, "{seen:#?}");
+    assert_eq!(seen.signed_in[0].id, "signed-in-1");
+    assert_eq!(seen.signed_in[0].status, 200);
+    assert!(
+        kept.contains("trace=") || kept.contains("sid=[removed,"),
+        "{kept}"
+    );
+    assert_eq!(seen.signed_in_unanswered, 1);
+    assert!(seen.credentials_removed >= 2, "{seen:#?}");
+    // No signed-in suite ran, nothing kept.
+    let mut none = Seen::default();
+    signed_in(&rules, None, &mut none);
+    assert!(none.signed_in.is_empty());
+}
+
+#[test]
+fn a_test_secret_marker_in_an_address_is_left_whole_not_cut_as_a_password() {
+    let rules = rules();
+    // What sv-run leaves where a test password was in the address: the marker after `password=`.
+    let address = format!("/login?email=sv-a%40example.test&password={TEST_SECRET}&next=/account");
+    let (out, _) = redact_around_markers(&rules, &address);
+    assert_eq!(out, address, "the marker was cut: {out}");
+    // A real password in the same place is still cut.
+    let (key, _) = planted();
+    let (out, n) = redact_around_markers(&rules, &format!("/login?password={key}"));
+    assert!(!out.contains(&key) && n >= 1, "{out}");
+}

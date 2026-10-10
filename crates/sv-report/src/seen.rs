@@ -37,6 +37,18 @@ pub struct Seen {
     /// part 4). Empty otherwise.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub tool_output: Vec<ToolOutput>,
+    /// Every question the signed-in suite asked the app as a signed-in user, and what it answered,
+    /// numbered `signed-in-N` in the order asked (backlog 0229, part 1). Their requests' headers and
+    /// bodies are not kept: they carry the test accounts' passwords and cookies.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub signed_in: Vec<Exchange>,
+    /// How many of those questions the app did not answer.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub signed_in_unanswered: usize,
+}
+
+fn is_zero(n: &usize) -> bool {
+    *n == 0
 }
 
 /// One outside tool's own report, as it wrote it, with the credentials in it cut out.
@@ -149,7 +161,8 @@ const ABOUT: &str = "What sv saw of the running app while it made this report: e
 as somebody not signed in, and what the app answered; and, under stand_ins, what sv's own stand-ins \
 for the services the app uses received from it (the test model, the test sign-in provider, and the \
 mail catcher, of whose mail only who it was to, its subject, and when are kept); and, under app_log, \
-the lines of the app's own output the log checks read, and its last lines; and, under tool_output, \
+the lines of the app's own output the log checks read, and its last lines; under signed_in, what the \
+signed-in questions were answered with, and how many got no answer; and, under tool_output, \
 when --keep-tool-output asked for them, each outside tool's own report, which quotes the app's code. This is the app's own text, with every \
 credential sv recognized cut down to its first four characters and its length, and the value \
 of every cookie and sign-in header taken out. It can hold \
@@ -170,6 +183,8 @@ pub fn render(report: &Report) -> String {
             "stand_ins": seen.stand_ins,
             "app_log": seen.app_log,
             "tool_output": seen.tool_output,
+            "signed_in": seen.signed_in,
+            "signed_in_unanswered": seen.signed_in_unanswered,
         }),
         None => serde_json::json!({
             "app": report.app_name,

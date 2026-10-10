@@ -251,7 +251,7 @@ fn signed_in(
     accounts: &Accounts,
     spent: &Cell<u64>,
 ) -> crate::signed_in::Outcome {
-    let mut http = services.http(
+    let mut http = crate::signed_in::recording::Recording::new(services.http(
         Target::App,
         With {
             mail: true,
@@ -259,10 +259,10 @@ fn signed_in(
             model: Model::IfAnswering,
             ..With::default()
         },
-    );
+    ));
     if !users.problems().is_empty() {
         // Nothing is run or asked; the suite says what is missing.
-        return crate::signed_in::run(http.as_mut(), users, accounts, true, plan.policy);
+        return crate::signed_in::run(&mut http, users, accounts, true, plan.policy);
     }
     let seeded = match &users.seed {
         Some(seed) => match services.seed(Target::App, seed, accounts) {
@@ -280,7 +280,7 @@ fn signed_in(
         None => false,
     };
     let mut out = crate::signed_in::run_within(
-        http.as_mut(),
+        &mut http,
         users,
         accounts,
         seeded,
@@ -288,7 +288,7 @@ fn signed_in(
         plan.slow,
         spent,
     );
-    drop(http);
+    out.exchanges = http.finish();
 
     // Last of all, and only after everything the probes do: whether the app wrote any of it
     // down. Reading the log earlier would be reading it before the events happened.

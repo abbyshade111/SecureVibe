@@ -13,6 +13,7 @@ use serde_json::Value;
 use sv_check::probes::{ProbeRequest, ProbeResponse};
 use sv_check::secrets::{SecretRules, redact_text};
 use sv_report::seen::{Exchange, KEPT_CHARS, MOST_EXCHANGES, MOST_TOOL_CHARS, Seen};
+use sv_run::stand_ins::TEST_SECRET;
 
 /// Headers whose value is a session or a sign-in, so it is cut whatever it looks like.
 const SESSION_HEADERS: &[&str] = &[
@@ -53,35 +54,94 @@ pub fn record(
             seen.left_out += 1;
             continue;
         }
-        let mut cut = |text: &str| {
-            let (text, n) = redact_text(rules, text);
-            seen.credentials_removed += n;
-            text
-        };
-        let headers = response
-            .headers
-            .iter()
-            .map(|(name, value)| {
-                let value = if SESSION_HEADERS.contains(&name.as_str()) {
-                    session_value(name, value)
-                } else {
-                    value.clone()
-                };
-                (name.clone(), cut(&value))
-            })
-            .collect();
-        let body = cut(&response.body);
-        let path = cut(&request.path);
-        seen.exchanges.push(Exchange {
-            id: request.id.clone(),
-            method: request.method.clone(),
-            path,
-            status: response.status,
-            headers,
-            body,
-        });
+        let kept = kept_exchange(
+            rules,
+            &mut seen.credentials_removed,
+            &request.id,
+            &request.method,
+            &request.path,
+            response.status,
+            &response.headers,
+            &response.body,
+        );
+        seen.exchanges.push(kept);
     }
     seen
+}
+
+/// The signed-in suite's questions and their answers, made ready to keep (backlog 0229, part 1):
+/// each through the same header and body rules as the anonymous answers, numbered `signed-in-N` in
+/// the order asked. A question with no answer is counted, not kept.
+pub fn signed_in(
+    rules: &SecretRules,
+    asked: Option<&sv_check::signed_in::Outcome>,
+    seen: &mut Seen,
+) {
+    let Some(asked) = asked else {
+        return;
+    };
+    for (index, exchange) in asked.exchanges.iter().enumerate() {
+        let Some(status) = exchange.status else {
+            seen.signed_in_unanswered += 1;
+            continue;
+        };
+        if seen.signed_in.len() == MOST_EXCHANGES {
+            seen.left_out += 1;
+            continue;
+        }
+        let kept = kept_exchange(
+            rules,
+            &mut seen.credentials_removed,
+            &format!("signed-in-{}", index + 1),
+            &exchange.method,
+            &exchange.path,
+            status,
+            &exchange.headers,
+            &exchange.body,
+        );
+        seen.signed_in.push(kept);
+    }
+}
+
+/// One answer, kept: its session and sign-in headers' values taken out, and every string in it
+/// through `redact_text`, counting the credentials cut into `removed`.
+#[allow(clippy::too_many_arguments)]
+fn kept_exchange(
+    rules: &SecretRules,
+    removed: &mut usize,
+    id: &str,
+    method: &str,
+    path: &str,
+    status: u16,
+    headers: &[(String, String)],
+    body: &str,
+) -> Exchange {
+    let mut cut = |text: &str| {
+        let (text, n) = redact_around_markers(rules, text);
+        *removed += n;
+        text
+    };
+    let headers = headers
+        .iter()
+        .map(|(name, value)| {
+            let value = if SESSION_HEADERS.contains(&name.as_str()) {
+                session_value(name, value)
+            } else {
+                value.clone()
+            };
+            (name.clone(), cut(&value))
+        })
+        .collect();
+    let body = cut(body);
+    let path = cut(path);
+    Exchange {
+        id: id.to_owned(),
+        method: method.to_owned(),
+        path,
+        status,
+        headers,
+        body,
+    }
 }
 
 /// A session header's value with the value itself taken out: a cookie keeps its name and its
@@ -121,7 +181,7 @@ pub fn stand_ins(rules: &SecretRules, received: &sv_run::stand_ins::StandIns, se
     use std::cell::Cell;
     let (removed, cuts) = (Cell::new(0), Cell::new(0));
     let cut = |text: &str| {
-        let (text, n) = redact_text(rules, text);
+        let (text, n) = redact_around_markers(rules, text);
         removed.set(removed.get() + n);
         bounded(text, &cuts)
     };
@@ -156,7 +216,7 @@ pub fn app_log(rules: &SecretRules, asked: Option<&sv_check::signed_in::Outcome>
     let cuts = std::cell::Cell::new(0);
     let mut removed = 0;
     let mut cut = |text: &str| {
-        let (text, n) = redact_text(rules, text);
+        let (text, n) = redact_around_markers(rules, text);
         removed += n;
         bounded(text, &cuts)
     };
@@ -200,6 +260,24 @@ pub fn tool_output(rules: &SecretRules, examined: &[sv_report::Examined], seen: 
             cut_chars,
         });
     }
+}
+
+/// `redact_text`, with each `TEST_SECRET` marker left as it is. A marker follows `password=` in an
+/// address, and the generic rule would take its first word for the password's value and cut it,
+/// leaving a record that reads as if the secret was only partly removed. Each piece between the
+/// markers is redacted on its own, so the markers are never seen by it.
+pub fn redact_around_markers(rules: &SecretRules, text: &str) -> (String, usize) {
+    let mut out = String::with_capacity(text.len());
+    let mut removed = 0;
+    for (i, piece) in text.split(TEST_SECRET).enumerate() {
+        if i > 0 {
+            out.push_str(TEST_SECRET);
+        }
+        let (redacted, n) = redact_text(rules, piece);
+        out.push_str(&redacted);
+        removed += n;
+    }
+    (out, removed)
 }
 
 /// `text`, cut at `KEPT_CHARS` characters with how many more there were said, counting a cut.
