@@ -341,6 +341,8 @@ does not match this `sv`, and that nothing about the app was checked; `NoBackend
 Docker or Colima; each with a test that fails without it. Not the MCP server's "check stopped before it finished",
 nor item 19: open pull request #1325 (another session) rewrites `crates/sv-cli/src/mcp/`, so both wait for it.
 
+**Part 3, A, became item 0229 on 9 October 2026**, at the owner's word ("yes, please go ahead"), claimed by session
+paper-facts: a review's finding is now an item of its own (backlog 0228, part 7).
 **Part 2, item 16 partly done on 10 October 2026** (`docs/design/0348-errors-that-say-what-to-do-shipped-data-that-does-not-parse.md`): the fourteen data files `sv` ships say, when one does
 not parse, that it most likely belongs to another `sv`, what to do, and that nothing about the app was checked;
 `NoBackend` and `BackendFailed` end with the next step. Still open: the MCP server's "check stopped before it
