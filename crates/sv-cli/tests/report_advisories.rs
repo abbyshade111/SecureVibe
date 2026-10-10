@@ -259,3 +259,31 @@ fn an_advisory_file_that_cannot_be_read_is_named_and_nothing_is_credited_on_the_
         "{gap}"
     );
 }
+
+#[test]
+fn the_report_names_the_database_it_compared_with_its_size_and_newest_record() {
+    // Backlog 226, part 2, item 20: a comparison against a database months old read the same as one
+    // against today's. And report.json carries its format.
+    let dir = app("named");
+    advisory(&dir, "GHSA-one", "npm", "left-pad", "2020-01-01T00:00:00Z");
+    advisory(&dir, "GHSA-two", "npm", "left-pad", "2026-09-30T12:00:00Z");
+    let r = report(&dir, true);
+    let page = std::fs::read_to_string(dir.join("report/report.html")).unwrap();
+    let compliance = std::fs::read_to_string(dir.join("report/compliance.md")).unwrap();
+    std::fs::remove_dir_all(&dir).ok();
+    assert_eq!(r["report_format"], 1, "report.json names its format");
+    let entry = r["examined"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["rules"] == "advisory.")
+        .expect("the advisory comparison is in examined");
+    assert_eq!(entry["advisories"]["records"], 2, "{entry}");
+    assert_eq!(entry["advisories"]["newest"], "2026-09-30", "{entry}");
+    for (name, text) in [("report.html", &page), ("compliance.md", &compliance)] {
+        assert!(
+            text.contains("2 records, the newest published 2026-09-30"),
+            "{name} does not name the database's size and newest record"
+        );
+    }
+}

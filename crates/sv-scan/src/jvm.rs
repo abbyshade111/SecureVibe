@@ -501,19 +501,37 @@ struct Catalog {
     table: toml::Table,
 }
 
-fn find_catalog(app_dir: &Path, manifest: &str) -> Option<Catalog> {
+/// The version catalog nearest `manifest`, or the reason the nearest one could not be read: a catalog
+/// that is there and does not parse is not one `sv` did not find (backlog 226, part 2, item 20).
+fn find_catalog(app_dir: &Path, manifest: &str) -> Option<Result<Catalog, Unreadable>> {
     folders_up(manifest).into_iter().find_map(|dir| {
         let rel = if dir.is_empty() {
             "gradle/libs.versions.toml".to_owned()
         } else {
             format!("{dir}/gradle/libs.versions.toml")
         };
-        let text = std::fs::read_to_string(app_dir.join(&rel)).ok()?;
-        Some(Catalog {
-            path: rel,
-            table: text.parse().ok()?,
-        })
+        let text = std::fs::read(app_dir.join(&rel)).ok()?;
+        let why = match String::from_utf8(text) {
+            Err(_) => "it is not text",
+            Ok(text) => match text.parse() {
+                Ok(table) => return Some(Ok(Catalog { path: rel, table })),
+                Err(_) => "it is not valid TOML",
+            },
+        };
+        Some(Err(Unreadable { path: rel, why }))
     })
+}
+
+/// A version catalog that is there and could not be read, and why.
+pub(crate) struct Unreadable {
+    pub path: String,
+    pub why: &'static str,
+}
+
+/// The version catalog a Gradle build at `manifest` would read, when it is there and cannot be read,
+/// for the list of package lists `sv` could not read (`crate::deps::unread_in`).
+pub(crate) fn unreadable_catalog(app_dir: &Path, manifest: &str) -> Option<Unreadable> {
+    find_catalog(app_dir, manifest)?.err()
 }
 
 fn alias(s: &str) -> String {
@@ -576,7 +594,12 @@ pub fn read_gradle(app_dir: &Path, manifest: &str) -> Option<Reading> {
     let text = blank(&blank(&raw, &BLOCK_COMMENT), &LINE_COMMENT);
     let lines: Vec<&str> = text.split('\n').collect();
     let vars = gradle_variables(app_dir, manifest, &text);
-    let catalog = find_catalog(app_dir, manifest);
+    let found = find_catalog(app_dir, manifest);
+    let not_understood = found
+        .as_ref()
+        .and_then(|f| f.as_ref().err())
+        .map(|u| format!("`{}` was not understood: {}", u.path, u.why));
+    let catalog = found.and_then(Result::ok);
     // Where a dependency without a version gets one: a platform or BOM, Spring's dependency
     // management plugin, constraints, or the Kotlin plugin for Kotlin's own libraries.
     let managed = [
@@ -663,7 +686,9 @@ pub fn read_gradle(app_dir: &Path, manifest: &str) -> Option<Reading> {
                         version: String::new(),
                         why: match &catalog {
                             Some(cat) => format!("not found in `{}`", cat.path),
-                            None => "a version catalog `sv` did not find".to_owned(),
+                            None => not_understood.clone().unwrap_or_else(|| {
+                                "a version catalog `sv` did not find".to_owned()
+                            }),
                         },
                     });
                 }
@@ -873,6 +898,28 @@ mod tests {
                 .collect()
         };
         (r.exact, names(&r.floating), names(&r.unsettled))
+    }
+
+    #[test]
+    fn a_catalog_that_does_not_parse_is_not_understood_rather_than_not_found() {
+        // Backlog 226, part 2, item 20: it read as "a version catalog `sv` did not find".
+        let dir = app(
+            "broken-catalog",
+            &[
+                (
+                    "build.gradle",
+                    "dependencies {\n  implementation libs.okhttp\n}\n",
+                ),
+                ("gradle/libs.versions.toml", "[libraries\nokhttp = \"x\"\n"),
+            ],
+        );
+        let reading = read_gradle(&dir, "build.gradle").unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+        let whys: Vec<&str> = reading.unsettled.iter().map(|u| u.why.as_str()).collect();
+        assert_eq!(
+            whys,
+            ["`gradle/libs.versions.toml` was not understood: it is not valid TOML"]
+        );
     }
 
     #[test]
