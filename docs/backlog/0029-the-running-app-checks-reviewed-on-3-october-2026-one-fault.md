@@ -350,3 +350,5 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    **Part status:** done, 3 October 2026
 
 **Decided by the owner, 10 October 2026:** kept partly done, with the gaps listed. Remaining: tar, 7z and rar archives are not read (zip and gzip are); CPU, memory, disk and egress quotas are recorded as unchecked in `crates/sv-check/src/ai.rs`; item 13 is kept by a proxy; item 14 needs a real-app run.
+
+**Items opened from this item, 10 October 2026:** tar archives, backlog 0241; 7z and rar, 0242; the host-side resource question for the quotas, 0243; the example app's email change for the real-app run, 0244. The proxy limit (part 13) stays a known limit, with no item.
