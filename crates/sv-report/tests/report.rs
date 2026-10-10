@@ -3497,3 +3497,118 @@ fn the_short_version_says_which_level_and_what_is_not_counted() {
         "Held to ASVS level 1."
     );
 }
+
+// Backlog 226, part 2, item 17: credit rows that explain themselves. Rendering and JSON only.
+
+#[test]
+fn a_row_that_needs_attention_names_what_passed_as_well_and_why_it_does_not_count() {
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into()],
+        ..Default::default()
+    };
+    let passed = vec![Verified::new(
+        "config.something",
+        &["V1.2.1"],
+        "the files this check reads".to_owned(),
+    )];
+    let report = build(inputs(
+        &f,
+        &buckets,
+        vec![finding("ast.sql", &["V1.2.1"])],
+        &passed,
+    ));
+    let note = report.requirements[0].counting_note();
+    assert!(
+        note.contains("config.something") && note.contains("a finding outranks every credit"),
+        "{note}"
+    );
+    let markdown = sv_report::markdown::compliance(&report);
+    assert!(
+        markdown.contains("a finding outranks every credit"),
+        "not on the page"
+    );
+}
+
+#[test]
+fn a_false_alarm_set_aside_names_itself_where_it_kept_a_check_from_counting() {
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into(), "V1.3.1".into()],
+        ..Default::default()
+    };
+    let passed = vec![Verified::new(
+        "config.something",
+        &["V1.2.1", "V1.3.1"],
+        "the files this check reads".to_owned(),
+    )];
+    let mut i = inputs(&f, &buckets, vec![], &passed);
+    i.set_aside = vec![sv_check::review::SetAside {
+        finding: finding("ast.sql", &["V1.2.1"]),
+        verdict: sv_check::review::FALSE_ALARM.to_owned(),
+        why: "looked at it".to_owned(),
+        by: "owner".to_owned(),
+        on: "2026-09-27".to_owned(),
+        sealed: sv_check::seal::Sealed::Here,
+    }];
+    let report = build(i);
+    let row = |id: &str| report.requirements.iter().find(|r| r.id == id).unwrap();
+    assert_eq!(row("V1.2.1").status, Status::NotVerified);
+    assert_eq!(row("V1.2.1").withheld_by, ["ast.sql"]);
+    assert!(
+        row("V1.2.1")
+            .counting_note()
+            .contains("ast.sql was set aside here as a false alarm"),
+        "{}",
+        row("V1.2.1").counting_note()
+    );
+    // Nothing was set aside for the other, which is checked and says nothing more.
+    assert!(row("V1.3.1").withheld_by.is_empty());
+    assert_eq!(row("V1.3.1").counting_note(), "");
+    let json = sv_report::json::to_value(&report);
+    let row_json = json["requirements"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["id"] == "V1.2.1")
+        .unwrap();
+    assert_eq!(row_json["withheld_by"], serde_json::json!(["ast.sql"]));
+}
+
+#[test]
+fn report_json_says_whose_word_each_row_and_each_yes_rests_on() {
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into(), "V1.3.1".into()],
+        ..Default::default()
+    };
+    let owner = [Verified::new(
+        "design.attested",
+        &["V1.2.1"],
+        "the owner said yes".to_owned(),
+    )];
+    let tool = [Verified::new(
+        "design.stated",
+        &["V1.3.1"],
+        "the AI tool said yes".to_owned(),
+    )];
+    let verified = tiered(&[(&owner, Tier::Attested), (&tool, Tier::Stated)], &[]);
+    let report = build(inputs(&f, &buckets, vec![], &verified));
+    let json = sv_report::json::to_value(&report);
+    let row = |id: &str| {
+        json["requirements"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["id"] == id)
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(row("V1.2.1")["whose_word"], "the owner");
+    assert_eq!(row("V1.2.1")["attested_by"][0]["whose"], "the owner");
+    assert_eq!(row("V1.3.1")["whose_word"], "the AI coding tool");
+    assert_eq!(
+        row("V1.3.1")["attested_by"][0]["whose"],
+        "the AI coding tool"
+    );
+}
