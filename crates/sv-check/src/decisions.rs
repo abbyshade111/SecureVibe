@@ -159,6 +159,7 @@ pub fn not_held_to(decided: &[Decided], findings: &[crate::Finding]) -> Vec<crat
             let found = findings.iter().find(|f| f.rule_id == d.switch.rule_id)?;
             let said = format!("{}: {}", d.switch.name, d.switch.safe);
             Some(crate::finding::found(crate::Finding {
+                evidence: Vec::new(),
                 also_reported_by: Vec::new(),
                 fingerprint: String::new(),
                 earlier_fingerprints: Vec::new(),
@@ -341,6 +342,7 @@ mod tests {
 
     fn probe(rule_id: &str) -> crate::Finding {
         crate::Finding {
+            evidence: Vec::new(),
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),

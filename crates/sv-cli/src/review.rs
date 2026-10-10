@@ -2171,6 +2171,7 @@ mod tests {
         );
         // Today's form names the second line alone, and is recorded as it is.
         let mut second = vec![sv_check::finding::Finding {
+            evidence: Vec::new(),
             rule_id: "ast.open-redirect".into(),
             location: sv_check::finding::Location {
                 file: "app.py".into(),
@@ -2191,6 +2192,7 @@ mod tests {
 
     fn first_finding() -> sv_check::finding::Finding {
         sv_check::finding::Finding {
+            evidence: Vec::new(),
             rule_id: String::new(),
             title: String::new(),
             severity: sv_check::finding::Severity::High,

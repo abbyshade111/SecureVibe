@@ -2214,6 +2214,7 @@ pub fn parse_sarif_relative_to(
                 })
                 .unwrap_or_default();
             out.push(crate::finding::found(Finding {
+                evidence: Vec::new(),
                 also_reported_by: Vec::new(),
                 fingerprint: String::new(),
                 earlier_fingerprints: Vec::new(),

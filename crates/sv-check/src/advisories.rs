@@ -786,6 +786,7 @@ fn finding_for(component: &Component, advisory: &Advisory, due: &Due) -> Finding
         format!("{} ({})", advisory.id, advisory.aliases.join(", "))
     };
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),

@@ -192,6 +192,7 @@ fn finding(file: &str, line: usize, name: &str, held: Option<&str>) -> Finding {
         None => "is named as a secret".to_owned(),
     };
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),

@@ -394,6 +394,7 @@ mod tests {
 
     fn finding(rule: &str, file: &str, line: usize, title: &str) -> sv_check::Finding {
         sv_check::Finding {
+            evidence: Vec::new(),
             rule_id: rule.into(),
             title: title.into(),
             severity: sv_check::Severity::High,

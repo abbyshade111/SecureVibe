@@ -251,6 +251,7 @@ fn policies_allowing_all(file: &str, sql: &str) -> Vec<Finding> {
 #[track_caller]
 fn base(rule_id: &str, title: &str, file: &str, line: usize, description: String) -> Finding {
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),

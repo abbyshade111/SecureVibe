@@ -585,6 +585,7 @@ mod tests {
 
     fn a_finding(rule: &str) -> sv_check::Finding {
         sv_check::Finding {
+            evidence: Vec::new(),
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),

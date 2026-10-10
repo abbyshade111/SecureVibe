@@ -464,6 +464,7 @@ fn report_with_threats(findings: Vec<sv_check::Finding>) -> sv_report::Report {
 
 fn finding_on(requirement: &str) -> sv_check::Finding {
     sv_check::Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),

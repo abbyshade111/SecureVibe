@@ -404,6 +404,7 @@ struct Rule {
 #[track_caller]
 fn finding(about: &Rule, title: &str, severity: Severity, description: String) -> Finding {
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -427,6 +428,21 @@ fn finding(about: &Rule, title: &str, severity: Severity, description: String) -
         impact: about.impact.to_owned(),
         fix: about.fix.to_owned(),
     })
+}
+
+/// `finding`, naming the answers it rests on by their ids, so the record can show which answers a
+/// finding was read from (ADR-082, backlog 0229, part 1).
+#[track_caller]
+fn finding_on(
+    ids: Vec<String>,
+    about: &Rule,
+    title: &str,
+    severity: Severity,
+    description: String,
+) -> Finding {
+    let mut found = finding(about, title, severity, description);
+    found.evidence = ids;
+    found
 }
 
 /// Reads the answers.
@@ -652,7 +668,9 @@ const CONTENT_TYPE: Rule = Rule {
 /// Every response with a body names its type, and a text type names its character set.
 fn content_type(responses: &[&ProbeResponse]) -> Option<Finding> {
     let mut problems = Vec::new();
+    let mut named: Vec<String> = Vec::new();
     for r in responses {
+        let before = problems.len();
         match r.header("content-type") {
             None => problems.push(format!("the answer for `{}` had no Content-Type", r.id)),
             Some(t) => {
@@ -665,11 +683,15 @@ fn content_type(responses: &[&ProbeResponse]) -> Option<Finding> {
                 }
             }
         }
+        if problems.len() > before {
+            named.push(r.id.clone());
+        }
     }
     if problems.is_empty() {
         return None;
     }
-    Some(finding(
+    Some(finding_on(
+        named,
         &CONTENT_TYPE,
         "A response does not say what it is",
         Severity::Low,
@@ -709,7 +731,12 @@ fn source_control_exposed(responses: &[ProbeResponse]) -> Option<Finding> {
         .filter(|(f, _)| *f)
         .map(|(_, p)| *p)
         .collect();
-    Some(finding(
+    Some(finding_on(
+        [(head, "git-head"), (config, "git-config")]
+            .into_iter()
+            .filter(|(found, _)| *found)
+            .map(|(_, id)| id.to_owned())
+            .collect(),
         &SOURCE_CONTROL,
         "The app serves its source control folder",
         Severity::High,
@@ -759,7 +786,8 @@ fn directory_listing(responses: &[ProbeResponse]) -> Option<Finding> {
     if listed.is_empty() {
         return None;
     }
-    Some(finding(
+    Some(finding_on(
+        listed.iter().map(|path| listing_id(path)).collect(),
         &DIRECTORY_LISTING,
         "A folder on the app's address lists its contents",
         Severity::Medium,
@@ -882,7 +910,8 @@ pub fn evaluate_api(
                          was answered"
                             .to_owned(),
                     )),
-                    (true, Some(false)) => findings.push(finding(
+                    (true, Some(false)) => findings.push(finding_on(
+                        vec!["graphql-introspection".to_owned()],
                         &GRAPHQL_INTROSPECTION,
                         "The GraphQL schema is handed to anybody who asks",
                         Severity::Medium,
@@ -912,7 +941,8 @@ pub fn evaluate_api(
             // errors means the whole request was allowed.
             if let Some(many) = find("graphql-aliases") {
                 if graphql_ran(many, "a0") {
-                    findings.push(finding(
+                    findings.push(finding_on(
+                        vec!["graphql-aliases".to_owned()],
                         &GRAPHQL_AMOUNT,
                         "One GraphQL request can ask for a thousand things at once",
                         Severity::Medium,
@@ -952,7 +982,8 @@ pub fn evaluate_api(
                 ),
             ));
         } else if foreign.status == 101 {
-            findings.push(finding(
+            findings.push(finding_on(
+                vec!["ws-no-origin".to_owned(), "ws-foreign-origin".to_owned()],
                 &WS_ORIGIN,
                 "A WebSocket connection is accepted from any website",
                 Severity::Medium,
@@ -1114,7 +1145,12 @@ fn security_headers(pages: &[&ProbeResponse]) -> Option<Finding> {
     if short.is_empty() {
         return None;
     }
-    Some(finding(
+    Some(finding_on(
+        pages
+            .iter()
+            .filter(|page| !missing_headers(page).is_empty())
+            .map(|page| page.id.clone())
+            .collect(),
         &SECURITY_HEADERS,
         "The app is missing headers a browser relies on",
         Severity::Medium,
@@ -1145,7 +1181,9 @@ const COOKIE_ATTRIBUTES: Rule = Rule {
 /// A cookie that a script can read, or that travels to another site, is a session waiting to be taken.
 fn cookie_attributes(pages: &[&ProbeResponse]) -> Option<Finding> {
     let mut problems = Vec::new();
+    let mut named: Vec<String> = Vec::new();
     for page in pages {
+        let before = problems.len();
         for (k, cookie) in &page.headers {
             if k != "set-cookie" {
                 continue;
@@ -1166,11 +1204,15 @@ fn cookie_attributes(pages: &[&ProbeResponse]) -> Option<Finding> {
                 ));
             }
         }
+        if problems.len() > before {
+            named.push(page.id.clone());
+        }
     }
     if problems.is_empty() {
         return None;
     }
-    Some(finding(
+    Some(finding_on(
+        named,
         &COOKIE_ATTRIBUTES,
         "A cookie is set without the attributes that protect it",
         Severity::High,
@@ -1208,7 +1250,8 @@ pub(crate) fn reflected_origin(response: &ProbeResponse) -> Option<Finding> {
     } else {
         Severity::Medium
     };
-    Some(finding(
+    Some(finding_on(
+        vec![response.id.clone()],
         &CORS_ANY_ORIGIN,
         if reflects {
             "The app accepts whatever site asks it to"
@@ -1285,7 +1328,8 @@ fn error_page_leak(response: &ProbeResponse) -> Option<Finding> {
     if found.is_empty() {
         return None;
     }
-    Some(finding(
+    Some(finding_on(
+        vec![response.id.clone()],
         &ERROR_DETAIL_LEAK,
         "An error page shows how the app is built",
         Severity::Medium,
@@ -1313,10 +1357,16 @@ fn error_answer_leak(answers: &[&ProbeResponse]) -> Option<Finding> {
         })
         .filter(|(_, found)| !found.is_empty())
         .collect();
+    let raw_ids: Vec<String> = answers
+        .iter()
+        .filter(|r| !trace_markers_in(&r.body).is_empty())
+        .map(|r| r.id.clone())
+        .collect();
     if leaking.is_empty() {
         return None;
     }
-    Some(finding(
+    Some(finding_on(
+        raw_ids,
         &ERROR_DETAIL_LEAK,
         "An error answer shows how the app is built",
         Severity::Medium,
@@ -1358,7 +1408,8 @@ fn trace_enabled(response: &ProbeResponse) -> Option<Finding> {
     if !(200..300).contains(&response.status) || !echoed {
         return None;
     }
-    Some(finding(
+    Some(finding_on(
+        vec![response.id.clone()],
         &TRACE_ENABLED,
         "The app echoes requests back with TRACE",
         Severity::Medium,
@@ -1411,7 +1462,8 @@ fn unused_methods(responses: &[ProbeResponse]) -> Option<Finding> {
     if accepted.is_empty() {
         return None;
     }
-    Some(finding(
+    Some(finding_on(
+        accepted.iter().map(|method| method_id(method)).collect(),
         &UNUSED_METHOD,
         "The app answers methods its page has no use for",
         Severity::Low,
@@ -1447,7 +1499,8 @@ fn jsonp(responses: &[ProbeResponse]) -> Option<Finding> {
     if !(200..300).contains(&r.status) || html || !r.body.contains(&format!("{JSONP_CALLBACK}(")) {
         return None;
     }
-    Some(finding(
+    Some(finding_on(
+        vec!["jsonp".to_owned()],
         &JSONP,
         "The app answers with JSONP",
         Severity::Medium,
@@ -1563,6 +1616,8 @@ pub(crate) fn echoes(body: &str) -> Vec<&str> {
 fn reflected(responses: &[ProbeResponse]) -> Vec<Finding> {
     let mut html = Vec::new();
     let mut json = Vec::new();
+    let mut html_ids: Vec<String> = Vec::new();
+    let mut json_ids: Vec<String> = Vec::new();
     for r in responses
         .iter()
         .filter(|r| [REFLECT_HOME, REFLECT_ROOT, REFLECT_MISSING].contains(&r.id.as_str()))
@@ -1571,17 +1626,20 @@ fn reflected(responses: &[ProbeResponse]) -> Vec<Finding> {
         let echoed = echoes(&r.body);
         if kind.contains("html") && echoed.iter().any(|e| e.contains('<')) {
             html.push(reflected_page_name(&r.id));
+            html_ids.push(r.id.clone());
         } else if kind.contains("json")
             && echoed
                 .iter()
                 .any(|e| e.match_indices('"').any(|(i, _)| !e[..i].ends_with('\\')))
         {
             json.push(reflected_page_name(&r.id));
+            json_ids.push(r.id.clone());
         }
     }
     let mut out = Vec::new();
     if !html.is_empty() {
-        out.push(finding(
+        out.push(finding_on(
+            html_ids.clone(),
             &REFLECTED_HTML,
             "Text from the address is written into the page unencoded",
             Severity::High,
@@ -1593,7 +1651,8 @@ fn reflected(responses: &[ProbeResponse]) -> Vec<Finding> {
         ));
     }
     if !json.is_empty() {
-        out.push(finding(
+        out.push(finding_on(
+            json_ids.clone(),
             &REFLECTED_JSON,
             "Text from the address is written into JSON unescaped",
             Severity::Medium,
@@ -1713,7 +1772,8 @@ fn served_logs(responses: &[ProbeResponse]) -> Option<Finding> {
     if found.is_empty() {
         return None;
     }
-    Some(finding(
+    Some(finding_on(
+        found.iter().map(|path| log_id(path)).collect(),
         &LOG_SERVED,
         "The app's log file is served to anybody who asks",
         Severity::High,
@@ -1804,7 +1864,8 @@ fn exposed_endpoints(responses: &[ProbeResponse]) -> Option<Finding> {
     if found.is_empty() {
         return None;
     }
-    Some(finding(
+    Some(finding_on(
+        found.iter().map(|(path, _, _)| exposed_id(path)).collect(),
         &EXPOSED,
         "Documentation or monitoring pages are open to anybody",
         if found.iter().any(|(_, _, monitoring)| *monitoring) {
@@ -1938,7 +1999,11 @@ fn development_console(responses: &[ProbeResponse]) -> Option<Finding> {
     if found.is_empty() {
         return None;
     }
-    Some(finding(
+    Some(finding_on(
+        found
+            .iter()
+            .map(|console| console_id(console.path))
+            .collect(),
         &CONSOLE,
         "A development console answers on the running app",
         Severity::High,
@@ -1991,7 +2056,9 @@ fn product_version(text: &str) -> Option<String> {
 /// Only a finding: the headers and error pages seen are not every place a version can be shown.
 fn version_disclosed(responses: &[ProbeResponse]) -> Option<Finding> {
     let mut seen: Vec<String> = Vec::new();
+    let mut named: Vec<String> = Vec::new();
     for r in responses {
+        let before = seen.len();
         for name in PRODUCT_HEADERS {
             if let Some(value) = r.header(name)
                 && value.chars().any(|c| c.is_ascii_digit())
@@ -2011,11 +2078,15 @@ fn version_disclosed(responses: &[ProbeResponse]) -> Option<Finding> {
                 seen.push(said);
             }
         }
+        if seen.len() > before {
+            named.push(r.id.clone());
+        }
     }
     if seen.is_empty() {
         return None;
     }
-    Some(finding(
+    Some(finding_on(
+        named,
         &VERSION,
         "The app says which versions it runs",
         Severity::Low,
@@ -2060,7 +2131,8 @@ fn opener_policy(responses: &[ProbeResponse]) -> Option<Finding> {
     if without.is_empty() {
         return None;
     }
-    Some(finding(
+    Some(finding_on(
+        without.iter().map(|id| (*id).to_owned()).collect(),
         &OPENER_POLICY,
         "A page does not isolate its window from others",
         Severity::Low,
@@ -2094,7 +2166,8 @@ fn csp_reporting(home: &ProbeResponse) -> Option<Finding> {
     if policy.contains("report-to") || policy.contains("report-uri") {
         return None;
     }
-    Some(finding(
+    Some(finding_on(
+        vec!["home".to_owned()],
         &CSP_REPORTING,
         "The Content-Security-Policy reports nowhere",
         Severity::Low,
@@ -2107,3 +2180,7 @@ mod tests;
 
 #[cfg(test)]
 mod quoted_tests;
+
+#[cfg(test)]
+#[path = "probes_evidence_tests.rs"]
+mod probes_evidence_tests;

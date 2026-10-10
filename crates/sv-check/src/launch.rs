@@ -372,6 +372,7 @@ fn development_server(listing: &Listing, report: &mut ConfigReport) {
 #[track_caller]
 fn dev_server_finding(file: &str, line: usize, what: &str, command: &str) -> Finding {
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -485,6 +486,7 @@ fn plain_mcp_links_in(text: &str) -> Vec<(usize, String)> {
 #[track_caller]
 fn plain_http_finding(file: &str, line: usize, address: &str) -> Finding {
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -848,6 +850,7 @@ fn mcp_finding(file: &str, line: usize, launch: &Launch) -> Finding {
         )
     };
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),

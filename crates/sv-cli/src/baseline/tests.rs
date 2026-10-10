@@ -5,6 +5,7 @@ use sv_check::{Confidence, Finding, Location, Severity};
 
 fn finding(fingerprint: &str, earlier: &[&str]) -> Finding {
     Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: fingerprint.to_owned(),
         earlier_fingerprints: earlier.iter().map(|s| (*s).to_owned()).collect(),

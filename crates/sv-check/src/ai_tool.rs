@@ -477,6 +477,7 @@ pub fn hidden_characters(listing: &Listing, report: &mut ConfigReport) {
 #[track_caller]
 fn hidden_finding(entry: &Entry, line: usize, count: usize, kinds: &[&str]) -> Finding {
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),

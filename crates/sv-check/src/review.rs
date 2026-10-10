@@ -941,6 +941,7 @@ mod tests {
 
     fn finding(rule: &str, file: &str, line: usize) -> Finding {
         Finding {
+            evidence: Vec::new(),
             rule_id: rule.into(),
             title: format!("found by {rule}"),
             severity: Severity::High,

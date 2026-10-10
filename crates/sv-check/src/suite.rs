@@ -514,6 +514,7 @@ fn beats(candidate: &NamedTest, incumbent: &NamedTest) -> bool {
 #[track_caller]
 fn mismatch(test: &NamedTest, requirement_id: &str, description: &str) -> Finding {
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),

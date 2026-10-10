@@ -21,6 +21,7 @@ fn frameworks() -> Frameworks {
 
 fn finding(rule_id: &str, requirement_ids: &[&str]) -> Finding {
     Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -179,6 +180,7 @@ fn a_finding_set_aside_as_a_false_alarm_never_leaves_its_requirement_checked() {
 /// as that module makes it: information, low confidence, and saying it does not take the credit.
 fn name_mismatch(requirement_id: &str) -> Finding {
     Finding {
+        evidence: Vec::new(),
         severity: Severity::Info,
         confidence: Confidence::Low,
         location: Location {
@@ -271,14 +273,17 @@ fn a_real_finding_still_needs_attention_beside_an_information_only_one() {
     };
     let passed = a_passing_test_for(&["V1.2.1"]);
     let tool_at_info = Finding {
+        evidence: Vec::new(),
         severity: Severity::Info,
         ..finding("semgrep.some-rule", &["V1.2.1"])
     };
     let raised = Finding {
+        evidence: Vec::new(),
         severity: Severity::Low,
         ..name_mismatch("V1.2.1")
     };
     let merged = Finding {
+        evidence: Vec::new(),
         also_reported_by: vec!["ast.sql".into()],
         ..name_mismatch("V1.2.1")
     };
