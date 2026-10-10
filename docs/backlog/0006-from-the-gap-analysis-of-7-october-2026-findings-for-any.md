@@ -117,7 +117,7 @@ listed apart, below this item.
    'checked in part'"): lists and private pages, `update` and `delete` judged by the owner's read-back, and
    *checked in part* as a status of its own. Not done: "checked in part" for checks other than V8.2.2 that rest on one
    sample, each to be read on its own.
-   **Part status:** partly done: unclear, needs a look
+   **Part status:** partly done: "checked in part" for the other checks that rest on one sample, besides V8.2.2 (read on 10 October 2026)
 5. **The coverage documents count requirements that can never be credited as "can settle".**
    (`docs/GAP-ANALYSIS.md`, 1.8.) Add a "can be credited" column to COVERAGE.md's summary, level, and chapter
    tables; label finding-only requirements "can only be found failing" in REQUIREMENTS.md; repeat the AISVS
@@ -668,7 +668,7 @@ listed apart, below this item.
    check's counts), and every report written into a report folder says, in one paragraph at the top, how many calls
    and checks there were and how the counts moved, or that nothing shows `sv` was used. It credits nothing; it can be
    turned off with `build-loop-record = false` under `[app]`, and the report then says so.
-   **Part status:** partly done: unclear, needs a look
+   **Part status:** done, 9 October 2026
 23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no
    warning and exit 0. Read it when present and exit 2 on a parse error; say plainly in its help and in the coding
    rule that the terminal command is the narrower scan.

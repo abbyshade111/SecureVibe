@@ -82,8 +82,8 @@ impl CodingRules {
     pub fn load(path: &Path) -> Result<CodingRules> {
         let text =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-        let rules: CodingRules =
-            serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
+        let rules: CodingRules = serde_json::from_str(&text)
+            .with_context(|| sv_frameworks::data::not_understood(path))?;
         for rule in &rules.rules {
             anyhow::ensure!(
                 rules.topics.iter().any(|t| t.id == rule.topic),

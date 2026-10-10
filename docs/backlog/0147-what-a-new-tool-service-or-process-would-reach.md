@@ -41,7 +41,7 @@ claimed.
    **The owner's decision, 6 October 2026: no**; V15.3.5 is not probed ("I agree with all your recommendations", 6 October 2026). A
    "too-deep" GraphQL query needs the schema, which introspection being off withholds; a
    thousand aliases of `__typename` needs none.
-   **Part status:** partly done: unclear, needs a look
+   **Part status:** done, 26 September 2026
 2. **A mock identity provider inside the fence (~10, all Level 2).** One small container — an
    OIDC provider made for tests — that the app is pointed at for the run, so the probes can
    drive a real sign-in and then replay the code, drop the `state`, reuse the `nonce`, change
@@ -228,7 +228,7 @@ claimed.
    password against Have I Been Pwned was refused by this environment's network policy, so the
    finding says "one of the 100,000 most common" rather than "breached". See DESIGN, "Two more
    passwords at sign-up".
-   **Part status:** partly done: unclear, needs a look
+   **Part status:** done, 7 October 2026
 
 Additions from session securevibe-e8, which answered the same question separately on the same
 day; the two answers are merged here rather than kept as two entries. To item 5: the alternative to

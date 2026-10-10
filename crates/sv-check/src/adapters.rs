@@ -327,8 +327,8 @@ impl Adapters {
     pub fn load(path: &Path) -> Result<Self> {
         let text =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-        let file: AdapterFile =
-            serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
+        let file: AdapterFile = serde_json::from_str(&text)
+            .with_context(|| sv_frameworks::data::not_understood(path))?;
 
         for adapter in &file.adapters {
             // The commands come from this repository rather than from the app, so this is not the

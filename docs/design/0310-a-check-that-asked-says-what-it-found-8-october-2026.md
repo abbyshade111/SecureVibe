@@ -3,7 +3,7 @@
 
 
 From the architecture assessment of 8 October 2026, item 8, its fuller form
-(`docs/backlog/0187-from-the-architecture-assessment-of-8-october-2026-the-four.md`). A check of the signed-in suite
+(`docs/backlog/done/0187-from-the-architecture-assessment-of-8-october-2026-the-four.md`). A check of the signed-in suite
 is `fn(.., out: &mut Outcome)`, and nothing made it touch `out`: four checks returned without a word, found by hand
 that day, and `asked_tests.rs` now holds the suite as a whole to naming what the correct app's run names. Nothing
 held each check.

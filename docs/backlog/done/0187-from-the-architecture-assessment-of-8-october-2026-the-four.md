@@ -1,6 +1,6 @@
 # From the architecture assessment of 8 October 2026: the four costs worth paying down
 
-**Status:** partly done: parts 8, 11 (backlog 0228's conversion read them as not done)
+**Status:** done, 9 October 2026
 
 A read-only assessment of
 `sv`'s shape (the run harness, the MCP server, the check pipeline, the test suite and CI) made after the review of
@@ -128,7 +128,7 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    once they have asked go through `asked!`, which records "asked and never answered", and stops sv-check's own tests,
    when one asked and named nothing; the 16 whose silence is their answer go through `quiet!`; a test fails on a check
    called through neither. It found one silent return (`archive_checks`, a gzip-only upload), now fixed.
-   **Part status:** partly done: unclear, needs a look
+   **Part status:** done, 8 October 2026
 9. **The stand-in protocol is defined twice**: the JS owns it (`/_sv/health`, `/_sv/mode`, `/_sv/keys/<tag>`,
    `SV-PROBE-<KIND>-<tag>`) and the Rust clients and fakes repeat it as strings; only `model_provider.rs` runs the
    real script. One `stand_in` module of constants shared by clients and fakes, and a contract test for
@@ -208,7 +208,7 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    ADR-054, Later, 9 October 2026): five files beside the two modules, the code in them unchanged, `ast.rs` from 4,584
    lines to 2,087 and `sbom.rs` from 1,560 to 739. The census of credits, which names a file and a line, read the same
    checks crediting the same requirements after the move.
-   **Part status:** partly done: unclear, needs a look
+   **Part status:** done, 9 October 2026
 12. **Smaller seams in the pipeline.** `Signature.condition` in `sv-scan` is a `String` skipped at run time when
    unknown (`sv-scan/src/lib.rs:297`), where the `Condition` enum refuses unknown names everywhere else: type it
    (ADR-015 governs both data files; one line). `not_for_tests` (`main.rs:4492-4510`) decides an applicability

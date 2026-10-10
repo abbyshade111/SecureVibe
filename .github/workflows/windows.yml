@@ -2,8 +2,10 @@
 # 9 October 2026 for Windows as well as Mac and Linux).
 #
 # `sv` had never been built on Windows. This workflow is how that is found out, so it is not required and never
-# blocks a pull request: it runs on every change to `main`, weekly, by hand, and on a pull request that changes
-# this file. Its results are written as
+# blocks a pull request: it runs on every change to `main`, every night, by hand, and on a pull request that
+# changes this file. Every night since 10 October 2026, as the owner asked, so that pull requests are not held up by
+# it and it is still run each day; a routine reads the night's results each morning and adds what failed to the
+# backlog (ADR-051, Later, 10 October 2026). Its results are written as
 # annotations (one per failing test, and one with the counts), which the GitHub API returns, so a session can read
 # them without downloading the log. A failure here is a finding to fix or to write down, never a reason to skip a
 # test: the guide keeps saying Windows is untried until this is green and someone has used it.
@@ -17,7 +19,8 @@ on:
   pull_request:
     paths: [.github/workflows/windows.yml]
   schedule:
-    - cron: "41 5 * * 2"
+    # 04:41 UTC, after the nightly Rust run at 03:17, and before the morning routine reads both.
+    - cron: "41 4 * * *"
   workflow_dispatch:
 
 permissions:
