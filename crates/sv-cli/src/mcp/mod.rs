@@ -43,6 +43,8 @@ mod build_loop_fingerprint_tests;
 #[cfg(test)]
 mod build_loop_limit_tests;
 #[cfg(test)]
+mod build_loop_names_tests;
+#[cfg(test)]
 mod build_loop_outcome_tests;
 #[cfg(test)]
 mod build_loop_tests;
@@ -283,6 +285,9 @@ pub struct Server {
     /// The apps whose record was found turned off since a call was last written down for them: each
     /// is noted once, with a line saying so (ADR-084), not once per call.
     noted_off: std::sync::Mutex<std::collections::HashSet<PathBuf>>,
+    /// What `sv` handed over that names no app (its instructions, a prompt), kept until the next
+    /// line written for an app carries it (ADR-084, decision 5).
+    handed: std::sync::Mutex<Vec<String>>,
 }
 
 /// A check of the app in the folder, with the frameworks and rules loaded, saying each stage as it
@@ -360,6 +365,7 @@ impl Server {
             client: std::sync::Mutex::new(None),
             last_outcome: std::sync::Mutex::new(None),
             noted_off: std::sync::Mutex::new(std::collections::HashSet::new()),
+            handed: std::sync::Mutex::new(Vec::new()),
         })
     }
 
@@ -486,7 +492,10 @@ impl Server {
                 Err((code, why)) => error_reply(id, code, &why),
             },
             "prompts/get" => match get_prompt(&params) {
-                Ok(result) => ok_reply(id, result),
+                Ok(result) => {
+                    self.prompt_handed(&params);
+                    ok_reply(id, result)
+                }
                 Err((code, why)) => error_reply(id, code, &why),
             },
             other => error_reply(id, -32601, &format!("no method called {other}")),
@@ -563,7 +572,7 @@ impl Server {
                 let answer = if method == "prompts/list" {
                     prompt_list()
                 } else {
-                    get_prompt(params)
+                    get_prompt(params).inspect(|_| self.prompt_handed(params))
                 };
                 match answer {
                     Ok(mut result) => {
@@ -588,7 +597,71 @@ impl Server {
     /// Writes the call down in the record of the build loop (ADR-076), for an app with a
     /// `stackvet.toml`: the time, the tool, and what a check it ran came to. Whatever goes wrong here
     /// is left unsaid: the record never changes a tool's answer.
-    fn write_down(&self, tool: &str, args: &Value, outcome: &'static str) {
+    fn write_down(&self, tool: &str, args: &Value, outcome: &'static str, asked: Vec<String>) {
+        let app_dir = self.app_dir(args).ok();
+        self.write_line(app_dir, tool, outcome, asked);
+    }
+
+    /// Notes something `sv` handed over, for the next line written for an app (ADR-084).
+    fn hand_over(&self, what: String) {
+        let mut handed = self
+            .handed
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if !handed.contains(&what) && handed.len() < crate::build_loop::MAX_NAMES {
+            handed.push(what);
+        }
+    }
+
+    /// A report file read through `resources/read`, written down for the app the report is of: the
+    /// folder above the report's, when that is an app (ADR-084, decision 5).
+    pub(super) fn report_read(&self, folder: &Path, name: &str) {
+        self.hand_over(format!("report:{name}"));
+        let app = folder
+            .parent()
+            .filter(|app| matches!(sv_manifest::locate(app), Ok(Some(_))))
+            .map(Path::to_path_buf);
+        if app.is_some() {
+            self.write_line(app, "resources/read", "ok", Vec::new());
+        }
+    }
+
+    /// The names `sv` defines that a call asked about (ADR-084, decision 3): a value one of the
+    /// tool's own properties lists as allowed, or a requirement in the frameworks. Anything else the
+    /// AI tool wrote is left out.
+    fn asked(&self, tool: &str, args: &Value) -> Vec<String> {
+        let tools = tools();
+        let Some(schema) = tools
+            .as_array()
+            .and_then(|all| all.iter().find(|t| t["name"] == tool))
+            .map(|t| &t["inputSchema"]["properties"])
+        else {
+            return Vec::new();
+        };
+        let mut out = Vec::new();
+        for (key, property) in schema.as_object().into_iter().flatten() {
+            let Some(value) = args.get(key).and_then(Value::as_str) else {
+                continue;
+            };
+            let listed = property["enum"]
+                .as_array()
+                .is_some_and(|allowed| allowed.iter().any(|a| a == value));
+            let requirement = matches!(key.as_str(), "id" | "requirement")
+                && self.loaded.frameworks.get(value).is_some();
+            if (listed || requirement) && crate::build_loop::is_name(value) {
+                out.push(value.to_owned());
+            }
+        }
+        out
+    }
+
+    fn write_line(
+        &self,
+        app_dir: Option<PathBuf>,
+        tool: &str,
+        outcome: &'static str,
+        asked: Vec<String>,
+    ) {
         let counts = self
             .last_counts
             .lock()
@@ -609,7 +682,7 @@ impl Server {
         if !self.recording {
             return;
         }
-        let Ok(app_dir) = self.app_dir(args) else {
+        let Some(app_dir) = app_dir else {
             return;
         };
         if !matches!(sv_manifest::locate(&app_dir), Ok(Some(_))) {
@@ -657,8 +730,25 @@ impl Server {
                 off: false,
                 fingerprints_cut: fingerprints.as_ref().is_some_and(|(_, cut)| *cut),
                 fingerprints: fingerprints.map(|(list, _)| list),
+                asked,
+                handed: std::mem::take(
+                    &mut *self
+                        .handed
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner),
+                ),
             },
         );
+    }
+
+    /// A prompt fetched with `prompts/get`, by the name `sv` gave it (ADR-084, decision 5).
+    fn prompt_handed(&self, params: &Value) {
+        if let Some(name) = params["name"]
+            .as_str()
+            .filter(|n| crate::build_loop::is_name(n))
+        {
+            self.hand_over(format!("prompt:{name}"));
+        }
     }
 
     fn instructions(&self) -> String {
@@ -671,7 +761,9 @@ impl Server {
     }
 
     fn initialize(&self, params: &Value) -> Value {
-        // Which AI coding tool this is, as it says, for the record of the build loop (ADR-084).
+        // Its instructions are handed over here, and which AI coding tool this is, as it says, kept
+        // for the record of the build loop (ADR-084).
+        self.hand_over("instructions".to_owned());
         let info = &params["clientInfo"];
         *self
             .client
@@ -740,13 +832,13 @@ impl Server {
             "stackvet_before" => self.before(&args, progress),
             other => {
                 // Written down by no name of the AI tool's own: `sv` keeps only names it defines.
-                self.write_down("unknown", &args, "refused");
+                self.write_down("unknown", &args, "refused", Vec::new());
                 return Err(Refusal::UnknownTool(other.to_owned()));
             }
         };
         // Every tool says it could not do its job as an error, made into the answer below.
         let outcome = if result.is_ok() { "ok" } else { "failed" };
-        self.write_down(name, &args, outcome);
+        self.write_down(name, &args, outcome, self.asked(name, &args));
         // A tool that could not do its job says so as its result, which the model reads; a protocol
         // error is for a call that was malformed, which this was not. What went wrong is `sv`'s to
         // say, but it quotes the app as often as not: a path, a line of stackvet.toml that does

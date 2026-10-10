@@ -145,6 +145,7 @@ impl Server {
         }
         let text = String::from_utf8(bytes)
             .map_err(|_| not_found("it is not text, so sv did not write it"))?;
+        self.report_read(&folder, name);
         // Read back, a report is the app's text as much as a tool's result is, and is fenced as one
         // is; the files a program parses are handed over as written (ADR-066, Later, 9 October 2026).
         let text = if fenced_when_read(name) {

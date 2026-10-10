@@ -1531,6 +1531,12 @@ pub struct BuildLoop {
     pub first_fingerprints: Option<Vec<String>>,
     #[serde(skip)]
     pub last_fingerprints: Option<Vec<String>>,
+    /// The names `sv` defines that the AI tool asked about, each once, in the order first asked
+    /// (ADR-084, decision 3), and what `sv` handed over (decision 5).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub asked: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub handed: Vec<String>,
     /// Between the first check and the last, which findings went and came (ADR-084, decision 6).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub findings_moved: Option<FindingsMoved>,
@@ -1557,6 +1563,51 @@ fn list_and(items: &[String]) -> String {
         [a, b] => format!("{a} and {b}"),
         [rest @ .., last] => format!("{}, and {last}", rest.join(", ")),
     }
+}
+
+/// What the AI tool asked about and was handed, in a sentence or two (ADR-084, decisions 3 and 5);
+/// empty when the record holds neither. Only what happened is said: a record from before this
+/// was kept cannot show what was not.
+fn handed_said(b: &BuildLoop) -> String {
+    let mut out = String::new();
+    if !b.asked.is_empty() {
+        const SHOWN: usize = 12;
+        let mut named: Vec<String> = b.asked.iter().take(SHOWN).cloned().collect();
+        if b.asked.len() > SHOWN {
+            named.push(format!("{} more", b.asked.len() - SHOWN));
+        }
+        out.push_str(&format!(" It asked sv about {}.", list_and(&named)));
+    }
+    let with = |prefix: &str| -> Vec<String> {
+        b.handed
+            .iter()
+            .filter_map(|h| h.strip_prefix(prefix).map(str::to_owned))
+            .collect()
+    };
+    let mut given = Vec::new();
+    if b.handed.iter().any(|h| h == "instructions") {
+        given.push("sv's instructions when it connected".to_owned());
+    }
+    let prompts = with("prompt:");
+    if !prompts.is_empty() {
+        given.push(format!(
+            "the prompt{} {}",
+            if prompts.len() == 1 { "" } else { "s" },
+            list_and(&prompts)
+        ));
+    }
+    let reports = with("report:");
+    if !reports.is_empty() {
+        given.push(format!(
+            "the report file{} {} to read",
+            if reports.len() == 1 { "" } else { "s" },
+            list_and(&reports)
+        ));
+    }
+    if !given.is_empty() {
+        out.push_str(&format!(" sv gave it {}.", list_and(&given)));
+    }
+    out
 }
 
 /// What the record of the build loop leaves out, said after what it shows (ADR-084): the times it
@@ -1740,6 +1791,7 @@ pub fn build_loop_line(report: &Report) -> Option<String> {
             if m.new == 1 { "was" } else { "were" },
         ));
     }
+    text.push_str(&handed_said(b));
     if !b.clients.is_empty() {
         text.push_str(&format!(
             " The AI coding tool named itself {} when it connected (its own word, not checked).",
