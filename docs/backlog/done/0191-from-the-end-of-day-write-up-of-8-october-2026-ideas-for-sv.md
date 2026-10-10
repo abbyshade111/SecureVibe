@@ -1,6 +1,6 @@
 # From the end-of-day write-up of 8 October 2026: ideas for `sv` itself
 
-**Status:** partly done: parts 3, 4, 6 (backlog 0228's conversion read the rest as begun or done)
+**Status:** done, 9 October 2026
 
 Proposed by session securevibe-review
 in the write-up the owner asked for that evening ("additional suggestions for improvements, new features, changes,
@@ -38,11 +38,11 @@ there, is item 8 of "From the architecture assessment of 8 October 2026" and is 
 3. **Fuzz the readers of untrusted input.** `cargo fuzz` targets for the JSON-RPC framing, `securevibe.toml`, the
    lockfile and SBOM readers, and the tool-output parsers, run weekly in CI; each reads what an app or a tool hands
    it, and a planted file that panics `sv` would be found here before an owner finds it. Two days to set up.
-   **Part status:** open
+   **Part status:** done, 9 October 2026
 4. **Signed releases.** The container image signed and provenance published for the binary (the SLSA generator or
    cosign), so an owner can verify that what they run is what CI built; `install.sh --locked` and the image exist.
    Half a day, and a line in the paper's threat model.
-   **Part status:** open
+   **Part status:** done, 9 October 2026
 5. **"Explain this requirement" from the report.** A person reading "V7.4.1 not assessed" needs the requirement's
    text, what `sv` would have checked, and what to do; the data files hold the first two. A command, or a column in
    `report.html`. A day.
@@ -64,7 +64,7 @@ there, is item 8 of "From the architecture assessment of 8 October 2026" and is 
    **Part status:** done, 9 October 2026
 6. **A GitHub Action wrapping the image**, so `sv report --tools` runs on each pull request of an owner's app with
    the SARIF uploaded to code scanning. Adoption more than capability; the image and the SARIF writer exist.
-   **Part status:** open
+   **Part status:** done, 9 October 2026
 
 **The owner's decision, 9 October 2026**, asked by session securevibe-e2 with a recommendation for each open choice: **yes to part 3** (fuzzing the readers of untrusted input, weekly in CI), **yes to part 4** (signed releases: the image signed and the binary's provenance published, with GitHub's own keyless signing, which costs nothing), and **yes to part 6, as recommended, after part 4** (a GitHub Action wrapping the signed image). None claimed yet.
 **The owner's word to session securevibe-e9, the same day:** "part 3 - go ahead with the fuzzing please, part 6 I'd
