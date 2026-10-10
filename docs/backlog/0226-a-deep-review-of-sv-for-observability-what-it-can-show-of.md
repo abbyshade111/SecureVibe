@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 1 items 3, 7, and 9 to 11; part 2 (9); part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 1 items 3, 7, and 11; part 2 items 13, 14, 15 (a line per outside tool and per running-app suite), and 16 to 20; part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -285,3 +285,9 @@ start time and a run id kept in `run_record` (item 12), and a line on stderr for
 terminal, with one per outside tool and per running-app suite (item 15); each with a test that fails without it. Open
 pull requests read first: #1305 and #1315 are this session's; #1310 and #1316 (session paper-facts) touch only
 documents.
+
+**Part 2, item 12 done, and item 15 partly, on 10 October 2026** (`docs/design/0345-every-page-names-its-run-and-sv-report-says-each-stage-10.md`): every page of a report and its SARIF
+name the run's start and a run id from `run_record`; `sv report` says each of ten stages on stderr as it starts,
+the old last stage split so the outside tools and the running app are stages of their own. Still open in item 15: a
+line for each outside tool and each running-app suite within their stages. Breaks: undated pages, and silent
+stages, each fail their new test.
