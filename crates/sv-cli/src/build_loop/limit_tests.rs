@@ -21,6 +21,7 @@ fn call(time: &str) -> String {
         time: time.to_owned(),
         tool: "stackvet_check".to_owned(),
         counts: Some(LoopCounts::default()),
+        ..Line::default()
     }
     .to_json()
 }

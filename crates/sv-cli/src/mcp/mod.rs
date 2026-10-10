@@ -41,6 +41,8 @@ mod build_loop_limit_tests;
 /// Protocol versions a client that opens with `initialize` can have, newest first. A client asking
 /// for one of these gets it; any other gets the newest, and decides for itself whether it can go on.
 #[cfg(test)]
+mod build_loop_outcome_tests;
+#[cfg(test)]
 mod build_loop_tests;
 mod catalog;
 mod check_text;
@@ -268,6 +270,14 @@ pub struct Server {
     /// one `sv mcp` starts, or a test asks, so the tests that serve the repository's own examples
     /// leave nothing in them.
     recording: bool,
+    /// The AI coding tool, as it named itself in `initialize`, cut short (ADR-084).
+    client: std::sync::Mutex<Option<String>>,
+    /// How the last check ended when it did not give an answer: `timed-out` or `crashed`. Set by
+    /// the check, taken when the call is written down, as `last_counts` is.
+    last_outcome: std::sync::Mutex<Option<&'static str>>,
+    /// The apps whose record was found turned off since a call was last written down for them: each
+    /// is noted once, with a line saying so (ADR-084), not once per call.
+    noted_off: std::sync::Mutex<std::collections::HashSet<PathBuf>>,
 }
 
 /// A check of the app in the folder, with the frameworks and rules loaded, saying each stage as it
@@ -341,6 +351,9 @@ impl Server {
             check: std::sync::Arc::new(assemble),
             last_counts: std::sync::Mutex::new(None),
             recording: false,
+            client: std::sync::Mutex::new(None),
+            last_outcome: std::sync::Mutex::new(None),
+            noted_off: std::sync::Mutex::new(std::collections::HashSet::new()),
         })
     }
 
@@ -569,12 +582,19 @@ impl Server {
     /// Writes the call down in the record of the build loop (ADR-076), for an app with a
     /// `stackvet.toml`: the time, the tool, and what a check it ran came to. Whatever goes wrong here
     /// is left unsaid: the record never changes a tool's answer.
-    fn write_down(&self, tool: &str, args: &Value) {
+    fn write_down(&self, tool: &str, args: &Value, outcome: &'static str) {
         let counts = self
             .last_counts
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .take();
+        // A check that gave no answer says how it ended; otherwise the answer says.
+        let outcome = self
+            .last_outcome
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+            .unwrap_or(outcome);
         if !self.recording {
             return;
         }
@@ -590,12 +610,40 @@ impl Server {
                 .map(|d| d.as_secs())
                 .unwrap_or(0),
         );
+        // Turned off: noted once, so the gap is seen as one, and nothing else written (ADR-084).
+        let mut noted = self
+            .noted_off
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if crate::build_loop::off(&app_dir) {
+            if noted.insert(app_dir.clone()) {
+                let _ = crate::build_loop::record(
+                    &app_dir,
+                    &crate::build_loop::Line {
+                        time,
+                        off: true,
+                        ..Default::default()
+                    },
+                );
+            }
+            return;
+        }
+        noted.remove(&app_dir);
+        drop(noted);
         let _ = crate::build_loop::record(
             &app_dir,
             &crate::build_loop::Line {
                 time,
                 tool: tool.to_owned(),
                 counts,
+                outcome: Some(outcome.to_owned()),
+                client: self
+                    .client
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .clone(),
+                sv: Some(env!("CARGO_PKG_VERSION").to_owned()),
+                off: false,
             },
         );
     }
@@ -610,6 +658,15 @@ impl Server {
     }
 
     fn initialize(&self, params: &Value) -> Value {
+        // Which AI coding tool this is, as it says, for the record of the build loop (ADR-084).
+        let info = &params["clientInfo"];
+        *self
+            .client
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = crate::build_loop::client_name(
+            info["name"].as_str().unwrap_or(""),
+            info["version"].as_str().unwrap_or(""),
+        );
         let asked = params.get("protocolVersion").and_then(Value::as_str);
         let version = asked
             .filter(|v| PROTOCOL_VERSIONS.contains(v))
@@ -668,9 +725,15 @@ impl Server {
             "stackvet_preflight" => self.preflight(&args),
             "stackvet_status" => self.status(&args),
             "stackvet_before" => self.before(&args, progress),
-            other => return Err(Refusal::UnknownTool(other.to_owned())),
+            other => {
+                // Written down by no name of the AI tool's own: `sv` keeps only names it defines.
+                self.write_down("unknown", &args, "refused");
+                return Err(Refusal::UnknownTool(other.to_owned()));
+            }
         };
-        self.write_down(name, &args);
+        // Every tool says it could not do its job as an error, made into the answer below.
+        let outcome = if result.is_ok() { "ok" } else { "failed" };
+        self.write_down(name, &args, outcome);
         // A tool that could not do its job says so as its result, which the model reads; a protocol
         // error is for a call that was malformed, which this was not. What went wrong is `sv`'s to
         // say, but it quotes the app as often as not: a path, a line of stackvet.toml that does

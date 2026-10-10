@@ -1503,6 +1503,69 @@ pub struct BuildLoop {
     /// it reads and seals the same.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub full: bool,
+    /// Of the calls, those that did not end with an answer (ADR-084): failed, ran out of time,
+    /// stopped on a fault in `sv`, or refused. Each left out of a report when 0, so a report written
+    /// before it reads and seals the same, as `full` is.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub failed: usize,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub timed_out: usize,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub crashed: usize,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub refused: usize,
+    /// The AI coding tools that called, each as it named itself, and the `sv`s that answered.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub clients: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub svs: Vec<String>,
+    /// How many times the record was turned off while the app was built, each a gap in it.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub turned_off: usize,
+    /// Calls this process could not write into the record, so the counts are short by them.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub unwritten: usize,
+}
+
+fn is_zero(n: &usize) -> bool {
+    *n == 0
+}
+
+/// "a", "a and b", "a, b, and c".
+fn list_and(items: &[String]) -> String {
+    match items {
+        [] => String::new(),
+        [one] => one.clone(),
+        [a, b] => format!("{a} and {b}"),
+        [rest @ .., last] => format!("{}, and {last}", rest.join(", ")),
+    }
+}
+
+/// What the record of the build loop leaves out, said after what it shows (ADR-084): the times it
+/// was turned off, and the calls that could not be written into it.
+fn loop_gaps(b: &BuildLoop) -> String {
+    let mut out = String::new();
+    match b.turned_off {
+        0 => {}
+        1 => out.push_str(
+            " The record was turned off once while the app was built (`build-loop-record = false` \
+             in stackvet.toml), so the calls made while it was off are not written down.",
+        ),
+        n => out.push_str(&format!(
+            " The record was turned off {n} times while the app was built (`build-loop-record = \
+             false` in stackvet.toml), so the calls made while it was off are not written down."
+        )),
+    }
+    match b.unwritten {
+        0 => {}
+        1 => out.push_str(
+            " One call could not be written into the record, so the counts here are short by one.",
+        ),
+        n => out.push_str(&format!(
+            " {n} calls could not be written into the record, so the counts here are short by them."
+        )),
+    }
+    out
 }
 
 /// The counts one check came to, as the record keeps them: no finding's text, only how many.
@@ -1597,11 +1660,12 @@ pub fn build_loop_line(report: &Report) -> Option<String> {
                 .to_owned(),
         );
     }
+    let gaps = loop_gaps(b);
     if b.calls == 0 {
         return Some(format!(
             "Nothing shows that sv was used while this app was built: no call from an AI coding \
              tool to sv's MCP server is recorded for it. That is not a finding. The app may have \
-             been checked at a terminal, or built before sv kept this record.{unreadable}"
+             been checked at a terminal, or built before sv kept this record.{unreadable}{gaps}"
         ));
     }
     let span = match (&b.first, &b.last) {
@@ -1625,7 +1689,37 @@ pub fn build_loop_line(report: &Report) -> Option<String> {
         (_, Some(last)) => text.push_str(&format!(" The check came to {}.", last.describe())),
         _ => {}
     }
+    let unanswered: Vec<String> = [
+        (b.failed, "failed"),
+        (b.timed_out, "ran out of time"),
+        (b.crashed, "stopped on a fault in sv"),
+        (
+            b.refused,
+            if b.refused == 1 {
+                "was refused as a tool sv does not have"
+            } else {
+                "were refused as tools sv does not have"
+            },
+        ),
+    ]
+    .iter()
+    .filter(|(n, _)| *n > 0)
+    .map(|(n, said)| format!("{n} {said}"))
+    .collect();
+    if !unanswered.is_empty() {
+        text.push_str(&format!(" Of those calls, {}.", list_and(&unanswered)));
+    }
+    if !b.clients.is_empty() {
+        text.push_str(&format!(
+            " The AI coding tool named itself {} when it connected (its own word, not checked).",
+            list_and(&b.clients)
+        ));
+    }
+    if !b.svs.is_empty() {
+        text.push_str(&format!(" It was answered by sv {}.", list_and(&b.svs)));
+    }
     text.push_str(&unreadable);
+    text.push_str(&gaps);
     if b.full {
         text.push_str(
             " The record reached its size limit, so later calls were not written down: the last \
