@@ -318,3 +318,14 @@ coding tool to have the person run quoted a Windows path in single quotes, which
 now part of a plain path, and a path that needs quoting gets double quotes. The rest were tests: two drive `sv review`
 through a Unix pseudo-terminal, which Windows does not have, and are now Unix only (one of them had passed on Windows
 on nothing); one wrote a report to a folder named with `?`, which Windows refuses.
+Twelfth Windows finding, 10 October 2026: with the eleventh's fixes in, the Windows run gave 2,731 passed and 5
+failed. One was a fault of `sv`'s, made by the eleventh finding's own fix: asked "is standard output a file" through
+the handle, Rust answers yes for a pipe too, since on Windows it counts anything that is not a folder or a link as a
+file. So `sv init` read by an AI coding tool through a pipe left the instructions out. `sv` now asks Windows itself
+(`GetFileType`), which tells a file on disk from a pipe or a console. Three were tests that expected Unix's answer:
+the quoting test still expected single quotes, the resource test still looked for the report under the name with a
+`?` it no longer writes on Windows, and the census test compared Python's output, whose lines end in `\r\n` there.
+The fifth, the stopped command's child, is not settled: the test asked Git's shell, by the shell's own number for the
+child, whether it still ran, and that number is not Windows' own. The test now takes Windows' number from the shell's
+`/proc/<n>/winpid` and asks Windows (`tasklist`), after checking that `tasklist` finds the test's own process. The
+next Windows run says whether `taskkill /T` really stops what the command started.

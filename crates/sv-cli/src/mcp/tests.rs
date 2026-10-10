@@ -1482,10 +1482,13 @@ fn the_command_to_run_names_this_sv_by_its_full_path() {
 fn a_path_with_a_space_is_quoted_so_it_still_works_as_typed() {
     let program = PathBuf::from("/Users/me/My Tools/sv");
     let text = terminal_command("/Users/me/it's here", "--run", false, Some(program));
-    assert!(
-        text.contains("`'/Users/me/My Tools/sv' report '/Users/me/it'\\''s here' --run`"),
-        "{text}"
-    );
+    // Each system's own quoting (`quoted_for`): on Windows, double quotes, and `'` is plain.
+    let typed = if cfg!(windows) {
+        "`\"/Users/me/My Tools/sv\" report \"/Users/me/it's here\" --run`"
+    } else {
+        "`'/Users/me/My Tools/sv' report '/Users/me/it'\\''s here' --run`"
+    };
+    assert!(text.contains(typed), "{text}");
 }
 
 #[test]
@@ -2319,14 +2322,12 @@ fn a_written_report_is_offered_as_resources_and_reads_back_as_written() {
 
     // Two reports, one under a name that has to be escaped to be written in a URI. Windows refuses
     // a `?` in a name, so there the name keeps the space, `#`, and `%` (backlog 0120).
-    for out in [
-        sv_scan::ecosystems::DEFAULT_REPORT_DIR,
-        if cfg!(windows) {
-            "reports/the 2nd one #1%"
-        } else {
-            "reports/the 2nd one #1?%"
-        },
-    ] {
+    let escaped = if cfg!(windows) {
+        "reports/the 2nd one #1%"
+    } else {
+        "reports/the 2nd one #1?%"
+    };
+    for out in [sv_scan::ecosystems::DEFAULT_REPORT_DIR, escaped] {
         let result = call(
             &server,
             "stackvet_write_report",
@@ -2380,7 +2381,7 @@ fn a_written_report_is_offered_as_resources_and_reads_back_as_written() {
     assert!(
         resources
             .iter()
-            .any(|r| r["name"] == "app/reports/the 2nd one #1?%/report.html"),
+            .any(|r| r["name"] == format!("app/{escaped}/report.html")),
         "{resources:#?}"
     );
 }
