@@ -501,6 +501,11 @@ folder of files it reads (`data: …/.local/share/stackvet/data`). The second ch
 should say what it read and what it found, not `Error`. If it says `command not found: sv`, step 5 has
 not taken effect: open a new terminal window, or look for the line at the end of `~/.zshrc`.
 
+Then, in your app's folder, `sv doctor` says in one line each whether everything `--run` needs is in
+place: the folder in git, `stackvet.toml` there and readable, how to start the app written in it, and
+Docker running. It writes nothing and opens no network connection, so it cannot say whether a newer
+StackVet is out.
+
 **The installed copy does not need the `stackvet` folder.** Each time StackVet runs, it reads more
 than a dozen of its own files (the security standards and its rules). The installed copy reads the ones
 the script put beside it, so moving, renaming, or deleting the folder you built it in does not stop it.

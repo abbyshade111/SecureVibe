@@ -1,6 +1,6 @@
 # Helping someone who is not technical start and keep using sv
 
-**Status:** claimed by securevibe-e2, 9 October 2026: part 3 (sv doctor) is to build; parts 1, 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
+**Status:** claimed by securevibe-e2, 9 October 2026: the MCP status tool (part 3's second half) is left; parts 1, 3 (the command), 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
 
 Asked for by the owner on 8 October 2026: "consider the best way to help someone non-technical start and use sv.
 One thought is to turn the getting started guide into a prompt so the AI tool can walk the person through the
@@ -133,3 +133,5 @@ Windows: nothing above is tried there, and every part says so until the owner de
 **Part 7 done 9 October 2026 by session securevibe-e2** (`docs/GLOSSARY.md`, linked from the guide; design entry "A glossary for the guide and the reports"). Not yet read by someone who is not technical.
 
 **Part 5 done 10 October 2026 by session securevibe-e2** (`docs/prompts/report.md`; design entry "A prompt that reads the report with the person"): `sv prompts report` prints a prompt that has the AI tool read the report with the person, starting with what was not checked, and the MCP server offers it as `read-my-report`. Not yet tried in an AI coding tool. Part 3 (`sv doctor`, narrowed) is next.
+
+**Part 3 done 10 October 2026 by session securevibe-e2**, on the command line (design entry "sv doctor: is everything ready?"): `sv doctor [PATH]` says in one line each whether the folder is in git, whether `stackvet.toml` reads and says how to start the app, and whether Docker can start it. The MCP status tool is left for a pull request of its own.

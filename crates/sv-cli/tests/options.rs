@@ -27,6 +27,7 @@ const COMMANDS: &[&str] = &[
     "dashboard",
     "history",
     "connect",
+    "doctor",
     "mcp",
 ];
 
