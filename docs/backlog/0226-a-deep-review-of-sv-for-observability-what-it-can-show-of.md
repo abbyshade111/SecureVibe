@@ -124,10 +124,10 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
    **Part status:** done, 10 October 2026
 13. **How long each part took.** Every `Instant::now()` outside tests sets a deadline and is never recorded.
     `started_ms` and `took_ms` on each `Examined` entry and each running-app step; "the slowest five" on the page.
-   **Part status:** open
+   **Part status:** claimed by stackvet-e9, 10 October 2026
 14. **What each outside tool was.** Its version line (asked, then thrown away), its arguments, its exit code, and
     its time, in `Examined` (`crates/sv-check/src/adapters.rs`). Keeping its raw output is part 3, item A.
-   **Part status:** open
+   **Part status:** claimed by stackvet-e9, 10 October 2026
 15. **Progress at a terminal.** The terminal path passes an empty progress callback, and `sv report --run --tools`
     is silent for minutes. A line per stage on stderr, with a stage per outside tool and per running-app suite.
    **Part status:** partly done: a line for each outside tool and each running-app suite within their stages
@@ -318,3 +318,9 @@ the record is read as bytes and decoded a line at a time, so a byte that is not 
 unreadable, and not the whole record; and `BuildLoop::full` says when the record reached its 4 MB limit, which the
 report turns into a sentence that the last check named is the last one written. Breaks: with the old reading put back
 and `full` never set, four of the five new tests fail.
+
+**Part 2, items 13 and 14 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue to work off
+the backlog", in branch `claude/stackvet-e9-timings`: how long each examined family and each running-app suite took,
+with the slowest named on the page (item 13), and each outside tool's version line, arguments, exit code, and time
+kept in `Examined` (item 14); each with a test that fails without it. Open pull requests read first: #1325 and #1326
+(other sessions) touch neither `crates/sv-check/src/adapters.rs` nor `Examined`.
