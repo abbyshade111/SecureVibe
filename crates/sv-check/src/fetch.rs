@@ -303,7 +303,9 @@ pub fn run(http: &mut dyn Http, section: &FetchSection, ctx: &Context) -> Outcom
                 u64::from(FOLLOW_READS) * FOLLOW_SECONDS,
                 status(&answer)
             ),
-        )),
+        )
+        // One feature and one redirect stand for no other call the backend makes (ADR-053, Later).
+        .in_part()),
         _ => say(
             "V15.3.2",
             "Whether the feature follows a redirect: it did not fetch the redirecting address, or \
@@ -516,6 +518,7 @@ mod tests {
         );
         assert_eq!(found(&o), [FETCHES_ANYWHERE.rule_id], "{:?}", o.steps);
         assert_eq!(credited(&o), [FOLLOWS_REDIRECT.rule_id]);
+        assert!(o.verified[0].in_part, "one feature is credited in part");
     }
 
     #[test]

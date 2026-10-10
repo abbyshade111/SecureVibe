@@ -554,7 +554,9 @@ fn svg_check(
                 "an SVG image carrying a script, refused at {} where an ordinary GIF was accepted",
                 upload.path
             ),
-        ));
+        )
+        // One SVG on one route (ADR-053, Later).
+        .in_part());
         return;
     }
     let Some(serves_at) = &upload.serves_at else {
@@ -647,7 +649,9 @@ fn svg_check(
                  {path} with both removed and its drawing kept (these two, not every dangerous SVG \
                  feature)"
             ),
-        ));
+        )
+        // Two dangerous parts of one SVG, not every one there is (ADR-053, Later).
+        .in_part());
     } else {
         out.not_assessed.push((
             "V1.3.4".to_owned(),
@@ -1987,6 +1991,7 @@ mod tests {
             "{}",
             credit.scope
         );
+        assert!(credit.in_part, "two parts of one SVG are credited in part");
     }
 
     #[test]
@@ -2037,6 +2042,12 @@ mod tests {
             verified_ids(&o).contains(&UPLOAD_SVG_SCRIPT.rule_id),
             "{:?}",
             o.steps
+        );
+        assert!(
+            o.verified
+                .iter()
+                .all(|v| v.check_id != UPLOAD_SVG_SCRIPT.rule_id || v.in_part),
+            "one refused SVG is credited in part"
         );
 
         // Kept, with no `serves-at` to fetch it from: nothing seen, so nothing said.

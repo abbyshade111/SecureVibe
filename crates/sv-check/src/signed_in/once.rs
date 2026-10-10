@@ -221,7 +221,9 @@ pub(super) fn once_check(
                  refused. One race, tried once",
                 once.method, once.path
             ),
-        ));
+        )
+        // One race on one action stands for none of the others (ADR-053, Later).
+        .in_part());
     }
 }
 
@@ -279,6 +281,12 @@ mod tests {
             "{:?}\n{}",
             o.steps,
             why_not(&o)
+        );
+        assert!(
+            o.verified
+                .iter()
+                .all(|v| v.check_id != DONE_TWICE.rule_id || v.in_part),
+            "one race is credited in part"
         );
         // The twenty really went, together, half from each user, and one went through.
         assert!(
