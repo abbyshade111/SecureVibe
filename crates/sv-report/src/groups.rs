@@ -79,6 +79,8 @@ mod tests {
             documented_by: Vec::new(),
             attested_by: Vec::new(),
             by_hand: Vec::new(),
+            withheld_by: Vec::new(),
+            whose_word: None,
         }
     }
 

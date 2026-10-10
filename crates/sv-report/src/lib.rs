@@ -219,6 +219,48 @@ impl RequirementLine {
         )
     }
 
+    /// Whose word the status rests on, for `report.json`, or `None` for a status that rests on a
+    /// check, a test, a finding, or nothing.
+    pub fn rests_on_whom(&self) -> Option<&'static str> {
+        let confirmed = "somebody confirming the AI coding tool's answer through sv review";
+        match self.status {
+            Status::Stated => Some("the AI coding tool"),
+            Status::Attested | Status::ByHand | Status::Documented if self.confirmed_only() => {
+                Some(confirmed)
+            }
+            Status::Attested | Status::ByHand | Status::Documented => Some("the owner"),
+            _ => None,
+        }
+    }
+
+    /// The words after the status that say why the credits behind it do or do not count (backlog
+    /// 226, part 2, item 17): on a row that needs attention, the checks and tests that passed as
+    /// well, which a finding outranks; on a row a set-aside false alarm kept from *checked*, which
+    /// one. Empty when neither applies.
+    pub fn credit_note(&self) -> String {
+        let passed: Vec<&str> = self
+            .checked_by
+            .iter()
+            .chain(&self.tested_by)
+            .map(|c| c.check_id.as_str())
+            .collect();
+        if self.status == Status::NeedsAttention && !passed.is_empty() {
+            return format!(
+                "; these passed as well and do not count, since a finding outranks every credit: {}",
+                passed.join(", ")
+            );
+        }
+        if !self.withheld_by.is_empty() && !passed.is_empty() {
+            return format!(
+                "; {} passed and does not count: {} was set aside here as a false alarm, and a \
+                 person's word that a rule was wrong does not show the protection is in place",
+                passed.join(", "),
+                self.withheld_by.join(", ")
+            );
+        }
+        String::new()
+    }
+
     /// Whose word the status rests on, for the line after the label.
     pub fn whose_word(&self) -> &'static str {
         match (self.status, self.confirmed_only()) {
@@ -265,6 +307,14 @@ pub struct RequirementLine {
     pub attested_by: Vec<CheckedBy>,
     /// The owner's record of a check made by hand, with what they saw.
     pub by_hand: Vec<CheckedBy>,
+    /// Rule ids of the false alarms set aside here that kept a check or a test from counting: why a
+    /// requirement something passed for is not *checked* (backlog 226, part 2, item 17).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub withheld_by: Vec<String>,
+    /// Whose word the status rests on, when it rests on somebody's word (`rests_on_whom`): the
+    /// owner, the AI coding tool, or somebody confirming the tool's answer.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub whose_word: Option<&'static str>,
 }
 
 /// One check that was satisfied about a requirement, and what it examined to say so.
@@ -279,6 +329,28 @@ pub struct CheckedBy {
     /// check is in part is *checked in part*, never *checked*.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub in_part: bool,
+    /// Whose word a credit from a person's word rests on (`credit_from_whom`), for a program reading
+    /// `report.json`: `attested_by` holds the owner's yes and the AI coding tool's alike (backlog
+    /// 226, part 2, item 17). `None` for a check or a test.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub whose: Option<&'static str>,
+}
+
+/// Whose word one credit of a person's word rests on: the owner's own record, the AI coding tool's
+/// answer, or somebody confirming the tool's answer through `sv review` (`confirmed_only_by`).
+pub fn credit_from_whom(tier: sv_check::Tier, check_id: &str) -> &'static str {
+    use sv_check::Tier;
+    let confirmed = match tier {
+        Tier::Attested => check_id != "design.attested",
+        Tier::ByHand => check_id == sv_check::confirm::HAND_CONFIRMED,
+        Tier::Documented => check_id == sv_check::notes::CONFIRMED,
+        _ => false,
+    };
+    match tier {
+        Tier::Stated => "the AI coding tool",
+        _ if confirmed => "somebody confirming the AI coding tool's answer through sv review",
+        _ => "the owner",
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1899,6 +1971,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             check_id: v.check_id.clone(),
             scope: v.scope.clone(),
             in_part: v.in_part,
+            whose: None,
         };
         let tested: Vec<CheckedBy> = checks
             .iter()
@@ -1944,6 +2017,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
                         check_id: v.check_id.clone(),
                         scope: format!("{}, as evidence about {counterpart}", v.scope),
                         in_part: false,
+                        whose: None,
                     });
                 }
             }
@@ -1961,6 +2035,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
                             check_id: v.check_id.clone(),
                             scope: v.scope.clone(),
                             in_part: false,
+                            whose: Some(credit_from_whom(v.tier, &v.check_id)),
                         },
                     )
                 })
@@ -1998,6 +2073,29 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             .chain(attested.iter().map(|(tier, _)| (*tier, false)))
             .collect();
         let status = status_of(!findings.is_empty(), set_aside_here, &credits);
+        // Which false alarms set aside here kept a check or a test from counting, so the row can say
+        // why it is not *checked* (backlog 226, part 2, item 17). Only when one did: a set-aside that
+        // changed nothing is not a reason for anything.
+        let withheld_by: Vec<String> = if findings.is_empty()
+            && credits.iter().any(|(tier, _)| {
+                matches!(tier, sv_check::Tier::Checked | sv_check::Tier::AppTested)
+            }) {
+            let mut rules: Vec<String> = inputs
+                .set_aside
+                .iter()
+                .filter(|s| {
+                    s.verdict == sv_check::review::FALSE_ALARM
+                        && s.finding.withholds_credit()
+                        && s.finding.requirement_ids.iter().any(|r| r == id)
+                })
+                .map(|s| s.finding.rule_id.clone())
+                .collect();
+            rules.sort();
+            rules.dedup();
+            rules
+        } else {
+            Vec::new()
+        };
         let attested_by: Vec<CheckedBy> = attested.into_iter().map(|(_, c)| c).collect();
         let (description, chapter) = describe(id);
         requirements.push(RequirementLine {
@@ -2019,7 +2117,11 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             documented_by,
             attested_by,
             by_hand,
+            withheld_by,
+            whose_word: None,
         });
+        let line = requirements.last_mut().expect("just pushed");
+        line.whose_word = line.rests_on_whom();
     }
     requirements.sort_by(|a, b| a.status.cmp(&b.status).then_with(|| a.id.cmp(&b.id)));
 

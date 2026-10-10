@@ -165,7 +165,7 @@ fn status_cell(line: &crate::RequirementLine) -> String {
         Status::NotVerified => line.status.label().to_owned(),
     };
     // Information-only findings sit beside whatever the status is, never in place of it.
-    format!("{shown}{}", line.information_note())
+    format!("{shown}{}{}", line.credit_note(), line.information_note())
 }
 
 pub fn compliance(report: &Report) -> String {
