@@ -241,6 +241,7 @@ mod tests {
         // The same banner in a file that is not a script is not a copy of the library.
         std::fs::write(dir.join("notes.md"), format!("{banner}eval(x);\n")).unwrap();
         let finding = |file: &str| Finding {
+            evidence: Vec::new(),
             rule_id: "ast.dynamic-code-execution".into(),
             title: String::new(),
             severity: crate::Severity::High,

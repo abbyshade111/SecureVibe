@@ -207,6 +207,7 @@ pub fn evaluate(
 #[track_caller]
 fn problem(check: &crate::human::HumanCheck, how: &str, on: Day, who: &str) -> Finding {
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),

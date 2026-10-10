@@ -374,6 +374,7 @@ pub fn check(listing: &Listing, report: &mut ConfigReport) {
         })
         .collect();
     report.findings.push(crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),

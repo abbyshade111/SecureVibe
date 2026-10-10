@@ -408,6 +408,7 @@ fn scan_piece(
                 continue;
             }
             out.push(crate::finding::found(Finding {
+                evidence: Vec::new(),
                 also_reported_by: Vec::new(),
                 fingerprint: String::new(),
                 earlier_fingerprints: Vec::new(),
@@ -539,6 +540,7 @@ fn url_password_findings(
             continue;
         }
         out.push(crate::finding::found(Finding {
+            evidence: Vec::new(),
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),
@@ -907,6 +909,7 @@ fn assignment_findings(
             )
         };
         out.push(crate::finding::found(Finding {
+            evidence: Vec::new(),
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),

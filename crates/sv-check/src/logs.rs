@@ -636,6 +636,7 @@ fn metadata_checks(line: &str, named: bool, out: &mut LogOutcome) {
             ),
         )),
         Some(t) => out.findings.push(crate::finding::found(Finding {
+            evidence: Vec::new(),
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),

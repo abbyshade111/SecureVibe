@@ -447,6 +447,7 @@ fn finding(
 ) -> Finding {
     let [description, impact, fix] = text;
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),

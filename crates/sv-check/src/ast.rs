@@ -976,6 +976,7 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                 });
             }
             out.push(crate::finding::found(Finding {
+                evidence: Vec::new(),
                 also_reported_by: Vec::new(),
                 fingerprint: String::new(),
                 earlier_fingerprints: Vec::new(),

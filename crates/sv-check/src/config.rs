@@ -225,6 +225,7 @@ fn secrets_file_committed(app_dir: &Path) -> Outcome {
     match committed.first() {
         None => Outcome::Passed(&["V13.3.1"]),
         Some(first) => Outcome::Failed(Box::new(crate::finding::found(Finding {
+            evidence: Vec::new(),
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),
@@ -264,6 +265,7 @@ fn secrets_file_committed(app_dir: &Path) -> Outcome {
 #[track_caller]
 fn in_history_finding(first: &str, count: usize) -> Finding {
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -497,6 +499,7 @@ fn glob_matches(pattern: &str, text: &str) -> bool {
 #[track_caller]
 fn env_not_ignored_finding(file: &str, description: String) -> Finding {
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),
@@ -633,6 +636,7 @@ fn versions_pinned(
             ),
         };
         return Outcome::Failed(Box::new(crate::finding::found(Finding {
+            evidence: Vec::new(),
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),
@@ -795,6 +799,7 @@ fn security_contact(app_dir: &Path) -> Outcome {
         return Outcome::Passed(&[]);
     }
     Outcome::Failed(Box::new(crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),

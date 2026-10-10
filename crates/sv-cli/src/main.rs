@@ -2910,6 +2910,7 @@ mod tests {
         let decided = sv_check::decisions::safe_defaults(section).decided;
         assert_eq!(decided.len(), 1, "the setup: the line is read");
         let probe = sv_check::Finding {
+            evidence: Vec::new(),
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),
@@ -2961,6 +2962,7 @@ mod tests {
     fn a_line_is_gathered_after_the_reviews_so_a_verdict_sets_aside_one_problem_only() {
         let at = |rule: &str| {
             let mut f = sv_check::Finding {
+                evidence: Vec::new(),
                 rule_id: rule.to_owned(),
                 title: rule.to_owned(),
                 severity: sv_check::Severity::High,

@@ -146,6 +146,11 @@ pub struct Finding {
     /// the owner reads it once. See `merge_same_place`.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub also_reported_by: Vec<String>,
+    /// The answers the running app gave that this finding rests on, by their ids in `seen.json`
+    /// (`home`, `cors`, `signed-in-3`): what a person checks the finding against (ADR-082, backlog
+    /// 0229, part 1). Empty for a finding that rests on no answer the running app gave.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence: Vec<String>,
     /// What an owner's review names the finding by: see `crate::review::fingerprint`. Empty until the
     /// report fills it in.
     #[serde(skip_serializing_if = "String::is_empty")]
@@ -667,6 +672,7 @@ mod tests {
             _ => "V1.2.4",
         };
         Finding {
+            evidence: Vec::new(),
             rule_id: rule.into(),
             title: format!("found by {rule}"),
             severity,
@@ -1254,6 +1260,7 @@ mod tests {
     #[test]
     fn a_whole_finding_serialises_without_the_credential() {
         let finding = Finding {
+            evidence: Vec::new(),
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),

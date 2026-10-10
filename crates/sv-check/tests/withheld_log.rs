@@ -9,6 +9,7 @@ use sv_check::{Confidence, Finding, Location, Severity};
 
 fn a_finding(rule: &str) -> Finding {
     Finding {
+        evidence: Vec::new(),
         rule_id: rule.into(),
         title: String::new(),
         severity: Severity::Low,

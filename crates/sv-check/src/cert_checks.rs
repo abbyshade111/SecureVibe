@@ -232,6 +232,7 @@ pub fn check(listing: &Listing, report: &mut ConfigReport) {
 #[track_caller]
 fn finding(file: &str, line: usize, what: &str, does: &str) -> Finding {
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),

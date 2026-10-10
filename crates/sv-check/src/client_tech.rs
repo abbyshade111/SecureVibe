@@ -254,6 +254,7 @@ fn library_finding(
     what: &str,
 ) -> Finding {
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -288,6 +289,7 @@ fn library_finding(
 #[track_caller]
 fn plug_in_finding(location: Location, what: &str) -> Finding {
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),

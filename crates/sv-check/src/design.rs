@@ -309,6 +309,7 @@ impl Who {
 #[track_caller]
 fn said_no(question: &Question, who: &Who) -> Finding {
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -361,6 +362,7 @@ fn said_no(question: &Question, who: &Who) -> Finding {
 #[track_caller]
 fn stale_pointer(question: &Question, path: &str, who: &Who) -> Finding {
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -399,6 +401,7 @@ fn stale_pointer(question: &Question, path: &str, who: &Who) -> Finding {
 #[track_caller]
 fn never_built(question: &Question, path: &str, who: &Who) -> Finding {
     crate::finding::found(Finding {
+        evidence: Vec::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
