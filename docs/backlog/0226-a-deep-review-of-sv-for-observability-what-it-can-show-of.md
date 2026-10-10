@@ -278,3 +278,10 @@ read are the ones sealed; otherwise it says what is left out and why. Breaks: th
 tests in `crates/sv-cli/tests/explain_seal.rs` that rewrite or forge a report, and not the one that reads a sealed report.
 **Part 1, item 10, overtaken:** the argument checker added earlier that day already refuses a second word for `sv explain`
 by name, and its help gives `sv explain ID [--app DIR]`; the module's doc, the one place still saying `[PATH]`, now matches.
+
+**Part 2, items 12 and 15 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue to work off
+the backlog", in branch `claude/stackvet-e9-dated-progress`: every page of a report and its SARIF carrying the run's
+start time and a run id kept in `run_record` (item 12), and a line on stderr for each stage of `sv report` at a
+terminal, with one per outside tool and per running-app suite (item 15); each with a test that fails without it. Open
+pull requests read first: #1305 and #1315 are this session's; #1310 and #1316 (session paper-facts) touch only
+documents.
