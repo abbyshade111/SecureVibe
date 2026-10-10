@@ -22,7 +22,7 @@ pub(super) fn text(result: &Value) -> &str {
 }
 
 /// `text` with every fenced piece of the app's text taken out: what `sv` says in its own words.
-fn sv_own_words(text: &str) -> String {
+pub(super) fn sv_own_words(text: &str) -> String {
     let mut out = String::new();
     let mut rest = text;
     while let Some(at) = rest.find("<app-text-") {
@@ -1788,6 +1788,7 @@ fn every_structured_result_has_the_shape_its_tool_declares() {
         ("stackvet_spec", json!({})),
         ("stackvet_plan", json!({ "path": "app" })),
         ("stackvet_preflight", json!({ "path": "app" })),
+        ("stackvet_status", json!({ "path": "app" })),
         (
             "stackvet_before",
             json!({ "path": "app", "feature": "sign-in" }),
@@ -3366,6 +3367,7 @@ fn the_protocol_basics() {
     assert_eq!(
         names,
         [
+            "stackvet_status",
             "stackvet_spec",
             "stackvet_prompts",
             "stackvet_plan",

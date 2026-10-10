@@ -402,11 +402,7 @@ fn check_args(command: &Command, args: &[String]) -> Result<()> {
 
 /// `sv --version`: the version, and the commit the build was made from, as a bundle records it.
 fn version_line() -> String {
-    format!(
-        "sv {} (commit {})",
-        env!("CARGO_PKG_VERSION"),
-        env!("SV_GIT_COMMIT")
-    )
+    sv_cli::doctor::version_line()
 }
 
 fn print_help() {

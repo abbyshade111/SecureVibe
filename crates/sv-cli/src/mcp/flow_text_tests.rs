@@ -76,7 +76,7 @@ fn pasted_prompt() -> String {
 #[test]
 fn the_instructions_name_every_tool_in_the_order_the_list_gives_them() {
     let names = listed();
-    assert_eq!(names.len(), 11, "{names:?}");
+    assert_eq!(names.len(), 12, "{names:?}");
     let said = instructions(&server());
     assert_eq!(
         named_in(&said, &names),
@@ -242,7 +242,7 @@ fn sentences(said: &str) -> impl Iterator<Item = &str> {
 #[test]
 fn nothing_an_ai_tool_reads_calls_an_app_safe_or_spells_a_word_the_british_way() {
     let read = everything_read(&server());
-    // The control: the instructions, the eleven tools' descriptions, and the spec are all there.
+    // The control: the instructions, the twelve tools' descriptions, and the spec are all there.
     assert!(read.len() > 40, "{}", read.len());
     assert!(read.iter().any(|s| s.contains("stackvet_check gives them")));
     assert!(

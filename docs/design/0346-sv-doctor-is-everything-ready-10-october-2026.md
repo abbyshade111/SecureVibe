@@ -23,9 +23,11 @@ It ends with how many things are not ready, or, when none is, that the setup is 
 about whether the app is secure. It writes nothing and opens no network connection, so it does not say whether a
 newer `sv` is out; the first line says so. The guide's install check names it.
 
-**Left for later.** The MCP status tool the recommendation also named. On 9 October 2026 the owner folded two tools
-into others to shorten the list, and a new tool changes the counts the tests and the instructions hold; it is left
-to a pull request of its own, so this one stays small.
+**And through the MCP server**, in a second pull request the same day: `stackvet_status`, listed first, gives the
+same answers, with what it quotes of the app (the folder's name and what `stackvet.toml` says) fenced (ADR-066, Later,
+10 October 2026). Inside StackVet's container it does not ask Docker. Its tests are
+`crates/sv-cli/src/mcp/status_tests.rs` (3); left unfenced, the fence test went red, and left out of the instructions,
+the order test did.
 
 **What it is worth.** Nothing, as evidence: it credits nothing. Each answer is only as good as the piece of `sv` it
 asks, which is the piece the real run uses.
