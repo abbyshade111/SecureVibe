@@ -1689,18 +1689,22 @@ fn stdout_is_a_file() -> bool {
             .and_then(|f| f.metadata())
             .is_ok_and(|m| m.is_file())
     }
-    // The same question through the handle Windows gives standard output: until 9 October 2026
-    // the answer there was always no, so `sv init > stackvet.toml` wrote the instructions into the
-    // file too, and every later command refused it (backlog 0120). A pipe or a console is no file.
+    // The same question, asked of Windows itself: until 9 October 2026 the answer there was always
+    // no, so `sv init > stackvet.toml` wrote the instructions into the file too, and every later
+    // command refused it (backlog 0120). Rust's `metadata().is_file()` will not do here, since on
+    // Windows it counts anything that is not a folder or a link as a file, a pipe included, so an AI
+    // coding tool reading through a pipe lost the instructions. `GetFileType` tells a file on disk
+    // from a pipe or a console.
     #[cfg(windows)]
     {
-        use std::os::windows::io::AsHandle;
-        std::io::stdout()
-            .as_handle()
-            .try_clone_to_owned()
-            .map(std::fs::File::from)
-            .and_then(|f| f.metadata())
-            .is_ok_and(|m| m.is_file())
+        use std::os::windows::io::AsRawHandle;
+        #[link(name = "kernel32")]
+        unsafe extern "system" {
+            fn GetFileType(handle: *mut std::ffi::c_void) -> u32;
+        }
+        const FILE_TYPE_DISK: u32 = 1;
+        // SAFETY: a plain system call that only reads the handle standard output already holds.
+        unsafe { GetFileType(std::io::stdout().as_raw_handle()) == FILE_TYPE_DISK }
     }
     #[cfg(not(any(unix, windows)))]
     {
