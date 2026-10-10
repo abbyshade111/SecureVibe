@@ -260,3 +260,10 @@ that nothing was assessed, and exits 3 (item 5); and a data file `sv` cannot rea
 gap in the report rather than a line on stderr, with the others of the same shape found while there (item 6); each
 with a test that fails without it. Open pull requests read first: #1311 changes `main.rs` far from `main()`, and
 #1310 (items 9 and 10, session paper-facts) touches only this file.
+
+**Part 2, items 12 and 15 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue to work off
+the backlog", in branch `claude/stackvet-e9-dated-progress`: every page of a report and its SARIF carrying the run's
+start time and a run id kept in `run_record` (item 12), and a line on stderr for each stage of `sv report` at a
+terminal, with one per outside tool and per running-app suite (item 15); each with a test that fails without it. Open
+pull requests read first: #1305 and #1315 are this session's; #1310 and #1316 (session paper-facts) touch only
+documents.
