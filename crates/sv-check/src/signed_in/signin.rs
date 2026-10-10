@@ -934,11 +934,15 @@ pub(super) fn logout_check(
             format!("After signing out, the old session still opened {path}."),
         ));
     } else {
-        out.verified.push(crate::Verified::new(
-            LOGOUT.rule_id,
-            LOGOUT.requirement_ids,
-            format!("the session from before sign-out, sent again to {path} and refused"),
-        ));
+        out.verified.push(
+            crate::Verified::new(
+                LOGOUT.rule_id,
+                LOGOUT.requirement_ids,
+                format!("the session from before sign-out, sent again to {path} and refused"),
+            )
+            // One session, sent again to one page, after one sign-out (ADR-053, Later).
+            .in_part(),
+        );
     }
 }
 

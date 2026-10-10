@@ -191,7 +191,9 @@ pub(super) fn flow_checks(
                 tries.len(),
                 if tries.len() == 1 { "" } else { "s" }
             ),
-        ));
+        )
+        // The one flow stackvet.toml names, not every flow the app has (ADR-053, Later).
+        .in_part());
     } else {
         out.findings.push(finding(
             &STEP_SKIPPED,
@@ -231,6 +233,8 @@ mod tests {
             "{:?}",
             o.steps
         );
+        // The one flow stackvet.toml names (ADR-053, Later).
+        assert!(credited_in_part(&o, STEP_SKIPPED.rule_id));
         assert!(
             verified_ids(&o).contains(&STEP_SKIPPED.rule_id),
             "{:?}\n{:?}",

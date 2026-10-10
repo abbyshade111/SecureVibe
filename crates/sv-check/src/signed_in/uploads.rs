@@ -268,7 +268,9 @@ pub(super) fn upload_checks(
                          ordinary one was accepted",
                         1024 + GIF_MAGIC.len() as u64
                     ),
-                ));
+                )
+                // One file on the one upload route stackvet.toml names (ADR-053, Later).
+                .in_part());
             } else {
                 out.findings.push(finding(
                     &OVERSIZED_FILE,
@@ -318,7 +320,9 @@ pub(super) fn upload_checks(
             "a file named .gif whose contents are not a GIF, refused where a real GIF of the same \
              name and shape was accepted"
                 .to_owned(),
-        ));
+        )
+        // One file on the one upload route stackvet.toml names (ADR-053, Later).
+        .in_part());
     } else {
         out.findings.push(finding(
             &CONTENT_MISMATCH,
@@ -414,14 +418,18 @@ fn traversal_check(
         }
         out.steps
             .push("sent a file named `../…` to land outside the upload folder: refused".to_owned());
-        out.verified.push(crate::Verified::new(
-            UPLOAD_PATH_TRAVERSAL.rule_id,
-            UPLOAD_PATH_TRAVERSAL.requirement_ids,
-            format!(
-                "a file named `../{base}`, refused at {} where an ordinary GIF was accepted",
-                upload.path
-            ),
-        ));
+        out.verified.push(
+            crate::Verified::new(
+                UPLOAD_PATH_TRAVERSAL.rule_id,
+                UPLOAD_PATH_TRAVERSAL.requirement_ids,
+                format!(
+                    "a file named `../{base}`, refused at {} where an ordinary GIF was accepted",
+                    upload.path
+                ),
+            )
+            // One file on the one upload route stackvet.toml names (ADR-053, Later).
+            .in_part(),
+        );
         return;
     }
     let Some(serves_at) = &upload.serves_at else {
@@ -472,7 +480,9 @@ fn traversal_check(
                  taken off its name",
                 upload.path
             ),
-        ));
+        )
+        // One file on the one upload route stackvet.toml names (ADR-053, Later).
+        .in_part());
         return;
     }
     out.not_assessed.push((
@@ -720,7 +730,9 @@ fn scan_check(
                  accepted",
                 upload.path
             ),
-        ));
+        )
+        // One file on the one upload route stackvet.toml names (ADR-053, Later).
+        .in_part());
         return;
     }
     let Some(serves_at) = &upload.serves_at else {
@@ -863,15 +875,19 @@ fn download_name_checks(
                 }
             ));
             if named {
-                out.verified.push(crate::Verified::new(
-                    "probe.download-unnamed",
-                    &["V5.4.1"],
-                    format!(
-                        "an uploaded file fetched back from {ordinary_path} came with \
+                out.verified.push(
+                    crate::Verified::new(
+                        "probe.download-unnamed",
+                        &["V5.4.1"],
+                        format!(
+                            "an uploaded file fetched back from {ordinary_path} came with \
                          `Content-Disposition: {}`, naming the file",
-                        header.trim()
-                    ),
-                ));
+                            header.trim()
+                        ),
+                    )
+                    // One file on the one upload route stackvet.toml names (ADR-053, Later).
+                    .in_part(),
+                );
             } else {
                 out.findings.push(finding(
                     &DOWNLOAD_UNNAMED,
@@ -973,7 +989,9 @@ fn download_name_checks(
                  its name kept inside the file name rather than starting a parameter",
                 header.trim()
             ),
-        ));
+        )
+        // One file on the one upload route stackvet.toml names (ADR-053, Later).
+        .in_part());
     } else {
         out.not_assessed.push((
             "V5.4.2".to_owned(),
@@ -1091,7 +1109,9 @@ fn served_upload_checks(
                         "a `.php` file uploaded and fetched back from {path}, which came back as \
                          it was written rather than as its output"
                     ),
-                ));
+                )
+                // One file on the one upload route stackvet.toml names (ADR-053, Later).
+                .in_part());
             }
         } else {
             // A page is safe when the browser is told not to render it as part of this app.
@@ -1123,11 +1143,15 @@ fn served_upload_checks(
                 if safe { how } else { "served as a page" }
             ));
             if safe {
-                out.verified.push(crate::Verified::new(
-                    UPLOAD_RENDERED.rule_id,
-                    UPLOAD_RENDERED.requirement_ids,
-                    format!("an uploaded HTML file, served back from {path} {how}"),
-                ));
+                out.verified.push(
+                    crate::Verified::new(
+                        UPLOAD_RENDERED.rule_id,
+                        UPLOAD_RENDERED.requirement_ids,
+                        format!("an uploaded HTML file, served back from {path} {how}"),
+                    )
+                    // One file on the one upload route stackvet.toml names (ADR-053, Later).
+                    .in_part(),
+                );
             } else {
                 out.findings.push(finding(
                     &UPLOAD_RENDERED,
@@ -1462,6 +1486,8 @@ mod tests {
                 "{rule} was not confirmed: {:?}",
                 o.not_assessed
             );
+            // One file on the one upload route stackvet.toml names (ADR-053, Later).
+            assert!(credited_in_part(&o, rule), "{rule}");
             assert!(
                 !rule_ids(&o).contains(&rule),
                 "{rule} also raised a finding"
@@ -1736,6 +1762,8 @@ mod tests {
                 !rule_ids(&o).contains(&rule),
                 "{rule} also raised a finding"
             );
+            // One file on the one upload route stackvet.toml names (ADR-053, Later).
+            assert!(credited_in_part(&o, rule), "{rule}");
         }
     }
 
@@ -2157,6 +2185,8 @@ mod tests {
             "{}",
             credit.scope
         );
+        // One file on the one upload route stackvet.toml names (ADR-053, Later).
+        assert!(credited_in_part(&o, UPLOAD_PATH_TRAVERSAL.rule_id));
 
         // Refused, with or without a `serves-at`: a refusal needs nothing fetched back.
         for serves_at in [Some("/files/{name}"), None] {
@@ -2173,6 +2203,7 @@ mod tests {
                 .find(|v| v.check_id == UPLOAD_PATH_TRAVERSAL.rule_id)
                 .unwrap_or_else(|| panic!("{:?}", o.steps));
             assert!(credit.scope.contains("refused"), "{}", credit.scope);
+            assert!(credited_in_part(&o, UPLOAD_PATH_TRAVERSAL.rule_id));
         }
     }
 
@@ -2297,6 +2328,8 @@ mod tests {
             "{:?}",
             o.steps
         );
+        // One file on the one upload route stackvet.toml names (ADR-053, Later).
+        assert!(credited_in_part(&o, UPLOAD_NOT_SCANNED.rule_id));
         assert!(!rule_ids(&o).contains(&UPLOAD_NOT_SCANNED.rule_id));
         assert!(
             !every_word(&o).contains(eicar().as_str()),

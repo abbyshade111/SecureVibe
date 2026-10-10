@@ -961,7 +961,9 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
                     NO_HSTS.rule_id,
                     NO_HSTS.requirement_ids,
                     format!("{} sent Strict-Transport-Security: {value}", target.https),
-                )),
+                )
+                // One answer, the front page's, not every response V3.4.1 names (ADR-053, Later).
+                .in_part()),
             }
         }
     }
@@ -994,14 +996,18 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
             .map(|c| c.split('=').next().unwrap_or("").trim())
             .collect();
         if plain.is_empty() {
-            out.verified.push(Verified::new(
-                COOKIE_WITHOUT_HOST_PREFIX.rule_id,
-                COOKIE_WITHOUT_HOST_PREFIX.requirement_ids,
-                format!(
-                    "every cookie {} set carries the `__Host-` prefix",
-                    target.https
-                ),
-            ));
+            out.verified.push(
+                Verified::new(
+                    COOKIE_WITHOUT_HOST_PREFIX.rule_id,
+                    COOKIE_WITHOUT_HOST_PREFIX.requirement_ids,
+                    format!(
+                        "every cookie {} set carries the `__Host-` prefix",
+                        target.https
+                    ),
+                )
+                // The cookies of the front page, not those a signed-in page sets (ADR-053, Later).
+                .in_part(),
+            );
         } else {
             out.findings.push(finding(
                 &COOKIE_WITHOUT_HOST_PREFIX,

@@ -230,7 +230,9 @@ pub(super) fn totp_checks(
                 } else {
                     format!("{what}, refused, where a fresh code afterwards signed in")
                 },
-            ));
+            )
+            // TOTP alone, of the codes and requests the requirement names (ADR-053, Later).
+            .in_part());
         } else {
             out.not_assessed.push((
                 id.to_owned(),
@@ -506,6 +508,8 @@ mod tests {
                 o.steps,
                 totp_named(&o, "V6.5.1")
             );
+            // TOTP alone, of what V6.5.1 names (ADR-053, Later).
+            assert!(credited_in_part(&o, TOTP_REUSED.rule_id));
         }
     }
 
@@ -570,6 +574,8 @@ mod tests {
             "{}",
             credit.scope
         );
+        // TOTP alone, of what V6.5.5 names (ADR-053, Later).
+        assert!(credited_in_part(&o, TOTP_OLD_CODE.rule_id));
     }
 
     #[test]

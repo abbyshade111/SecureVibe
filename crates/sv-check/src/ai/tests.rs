@@ -1486,6 +1486,8 @@ fn a_careful_app_is_credited_for_eight_and_the_image_is_said_as_unseen() {
         .find(|v| v.check_id == LEAKED.rule_id)
         .unwrap();
     assert!(leak.scope.contains("taken out"), "{}", leak.scope);
+    // One message, one reply, one failure each: every one of the eight in part (ADR-053, Later).
+    assert!(o.verified.iter().all(|v| v.in_part), "{:#?}", o.verified);
 }
 
 #[test]

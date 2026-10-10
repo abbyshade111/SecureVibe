@@ -274,7 +274,9 @@ pub fn evaluate(markers: &Markers, log: &str) -> LogOutcome {
                         "two sign-ins this run made — one refused, for an account that does not \
                          exist, and one accepted, by an account used for nothing else — {found}"
                     ),
-                ));
+                )
+                // Two sign-ins, not every authentication operation V16.3.1 names (ADR-053, Later).
+                .in_part());
             }
             (failed, succeeded) => {
                 // Naming which half was missing matters: an app that logs only successes is a
@@ -370,7 +372,9 @@ pub fn evaluate(markers: &Markers, log: &str) -> LogOutcome {
                  the app refused with {status}: its output carried that marker on a line that also \
                  carried {status}"
             ),
-        ));
+        )
+        // One refused request to one private page (ADR-053, Later).
+        .in_part());
     } else if let Some((_, status, _)) = found.first() {
         out.not_assessed.push((
             "V16.3.2".to_owned(),
@@ -445,7 +449,9 @@ fn format_check(line: &str, out: &mut LogOutcome) {
                     "the line recording a refused sign-in this run made is written as {format}, \
                      which log processors read without being taught"
                 ),
-            ));
+            )
+            // One log line, a refused sign-in's (ADR-053, Later).
+            .in_part());
         }
         None => {
             out.steps
@@ -561,7 +567,9 @@ fn metadata_checks(line: &str, named: bool, out: &mut LogOutcome) {
                  event (what), a timestamp `{}` (when), and a source address or path (where)",
                 t.text
             ),
-        )),
+        )
+        // One log line, a refused sign-in's, not each entry (ADR-053, Later).
+        .in_part()),
         _ => out.not_assessed.push((
             "V16.2.1".to_owned(),
             format!(
@@ -579,14 +587,18 @@ fn metadata_checks(line: &str, named: bool, out: &mut LogOutcome) {
     crate::verified::unless_credited("probe.log-line-metadata", &out.verified);
 
     match &when {
-        Some(t) if t.zoned => out.verified.push(crate::Verified::new(
-            "probe.log-timestamp-zoned",
-            &["V16.2.2"],
-            format!(
-                "the timestamp on a security event's line, `{}`, states its time zone",
-                t.text
-            ),
-        )),
+        Some(t) if t.zoned => out.verified.push(
+            crate::Verified::new(
+                "probe.log-timestamp-zoned",
+                &["V16.2.2"],
+                format!(
+                    "the timestamp on a security event's line, `{}`, states its time zone",
+                    t.text
+                ),
+            )
+            // One log line's timestamp (ADR-053, Later).
+            .in_part(),
+        ),
         Some(t) => out.findings.push(crate::finding::found(Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
@@ -661,6 +673,9 @@ time=2026-09-26T10:00:01Z level=warn event=sign-in-failed account=sv-log-nobody-
         assert!(ids(&o).contains(&"probe.log-common-format"), "{o:?}");
         assert!(o.not_assessed.is_empty(), "{:?}", o.not_assessed);
         assert!(o.findings.is_empty(), "{:?}", o.findings);
+        // A few lines, for two sign-ins and one refusal: each credit in part (ADR-053, Later).
+        assert_eq!(o.verified.len(), 5, "{:?}", o.verified);
+        assert!(o.verified.iter().all(|v| v.in_part), "{:?}", o.verified);
     }
 
     #[test]

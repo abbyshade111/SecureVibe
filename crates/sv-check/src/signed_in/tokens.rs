@@ -188,14 +188,18 @@ fn changed_token(
             ),
         ));
     } else {
-        out.verified.push(crate::Verified::new(
-            rule.rule_id,
-            rule.requirement_ids,
-            format!(
-                "the app's own sign-in token, {what}, was refused {confirm} where the real one \
+        out.verified.push(
+            crate::Verified::new(
+                rule.rule_id,
+                rule.requirement_ids,
+                format!(
+                    "the app's own sign-in token, {what}, was refused {confirm} where the real one \
                  opened it"
-            ),
-        ));
+                ),
+            )
+            // One token, changed one way, at one private page (ADR-053, Later).
+            .in_part(),
+        );
     }
 }
 
@@ -811,6 +815,11 @@ mod tests {
                 o.not_assessed,
                 o.steps
             );
+            // One token changed one way at one page is in part; its expiry stays whole, as the
+            // session timeouts do (ADR-053, Later).
+            assert!(credited_in_part(&o, APP_TOKEN_UNSIGNED.rule_id));
+            assert!(credited_in_part(&o, APP_TOKEN_ALG_NONE.rule_id));
+            assert!(credited_in_full(&o, APP_TOKEN_EXPIRED.rule_id));
             // Setup: the control was sent and opened, and the token was really waited out.
             assert!(sent.contains(&"token-real".to_owned()), "{sent:?}");
             assert!(
@@ -1426,6 +1435,8 @@ mod tests {
                 .find(|v| v.check_id == STATIC_SESSION.rule_id)
                 .unwrap_or_else(|| panic!("{what}: {:?}", o.steps));
             assert!(credit.scope.contains(what), "{}", credit.scope);
+            // Two sign-ins of one user (ADR-053, Later).
+            assert!(credited_in_part(&o, STATIC_SESSION.rule_id), "{what}");
             assert!(!found(&o).contains(&STATIC_SESSION.rule_id));
         }
         // The same value at each sign-in: found, for the cookie and for the token.

@@ -968,7 +968,9 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
             "the request the app made to its model limited how long the reply could be; that it \
              also has termination controls was not shown"
                 .to_owned(),
-        ));
+        )
+        // One request to the model, and its length limit alone (ADR-053, Later).
+        .in_part());
     } else {
         out.findings.push(finding(
             &UNBOUNDED,
@@ -1037,7 +1039,9 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
                     "held back"
                 }
             ),
-        ));
+        )
+        // One reply, the instructions alone, not the backend data C7.3.2 names (ADR-053, Later).
+        .in_part());
     } else {
         say(
             "C7.3.2",
@@ -1120,13 +1124,17 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
         .as_ref()
         .is_some_and(|r| (200..500).contains(&r.status))
     {
-        out.verified.push(crate::Verified::new(
-            UNSCREENED.rule_id,
-            UNSCREENED.requirement_ids,
-            "a textbook prompt injection, stopped before it reached the model, where a plain \
+        out.verified.push(
+            crate::Verified::new(
+                UNSCREENED.rule_id,
+                UNSCREENED.requirement_ids,
+                "a textbook prompt injection, stopped before it reached the model, where a plain \
              message got through; one well-known pattern, not every way of writing one"
-                .to_owned(),
-        ));
+                    .to_owned(),
+            )
+            // One message carrying one well-known pattern (ADR-053, Later).
+            .in_part(),
+        );
     } else {
         say(
             "C2.1.3",
@@ -1331,7 +1339,9 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
                              reached it; one well-known pattern, not every way of writing one"
                                 .to_owned()
                         },
-                    ));
+                    )
+                    // One result from one test tool (ADR-053, Later).
+                    .in_part());
                 }
             }
             agent_limit(http, &mut probe, &mut out);
@@ -1460,7 +1470,9 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
                         n + 1,
                         ctx.health
                     ),
-                ));
+                )
+                // The overall limit alone, not the per-person one C11.2.2 names (ADR-053, Later).
+                .in_part());
             }
         }
     }
@@ -1938,7 +1950,9 @@ fn record_tool_questions<F>(
                  own; one tool, one kind of record",
                 tool.name
             ),
-        ));
+        )
+        // One tool and one kind of record (ADR-053, Later).
+        .in_part());
     } else {
         say(
             format!(
@@ -2172,7 +2186,9 @@ fn judge_tool_loop(
                 seen.rounds,
                 if seen.rounds == 1 { "" } else { "s" }
             ),
-        ));
+        )
+        // Tool rounds alone, not the tokens or spending C9.1.2 names (ADR-053, Later).
+        .in_part());
     }
 }
 
@@ -2277,7 +2293,9 @@ where
                  answered {} without using it, where it shows the model's reply in the right shape",
                 status(&bad_answer)
             ),
-        )),
+        )
+        // One reply in the wrong shape, not every output (ADR-053, Later).
+        .in_part()),
     }
 }
 
@@ -2407,13 +2425,17 @@ where
             ),
         ));
     } else if failed_answer.is_some() && shown.is_empty() {
-        out.verified.push(crate::Verified::new(
-            FAILURE_HANDLED.rule_id,
-            FAILURE_HANDLED.requirement_ids,
-            "the AI service failing on one message: the app answered it without the service's \
+        out.verified.push(
+            crate::Verified::new(
+                FAILURE_HANDLED.rule_id,
+                FAILURE_HANDLED.requirement_ids,
+                "the AI service failing on one message: the app answered it without the service's \
              error or a trace, and answered the plain message after it"
-                .to_owned(),
-        ));
+                    .to_owned(),
+            )
+            // One failure of one outside service (ADR-053, Later).
+            .in_part(),
+        );
     }
     Some(failed)
 }
@@ -2580,7 +2602,9 @@ where
                  {ANSWER_WAIT} seconds ({}), without a trace, and answered a plain message after it",
                 status(&held_answer)
             ),
-        ));
+        )
+        // One message left unanswered by one outside service (ADR-053, Later).
+        .in_part());
     }
 }
 
@@ -2691,7 +2715,9 @@ fn more_questions<F>(
              the reply reached the answer with all four taken out; look-alike letters and \
              metadata were not tried"
                 .to_owned(),
-        ));
+        )
+        // One reply, not the look-alike letters or metadata C7.3.4 names (ADR-053, Later).
+        .in_part());
     } else {
         let only_direction = kinds == ["a right-to-left override"];
         out.findings.push(finding(
@@ -2765,7 +2791,9 @@ fn more_questions<F>(
              answer, where a plain reply came through; one category, through the model service's \
              own moderation endpoint"
                 .to_owned(),
-        ));
+        )
+        // One reply in one category (ADR-053, Later).
+        .in_part());
     } else {
         say(
             "C7.3.1",
@@ -3621,7 +3649,9 @@ fn session_context(markers: &LogMarkers, line: &str, out: &mut Outcome) {
                     format!("carries a `{}` field", field.copied().unwrap_or_default())
                 }
             ),
-        ));
+        )
+        // One log line, one model call's (ADR-053, Later).
+        .in_part());
     } else {
         out.not_assessed.push((
             "C12.1.1".to_owned(),
@@ -3792,7 +3822,9 @@ pub fn logged(markers: &LogMarkers, log: &str, out: &mut Outcome) {
                              the model, both token counts, the service, and the kind of call",
                             format.unwrap_or_default()
                         ),
-                    ));
+                    )
+                    // One log line, one model call's, not each entry (ADR-053, Later).
+                    .in_part());
                 } else {
                     let mut short = missing
                         .iter()
@@ -3838,7 +3870,9 @@ pub fn logged(markers: &LogMarkers, log: &str, out: &mut Outcome) {
                 "a line in the app's output recording the textbook prompt injection this run sent \
                  as one; whether anybody is alerted beyond the log was not seen"
                     .to_owned(),
-            ));
+            )
+            // One log line for one injection (ADR-053, Later).
+            .in_part());
         } else {
             say(
                 "C12.2.1",

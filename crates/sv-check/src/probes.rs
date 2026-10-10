@@ -503,22 +503,30 @@ pub fn verified(responses: &[ProbeResponse]) -> Vec<crate::Verified> {
         .collect::<Vec<_>>()
         .join(" and ");
     if !judged.is_empty() && security_headers(&judged).is_none() {
-        out.push(crate::Verified::new(
-            SECURITY_HEADERS.rule_id,
-            SECURITY_HEADERS.requirement_ids,
-            format!("the app's answers on {names}, as somebody not signed in"),
-        ));
+        out.push(
+            crate::Verified::new(
+                SECURITY_HEADERS.rule_id,
+                SECURITY_HEADERS.requirement_ids,
+                format!("the app's answers on {names}, as somebody not signed in"),
+            )
+            // One or two pages a stranger sees, not every response (ADR-053, Later).
+            .in_part(),
+        );
     }
     // Only when there was a cookie to judge. No cookie is not a correct cookie.
     let sets_a_cookie = judged
         .iter()
         .any(|p| p.headers.iter().any(|(k, _)| k == "set-cookie"));
     if sets_a_cookie && cookie_attributes(&judged).is_none() {
-        out.push(crate::Verified::new(
-            COOKIE_ATTRIBUTES.rule_id,
-            COOKIE_ATTRIBUTES.requirement_ids,
-            format!("every cookie the app set on {names}"),
-        ));
+        out.push(
+            crate::Verified::new(
+                COOKIE_ATTRIBUTES.rule_id,
+                COOKIE_ATTRIBUTES.requirement_ids,
+                format!("every cookie the app set on {names}"),
+            )
+            // The cookies of one or two pages a stranger sees (ADR-053, Later).
+            .in_part(),
+        );
     }
     if let Some(cors) = find("cors") {
         // And only when the app answered the CORS question at all. An app that sends no
@@ -526,11 +534,15 @@ pub fn verified(responses: &[ProbeResponse]) -> Vec<crate::Verified> {
         // be asked. Those read the same in a report unless this line is here.
         if cors.header("access-control-allow-origin").is_some() && reflected_origin(cors).is_none()
         {
-            out.push(crate::Verified::new(
-                CORS_ANY_ORIGIN.rule_id,
-                CORS_ANY_ORIGIN.requirement_ids,
-                "an Origin the app has never heard of".to_owned(),
-            ));
+            out.push(
+                crate::Verified::new(
+                    CORS_ANY_ORIGIN.rule_id,
+                    CORS_ANY_ORIGIN.requirement_ids,
+                    "an Origin the app has never heard of".to_owned(),
+                )
+                // One request from one foreign Origin stands for no other route (ADR-053, Later).
+                .in_part(),
+            );
         }
     }
     // ADR-056: a clean missing page is not a clean error. Credit needs an error the app was made to
@@ -556,15 +568,19 @@ pub fn verified(responses: &[ProbeResponse]) -> Vec<crate::Verified> {
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
-            out.push(crate::Verified::new(
-                ERROR_DETAIL_LEAK.rule_id,
-                if server_error {
-                    &["V13.4.2", "V16.5.1"]
-                } else {
-                    &["V16.5.1"]
-                },
-                format!("the app's error answers to a body that is not JSON, at {shown}"),
-            ));
+            out.push(
+                crate::Verified::new(
+                    ERROR_DETAIL_LEAK.rule_id,
+                    if server_error {
+                        &["V13.4.2", "V16.5.1"]
+                    } else {
+                        &["V16.5.1"]
+                    },
+                    format!("the app's error answers to a body that is not JSON, at {shown}"),
+                )
+                // One kind of error at a few routes, not every error (ADR-053, Later).
+                .in_part(),
+            );
         }
     }
     if let Some(trace) = find("trace")
@@ -586,35 +602,47 @@ pub fn verified(responses: &[ProbeResponse]) -> Vec<crate::Verified> {
         && judged.iter().any(|r| r.id == "missing")
         && content_type(&judged).is_none()
     {
-        out.push(crate::Verified::new(
-            CONTENT_TYPE.rule_id,
-            CONTENT_TYPE.requirement_ids,
-            "the app's page and its answer for a page that is not there".to_owned(),
-        ));
+        out.push(
+            crate::Verified::new(
+                CONTENT_TYPE.rule_id,
+                CONTENT_TYPE.requirement_ids,
+                "the app's page and its answer for a page that is not there".to_owned(),
+            )
+            // Two answers stand for no other response V4.1.1 names (ADR-053, Later).
+            .in_part(),
+        );
     }
     // Only over pages that start a document, and only when there was one.
     let documents = html_documents(responses);
     if !documents.is_empty() && opener_policy(responses).is_none() {
-        out.push(crate::Verified::new(
-            OPENER_POLICY.rule_id,
-            OPENER_POLICY.requirement_ids,
-            format!(
-                "{} page{} the app answered with, as somebody not signed in",
-                documents.len(),
-                if documents.len() == 1 { "" } else { "s" }
-            ),
-        ));
+        out.push(
+            crate::Verified::new(
+                OPENER_POLICY.rule_id,
+                OPENER_POLICY.requirement_ids,
+                format!(
+                    "{} page{} the app answered with, as somebody not signed in",
+                    documents.len(),
+                    if documents.len() == 1 { "" } else { "s" }
+                ),
+            )
+            // The pages a stranger sees, not every page the app renders (ADR-053, Later).
+            .in_part(),
+        );
     }
     // Only when there was a policy to read. No policy is the security-headers finding, not this.
     if let Some(home) = find("home")
         && home.header("content-security-policy").is_some()
         && csp_reporting(home).is_none()
     {
-        out.push(crate::Verified::new(
-            CSP_REPORTING.rule_id,
-            CSP_REPORTING.requirement_ids,
-            "the Content-Security-Policy on the app's answer on its health path".to_owned(),
-        ));
+        out.push(
+            crate::Verified::new(
+                CSP_REPORTING.rule_id,
+                CSP_REPORTING.requirement_ids,
+                "the Content-Security-Policy on the app's answer on its health path".to_owned(),
+            )
+            // The policy on one answer stands for no other page's (ADR-053, Later).
+            .in_part(),
+        );
     }
     // Both asked and both answered, or nothing is shown about the folder.
     if find("git-head").is_some()
@@ -970,7 +998,9 @@ pub fn evaluate_api(
                      where one with no Origin was accepted",
                     foreign.status
                 ),
-            ));
+            )
+            // One foreign handshake, on the one path stackvet.toml names (ADR-053, Later).
+            .in_part());
         }
     }
     (findings, verified, not_assessed)

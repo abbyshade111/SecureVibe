@@ -361,7 +361,9 @@ fn token_checks(
                     ""
                 }
             ),
-        ));
+        )
+        // Two or three requests, not each request C10.2.1 names (ADR-053, Later).
+        .in_part());
     } else {
         say(
             "Whether the MCP server checks an access token: one of the requests without the run's \
@@ -521,7 +523,9 @@ fn tool_checks(
                  characters long, where the same tool answered its declared arguments; one tool",
                 tool.name
             ),
-        ));
+        )
+        // One tool stands for no other the server offers (ADR-053, Later).
+        .in_part());
     } else {
         say(
             "C10.4.3",
@@ -611,7 +615,9 @@ fn tool_checks(
                          string; one tool, one argument",
                         tool.name
                     ),
-                )),
+                )
+                // One argument of one tool stands for no other schema (ADR-053, Later).
+                .in_part()),
                 Verdict::NoAnswer => say(
                     "C10.4.4",
                     format!(
@@ -881,7 +887,9 @@ fn where_from_and_session_end(
                 status(&from_page),
                 status(&rebound)
             ),
-        ));
+        )
+        // One request with each foreign header, to one endpoint (ADR-053, Later).
+        .in_part());
     }
 
     // C10.2.6: the session ended as the transport says, then used again.
@@ -969,17 +977,21 @@ fn where_from_and_session_end(
             ),
         ));
     } else if verdict(&after) == Verdict::Refused {
-        out.verified.push(crate::Verified::new(
-            SESSION_KEPT.rule_id,
-            SESSION_KEPT.requirement_ids,
-            format!(
-                "an MCP session that listed its tools, ended with DELETE ({}), and refused \
+        out.verified.push(
+            crate::Verified::new(
+                SESSION_KEPT.rule_id,
+                SESSION_KEPT.requirement_ids,
+                format!(
+                    "an MCP session that listed its tools, ended with DELETE ({}), and refused \
                  afterwards ({}); this is the session ID, and files or caches it left behind were \
                  not visible",
-                status(&ended),
-                status(&after)
-            ),
-        ));
+                    status(&ended),
+                    status(&after)
+                ),
+            )
+            // One session's ID, not every artifact a session leaves (ADR-053, Later).
+            .in_part(),
+        );
     } else {
         say(
             "C10.2.6",
@@ -1258,6 +1270,8 @@ mod tests {
                 "{:?}",
                 o.steps
             );
+            // One request with each foreign header, and one session (ADR-053, Later).
+            assert!(o.verified.iter().all(|v| v.in_part), "{:?}", o.verified);
             // The setup: the foreign Host was sent in place of the app's, and the session id was
             // carried on the requests after the first.
             let rebound = server
@@ -1384,6 +1398,14 @@ mod tests {
                 "{} {:?}",
                 rule.rule_id,
                 o.steps
+            );
+            // A few requests, one tool, one argument (ADR-053, Later).
+            assert!(
+                o.verified
+                    .iter()
+                    .all(|v| v.check_id != rule.rule_id || v.in_part),
+                "{}",
+                rule.rule_id
             );
         }
         // C10.4.5 is only ever a finding: a refusal is said.

@@ -244,7 +244,9 @@ pub(super) fn admin_checks(
                 "{refused_and_confirmed} admin page{}, refused to an ordinary user and opened by the admin",
                 if refused_and_confirmed == 1 { "" } else { "s" }
             ),
-        ));
+        )
+        // Each admin page listed is asked; one judged is one sample (ADR-053, Later).
+        .in_part_if(refused_and_confirmed == 1));
     }
 }
 

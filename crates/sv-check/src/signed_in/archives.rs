@@ -576,15 +576,19 @@ pub(super) fn archive_checks(
                 &archive.what,
                 out,
             ) {
-                out.verified.push(crate::Verified::new(
-                    ARCHIVE_UNCHECKED.rule_id,
-                    ARCHIVE_UNCHECKED.requirement_ids,
-                    format!(
-                        "{}, refused where an ordinary {f} and an ordinary file after it were \
+                out.verified.push(
+                    crate::Verified::new(
+                        ARCHIVE_UNCHECKED.rule_id,
+                        ARCHIVE_UNCHECKED.requirement_ids,
+                        format!(
+                            "{}, refused where an ordinary {f} and an ordinary file after it were \
                          accepted",
-                        lower_first(&archive.what)
-                    ),
-                ));
+                            lower_first(&archive.what)
+                        ),
+                    )
+                    // One archive on the one upload route stackvet.toml names (ADR-053, Later).
+                    .in_part(),
+                );
             }
         }
     }
@@ -714,6 +718,8 @@ mod tests {
             "{c:?}"
         );
         assert!(found(&o).is_empty() && unassessed(&o).is_empty());
+        // Archives on the one upload route stackvet.toml names (ADR-053, Later).
+        assert!(credited_in_part(&o, ARCHIVE_UNCHECKED.rule_id));
         assert!(
             o.steps
                 .iter()

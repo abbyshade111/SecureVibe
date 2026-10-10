@@ -555,6 +555,8 @@ fn both_pages_with_the_headers_are_credited_and_named() {
         .find(|v| v.check_id == COOKIE_ATTRIBUTES.rule_id)
         .expect("cookies credited");
     assert!(cookies.scope.contains("the root page"), "{}", cookies.scope);
+    // Two pages a stranger sees are one sample of the app's responses (ADR-053, Later).
+    assert!(credit.in_part && cookies.in_part, "{credit:?} {cookies:?}");
 }
 
 #[test]
@@ -568,6 +570,10 @@ fn an_app_that_names_its_own_origin_is_credited_and_one_that_says_nothing_is_not
         "",
     );
     assert!(!ids(&evaluate(std::slice::from_ref(&fixed))).contains(&CORS_ANY_ORIGIN.rule_id));
+    assert!(credited_in_part(
+        std::slice::from_ref(&fixed),
+        CORS_ANY_ORIGIN.rule_id
+    ));
     assert!(verified_ids(&[fixed]).contains(&CORS_ANY_ORIGIN.rule_id.to_owned()));
     // An app that sends no Access-Control-Allow-Origin was not asked the question.
     let silent = response("cors", 200, &[], "");
@@ -664,6 +670,7 @@ fn an_error_answer_is_credited_only_when_the_app_was_made_to_give_one() {
         .unwrap()
         .scope;
     assert!(scope.contains("`POST /login` (500)"), "{scope}");
+    assert!(credited_in_part(&answers, ERROR_DETAIL_LEAK.rule_id));
 
     // A trace in the error answer is a finding, and credits nothing.
     let leaking = [
@@ -842,6 +849,10 @@ fn content_types_are_credited_only_when_both_answers_had_one() {
             .any(|v| v.check_id == "probe.content-type")
     };
     assert!(credited(&[good_home(), not_found()]));
+    assert!(credited_in_part(
+        &[good_home(), not_found()],
+        "probe.content-type"
+    ));
     // One answer judged is not the app's responses judged.
     assert!(!credited(&[good_home()]));
 }
@@ -1234,6 +1245,11 @@ fn a_websocket_is_judged_only_when_a_plain_handshake_upgrades() {
         v.iter()
             .any(|x| x.check_id == "probe.websocket-origin-unchecked")
     );
+    // One handshake on one path (ADR-053, Later).
+    assert!(
+        v.iter()
+            .all(|x| x.check_id != "probe.websocket-origin-unchecked" || x.in_part)
+    );
 
     // An endpoint that upgrades nothing: a refused foreign handshake means nothing.
     let (f, v, na) = evaluate_api(
@@ -1370,6 +1386,15 @@ fn verified_ids(responses: &[ProbeResponse]) -> Vec<String> {
         .into_iter()
         .map(|v| v.check_id)
         .collect()
+}
+
+/// Whether `rule_id` was credited, and every credit it gave is in part (ADR-053, Later).
+fn credited_in_part(responses: &[ProbeResponse], rule_id: &str) -> bool {
+    let credits: Vec<crate::Verified> = verified(responses)
+        .into_iter()
+        .filter(|v| v.check_id == rule_id)
+        .collect();
+    !credits.is_empty() && credits.iter().all(|v| v.in_part)
 }
 
 /// The start of Werkzeug 3.1.9's console page, as `render_console_html` writes it, with its
@@ -1902,6 +1927,10 @@ fn a_page_without_an_opener_policy_is_found_and_one_with_it_credited() {
         "same-origin-allow-popups".into(),
     ));
     assert!(evaluate(&[popups.clone()]).is_empty());
+    assert!(credited_in_part(
+        std::slice::from_ref(&popups),
+        OPENER_POLICY.rule_id
+    ));
     assert!(verified_ids(&[popups]).contains(&OPENER_POLICY.rule_id.to_owned()));
 }
 
@@ -1938,6 +1967,7 @@ fn a_policy_that_reports_nowhere_is_found_and_one_that_reports_credited() {
         assert!(!verified_ids(&[home]).contains(&CSP_REPORTING.rule_id.to_owned()));
     }
     assert!(verified_ids(&[good_home()]).contains(&CSP_REPORTING.rule_id.to_owned()));
+    assert!(credited_in_part(&[good_home()], CSP_REPORTING.rule_id));
 }
 
 #[test]

@@ -1814,7 +1814,9 @@ fn run_checks(
                     )
                 }
             ),
-        ));
+        )
+        // Each private page listed is asked; one listed is one sample (ADR-053, Later).
+        .in_part_if(users.private.len() == 1));
     }
 
     // 2a. The same private pages, as nobody but naming A in a header a proxy would add. Here,
@@ -2361,6 +2363,8 @@ mod email_role_tests;
 #[cfg(test)]
 mod fake_app;
 #[cfg(test)]
+mod in_part_tests;
+#[cfg(test)]
 mod in_turn_tests;
 #[cfg(test)]
 mod owner_field_tests;
@@ -2444,6 +2448,23 @@ mod tests {
                 o.not_assessed
             );
         }
+        // One sample each (ADR-053, Later): the one private page and the one admin page `users`
+        // lists, one sign-in, one session, one cross-site request. Every admin action listed is
+        // tried, so that credit stays whole.
+        for id in [
+            PRIVATE_PAGE.rule_id,
+            SESSION_COOKIE.rule_id,
+            SESSION_RENEWAL.rule_id,
+            ADMIN_PAGE.rule_id,
+            FORGERY.rule_id,
+            LOGOUT.rule_id,
+            PRIVATE_PAGE_CACHING.rule_id,
+            SIGN_OUT_LINK.rule_id,
+            SESSION_TOKEN_UNVERIFIED.rule_id,
+        ] {
+            assert!(credited_in_part(&o, id), "{id}: {:#?}", o.verified);
+        }
+        assert!(credited_in_full(&o, ADMIN_ACTION.rule_id), "{:#?}", o.verified);
     }
 
     #[test]

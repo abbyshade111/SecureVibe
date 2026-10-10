@@ -2964,3 +2964,16 @@ pub(super) fn rule_ids(o: &Outcome) -> Vec<&str> {
 pub(super) fn verified_ids(o: &Outcome) -> Vec<&str> {
     o.verified.iter().map(|v| v.check_id.as_str()).collect()
 }
+
+/// Whether `id` was credited, and every credit it gave rests on part of what its requirement asks
+/// (ADR-053, Later). False when it was not credited at all, so it never passes by default.
+pub(super) fn credited_in_part(o: &Outcome, id: &str) -> bool {
+    let mut credits = o.verified.iter().filter(|v| v.check_id == id).peekable();
+    credits.peek().is_some() && credits.all(|v| v.in_part)
+}
+
+/// Whether `id` was credited in full, none of its credits in part.
+pub(super) fn credited_in_full(o: &Outcome, id: &str) -> bool {
+    let mut credits = o.verified.iter().filter(|v| v.check_id == id).peekable();
+    credits.peek().is_some() && credits.all(|v| !v.in_part)
+}

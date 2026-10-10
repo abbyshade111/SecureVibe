@@ -230,7 +230,9 @@ fn judge_breached(accepted: bool, control_accepted: bool, evidence: &str, out: &
                 "`{BREACHED}`, seen in breaches {seen} and not among the 3000 most \
                  common, refused at sign-up where a random password of the same shape was accepted"
             ),
-        )),
+        )
+        // Sign-up alone, not the password change V6.2.12 also names (ADR-053, Later).
+        .in_part()),
         (false, false, Ok(_)) => out.not_assessed.push((
             "V6.2.12".to_owned(),
             format!(
@@ -417,7 +419,9 @@ pub(super) fn password_checks(
                  password of the same length and kinds of character was accepted",
                 named(&all)
             ),
-        )),
+        )
+        // Sign-up alone, not the password change V6.2.4 also names (ADR-053, Later).
+        .in_part()),
         (false, false) => out.not_assessed.push((
             "V6.2.4".to_owned(),
             format!(
@@ -1115,7 +1119,9 @@ pub(super) fn change_email_check(
              change with the right one took",
             change.path
         ),
-    ));
+    )
+    // The email address alone, not phone, MFA, or recovery details (ADR-053, Later).
+    .in_part());
 }
 
 /// V7.4.3: whether a second session of the account still opened a private page after the password
@@ -1123,14 +1129,18 @@ pub(super) fn change_email_check(
 /// the change.
 fn sessions_after_change(open_after: Option<bool>, path: &str, out: &mut Outcome) {
     match open_after {
-        Some(false) => out.verified.push(crate::Verified::new(
-            CHANGE_ENDS_SESSIONS.rule_id,
-            CHANGE_ENDS_SESSIONS.requirement_ids,
-            format!(
-                "a second session of the account, open just before the password was changed \
+        Some(false) => out.verified.push(
+            crate::Verified::new(
+                CHANGE_ENDS_SESSIONS.rule_id,
+                CHANGE_ENDS_SESSIONS.requirement_ids,
+                format!(
+                    "a second session of the account, open just before the password was changed \
                  through {path}, and shut just after"
-            ),
-        )),
+                ),
+            )
+            // A password change alone, not the reset or MFA change V7.4.3 names (ADR-053, Later).
+            .in_part(),
+        ),
         Some(true) => out.not_assessed.push((
             "V7.4.3".to_owned(),
             format!(
@@ -1155,11 +1165,15 @@ fn sessions_after_change(open_after: Option<bool>, path: &str, out: &mut Outcome
 /// (emails before, emails after), or `None` when the run has no mail server to read.
 fn email_after_change(mail: Option<(usize, usize)>, path: &str, out: &mut Outcome) {
     match mail {
-        Some((before, after)) if after > before => out.verified.push(crate::Verified::new(
-            CHANGE_NOTIFIED.rule_id,
-            CHANGE_NOTIFIED.requirement_ids,
-            format!("an email to the account holder after a password change through {path}"),
-        )),
+        Some((before, after)) if after > before => out.verified.push(
+            crate::Verified::new(
+                CHANGE_NOTIFIED.rule_id,
+                CHANGE_NOTIFIED.requirement_ids,
+                format!("an email to the account holder after a password change through {path}"),
+            )
+            // A password change alone, not the reset or email change V6.3.7 names (ADR-053, Later).
+            .in_part(),
+        ),
         Some(_) => out.not_assessed.push((
             "V6.3.7".to_owned(),
             format!(
@@ -1583,7 +1597,9 @@ pub(super) fn delete_account_check(
                  refused afterwards, and the account's password no longer signed in",
                 delete.path
             ),
-        ));
+        )
+        // An account deleted, not one disabled, which V7.4.2 also names (ADR-053, Later).
+        .in_part());
     }
 }
 
@@ -1608,6 +1624,21 @@ mod tests {
             CONTEXT_WORD_PASSWORD.rule_id,
         ] {
             assert!(verified_ids(&o).contains(&id), "{id}: {:?}", o.steps);
+        }
+        // Sign-up alone, where V6.2.4 and V6.2.12 also name a password change, is in part; the
+        // password policy and the forms named are whole (ADR-053, Later).
+        for id in [COMMON_PASSWORD.rule_id, BREACHED_PASSWORD.rule_id] {
+            assert!(credited_in_part(&o, id), "{id}");
+        }
+        for id in [
+            SHORT_PASSWORD.rule_id,
+            COMPOSITION_RULES.rule_id,
+            ALTERED_PASSWORD.rule_id,
+            LONG_PASSWORD.rule_id,
+            UNMASKED_PASSWORD.rule_id,
+            CONTEXT_WORD_PASSWORD.rule_id,
+        ] {
+            assert!(credited_in_full(&o, id), "{id}");
         }
         // These can only ever find something; a clean answer is credited with nothing.
         for id in [
@@ -1869,6 +1900,8 @@ mod tests {
             "{:?}",
             o.steps
         );
+        // The email address alone, of what V7.5.1 names (ADR-053, Later).
+        assert!(credited_in_part(&o, EMAIL_CHANGE_WITHOUT_PASSWORD.rule_id));
         // The control really ran: the new address signed in.
         assert!(
             o.steps
@@ -2009,6 +2042,8 @@ mod tests {
             o.steps,
             o.not_assessed
         );
+        // An account deleted, not one disabled (ADR-053, Later).
+        assert!(credited_in_part(&o, SESSIONS_SURVIVE_DELETION.rule_id));
         let o = run_signing_up(Flaws {
             deletion_keeps_sessions: true,
             ..Default::default()
@@ -2640,6 +2675,8 @@ mod tests {
         );
         // The email is its own question, answered as before.
         assert!(verified_ids(&o).contains(&CHANGE_NOTIFIED.rule_id));
+        // A password change alone, of what V6.3.7 names (ADR-053, Later).
+        assert!(credited_in_part(&o, CHANGE_NOTIFIED.rule_id));
     }
 
     #[test]
@@ -2654,6 +2691,8 @@ mod tests {
         assert_eq!(why.len(), 1, "{:?}", o.not_assessed);
         assert!(why[0].contains("No email reached"), "{}", why[0]);
         assert!(verified_ids(&o).contains(&CHANGE_ENDS_SESSIONS.rule_id));
+        // A password change alone, of what V7.4.3 names (ADR-053, Later).
+        assert!(credited_in_part(&o, CHANGE_ENDS_SESSIONS.rule_id));
     }
 
     /// The fake app with no mail server to read.

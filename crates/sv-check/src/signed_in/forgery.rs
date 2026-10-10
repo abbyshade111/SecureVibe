@@ -99,7 +99,9 @@ pub(super) fn forgery_check(
             "a request that creates a record, sent with a signed-in user's cookies from another \
              origin and without a token, and refused"
                 .to_owned(),
-        ));
+        )
+        // One request, the one creating the `owned` record (ADR-053, Later).
+        .in_part());
     }
 }
 
@@ -365,7 +367,9 @@ pub(super) fn simple_request_check(
                  three",
                 owned.create.path
             ),
-        ));
+        )
+        // One request, the one creating the `owned` record (ADR-053, Later).
+        .in_part());
     } else {
         out.not_assessed.push((
             ID.to_owned(),
@@ -636,6 +640,8 @@ mod tests {
     #[test]
     fn a_json_api_that_takes_json_alone_is_credited_for_the_preflight_it_relies_on() {
         let o = run_against(Flaws::default(), &with_json_api());
+        // One request, the one creating the `owned` record (ADR-053, Later).
+        assert!(credited_in_part(&o, SIMPLE_REQUEST.rule_id));
         assert!(
             verified_ids(&o).contains(&SIMPLE_REQUEST.rule_id),
             "{:?}\n{:?}",
@@ -769,6 +775,8 @@ mod tests {
     fn a_private_socket_that_checks_the_origin_is_credited() {
         let o = ws_run(Flaws::default());
         assert!(origin_credited(&o), "{:?}", o.steps);
+        // One handshake from one foreign site (ADR-053, Later).
+        assert!(credited_in_part(&o, WS_FOREIGN_ORIGIN.rule_id));
         assert!(!origin_found(&o));
         assert!(
             o.steps

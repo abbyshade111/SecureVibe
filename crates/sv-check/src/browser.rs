@@ -746,15 +746,19 @@ fn sign_out_visible(users: &UsersSection, visits: &[(&str, Value)], out: &mut Ou
             ),
         ));
     } else if seen == visits.len() {
-        out.verified.push(crate::Verified::new(
-            HIDDEN_SIGN_OUT.rule_id,
-            HIDDEN_SIGN_OUT.requirement_ids,
-            format!(
-                "{seen} private page{}, each drawn in a real browser with a sign-out control a \
+        out.verified.push(
+            crate::Verified::new(
+                HIDDEN_SIGN_OUT.rule_id,
+                HIDDEN_SIGN_OUT.requirement_ids,
+                format!(
+                    "{seen} private page{}, each drawn in a real browser with a sign-out control a \
                  person can see",
-                if seen == 1 { "" } else { "s" }
-            ),
-        ));
+                    if seen == 1 { "" } else { "s" }
+                ),
+            )
+            // Each private page listed is drawn; one drawn is one sample (ADR-053, Later).
+            .in_part_if(visits.len() == 1),
+        );
     }
 }
 
@@ -855,7 +859,9 @@ fn text_shown_as_text(
                 "{what}, typed into {form} in a real browser, shown on {place} as the text typed, \
                  neither run nor made part of the page"
             ),
-        )),
+        )
+        // One form and one page it shows on, not every place text is shown (ADR-053, Later).
+        .in_part()),
         (_, _, _, true) => not_assessed(
             out,
             format!(
@@ -1045,16 +1051,20 @@ pub(crate) fn sign_out_check(
             ),
         );
     } else {
-        out.verified.push(crate::Verified::new(
-            KEPT_AFTER_SIGN_OUT.rule_id,
-            KEPT_AFTER_SIGN_OUT.requirement_ids,
-            format!(
-                "{} item{} the app kept in the browser's storage while signed in on {private}, \
+        out.verified.push(
+            crate::Verified::new(
+                KEPT_AFTER_SIGN_OUT.rule_id,
+                KEPT_AFTER_SIGN_OUT.requirement_ids,
+                format!(
+                    "{} item{} the app kept in the browser's storage while signed in on {private}, \
                  every one gone after signing out with its own control",
-                theirs.len(),
-                if theirs.len() == 1 { "" } else { "s" }
-            ),
-        ));
+                    theirs.len(),
+                    if theirs.len() == 1 { "" } else { "s" }
+                ),
+            )
+            // One private page and one sign-out, not every way a session ends (ADR-053, Later).
+            .in_part(),
+        );
     }
 }
 
@@ -1063,6 +1073,8 @@ mod tests {
     use super::*;
     use crate::probes::{ProbeRequest, ProbeResponse};
     use sv_manifest::RequestTemplate;
+
+    mod in_part_tests;
 
     /// How the fake browser's app behaves.
     #[derive(Clone, Copy)]
@@ -1334,6 +1346,8 @@ mod tests {
         let (o, jobs) = run_sign_out(App::default());
         assert!(o.findings.is_empty(), "{:?}", o.findings);
         assert_eq!(credited(&o), vec![KEPT_AFTER_SIGN_OUT.rule_id]);
+        // One private page and one sign-out (ADR-053, Later).
+        assert!(o.verified.iter().all(|v| v.in_part), "{:?}", o.verified);
         // The anonymous look comes before any cookie, and the job starts with none.
         assert_eq!(jobs[0].actions[0], Action::Goto("/login".into()));
         assert!(
@@ -1516,6 +1530,10 @@ mod tests {
             credited(&o),
             vec![HIDDEN_SIGN_OUT.rule_id, TEXT_AS_MARKUP.rule_id]
         );
+        // One form is one sample; both private pages `users` lists were drawn (ADR-053, Later).
+        for v in &o.verified {
+            assert_eq!(v.in_part, v.check_id == TEXT_AS_MARKUP.rule_id, "{v:?}");
+        }
     }
 
     #[test]

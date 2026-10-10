@@ -123,6 +123,11 @@ fn a_well_set_up_site_is_credited_for_each_thing_it_got_right() {
             "{want} was not credited: {checked:?}"
         );
     }
+    // The front page's one answer and its cookies, in part; the transport, in full (ADR-053, Later).
+    for v in &out.verified {
+        let one_answer = [NO_HSTS.rule_id, COOKIE_WITHOUT_HOST_PREFIX.rule_id];
+        assert_eq!(v.in_part, one_answer.contains(&v.check_id.as_str()), "{v:?}");
+    }
 }
 
 #[test]

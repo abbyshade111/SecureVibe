@@ -404,14 +404,18 @@ pub(super) fn invented_session_check(
             ),
         ));
     } else {
-        out.verified.push(crate::Verified::new(
-            SESSION_TOKEN_UNVERIFIED.rule_id,
-            SESSION_TOKEN_UNVERIFIED.requirement_ids,
-            format!(
-                "{altered}, set at sign-in, given made-up values {same_length} with the app's \
+        out.verified.push(
+            crate::Verified::new(
+                SESSION_TOKEN_UNVERIFIED.rule_id,
+                SESSION_TOKEN_UNVERIFIED.requirement_ids,
+                format!(
+                    "{altered}, set at sign-in, given made-up values {same_length} with the app's \
                  other cookies kept, refused {confirm}, where the real session had just opened it"
-            ),
-        ));
+                ),
+            )
+            // One session, altered, at one private page (ADR-053, Later).
+            .in_part(),
+        );
     }
 }
 
@@ -523,7 +527,9 @@ pub(super) fn websocket_session_checks(
                 "WebSocket handshakes to {path} with no session and with a made-up one, refused \
                  where the signed-in session's was accepted"
             ),
-        ));
+        )
+        // Handshakes to the one WebSocket path stackvet.toml names (ADR-053, Later).
+        .in_part());
     } else {
         // A session carried some other way than a cookie cannot be made up here, and a refusal
         // with none at all is half the answer.
@@ -570,7 +576,9 @@ pub(super) fn websocket_session_checks(
                 "a signed-in WebSocket handshake to {path} from a site the app has never heard of, \
                  refused ({status}) where the same handshake with no Origin was accepted"
             ),
-        )),
+        )
+        // One foreign handshake, on the one path stackvet.toml names (ADR-053, Later).
+        .in_part()),
         None => say(
             "V4.4.2",
             format!(
@@ -743,7 +751,9 @@ pub(super) fn clear_site_data_check(
                  throw away what it had kept",
                 header.trim()
             ),
-        ));
+        )
+        // One sign-out, not every way a session ends (ADR-053, Later).
+        .in_part());
     } else {
         out.not_assessed.push((
             "V14.3.1".to_owned(),
@@ -925,15 +935,19 @@ pub(super) fn private_page_checks(
         if opened.len() == 1 { "" } else { "s" }
     ));
     if stored.is_empty() {
-        out.verified.push(crate::Verified::new(
-            PRIVATE_PAGE_CACHING.rule_id,
-            PRIVATE_PAGE_CACHING.requirement_ids,
-            format!(
-                "{} private page{}, each sending Cache-Control: no-store to a signed-in user",
-                opened.len(),
-                if opened.len() == 1 { "" } else { "s" }
-            ),
-        ));
+        out.verified.push(
+            crate::Verified::new(
+                PRIVATE_PAGE_CACHING.rule_id,
+                PRIVATE_PAGE_CACHING.requirement_ids,
+                format!(
+                    "{} private page{}, each sending Cache-Control: no-store to a signed-in user",
+                    opened.len(),
+                    if opened.len() == 1 { "" } else { "s" }
+                ),
+            )
+            // Each private page listed is asked; one opened is one sample (ADR-053, Later).
+            .in_part_if(opened.len() == 1),
+        );
     } else {
         out.findings.push(finding(
             &PRIVATE_PAGE_CACHING,
@@ -954,15 +968,19 @@ pub(super) fn private_page_checks(
         if opened.len() == 1 { "" } else { "s" }
     ));
     if without_headers.is_empty() {
-        out.verified.push(crate::Verified::new(
-            PRIVATE_PAGE_HEADERS.rule_id,
-            PRIVATE_PAGE_HEADERS.requirement_ids,
-            format!(
-                "{} private page{}, each sending the four headers to a signed-in user",
-                opened.len(),
-                if opened.len() == 1 { "" } else { "s" }
-            ),
-        ));
+        out.verified.push(
+            crate::Verified::new(
+                PRIVATE_PAGE_HEADERS.rule_id,
+                PRIVATE_PAGE_HEADERS.requirement_ids,
+                format!(
+                    "{} private page{}, each sending the four headers to a signed-in user",
+                    opened.len(),
+                    if opened.len() == 1 { "" } else { "s" }
+                ),
+            )
+            // Each private page listed is asked; one opened is one sample (ADR-053, Later).
+            .in_part_if(opened.len() == 1),
+        );
     } else {
         out.findings.push(finding(
             &PRIVATE_PAGE_HEADERS,
@@ -1017,15 +1035,19 @@ pub(super) fn private_page_checks(
         if opened.len() == 1 { "" } else { "s" }
     ));
     if without_link.is_empty() {
-        out.verified.push(crate::Verified::new(
-            SIGN_OUT_LINK.rule_id,
-            SIGN_OUT_LINK.requirement_ids,
-            format!(
-                "{} private page{}, each carrying a link or form pointing at {logout}",
-                opened.len(),
-                if opened.len() == 1 { "" } else { "s" }
-            ),
-        ));
+        out.verified.push(
+            crate::Verified::new(
+                SIGN_OUT_LINK.rule_id,
+                SIGN_OUT_LINK.requirement_ids,
+                format!(
+                    "{} private page{}, each carrying a link or form pointing at {logout}",
+                    opened.len(),
+                    if opened.len() == 1 { "" } else { "s" }
+                ),
+            )
+            // Each private page listed is asked; one opened is one sample (ADR-053, Later).
+            .in_part_if(opened.len() == 1),
+        );
     } else {
         out.findings.push(finding(
             &SIGN_OUT_LINK,
@@ -1264,7 +1286,9 @@ fn static_session_check(
                 .join(" and "),
             confirm.unwrap_or_default()
         ),
-    ));
+    )
+    // Two sign-ins of one user (ADR-053, Later).
+    .in_part());
 }
 
 pub(super) fn session_checks(
@@ -1373,11 +1397,15 @@ pub(super) fn session_checks(
         }
     }
     if problems.is_empty() {
-        out.verified.push(crate::Verified::new(
-            SESSION_COOKIE.rule_id,
-            SESSION_COOKIE.requirement_ids,
-            "every cookie the app set when a test user signed in".to_owned(),
-        ));
+        out.verified.push(
+            crate::Verified::new(
+                SESSION_COOKIE.rule_id,
+                SESSION_COOKIE.requirement_ids,
+                "every cookie the app set when a test user signed in".to_owned(),
+            )
+            // The cookies of one sign-in, not every cookie the app sets (ADR-053, Later).
+            .in_part(),
+        );
     } else {
         out.findings.push(finding(
             &SESSION_COOKIE,
@@ -1398,11 +1426,15 @@ pub(super) fn session_checks(
         .map(|c| c.name.as_str())
         .collect();
     if kept.is_empty() {
-        out.verified.push(crate::Verified::new(
-            SESSION_RENEWAL.rule_id,
-            SESSION_RENEWAL.requirement_ids,
-            "a sign-in by a test user, compared with the cookies given before it".to_owned(),
-        ));
+        out.verified.push(
+            crate::Verified::new(
+                SESSION_RENEWAL.rule_id,
+                SESSION_RENEWAL.requirement_ids,
+                "a sign-in by a test user, compared with the cookies given before it".to_owned(),
+            )
+            // One sign-in, not re-authentication (ADR-053, Later).
+            .in_part(),
+        );
     } else {
         out.findings.push(finding(
             &SESSION_RENEWAL,
@@ -1574,6 +1606,8 @@ mod tests {
             "{:?}",
             with.not_assessed
         );
+        // One sign-out, not every way a session ends (ADR-053, Later).
+        assert!(credited_in_part(&with, "probe.clear-site-data"));
 
         let without = run_against(Flaws::default(), &users());
         assert!(!verified_ids(&without).contains(&"probe.clear-site-data"));
@@ -2022,6 +2056,8 @@ mod tests {
         let correct = run_against(Flaws::default(), &users());
         assert!(!rule_ids(&correct).contains(&PRIVATE_PAGE_HEADERS.rule_id));
         assert!(verified_ids(&correct).contains(&PRIVATE_PAGE_HEADERS.rule_id));
+        // `users` lists one private page: one sample (ADR-053, Later).
+        assert!(credited_in_part(&correct, PRIVATE_PAGE_HEADERS.rule_id));
         assert!(
             correct
                 .steps
@@ -2759,6 +2795,8 @@ mod tests {
             "{:?}",
             o.steps
         );
+        // Handshakes to the one path stackvet.toml names (ADR-053, Later).
+        assert!(credited_in_part(&o, WS_WITHOUT_SESSION.rule_id));
         assert!(!verified_ids(&o).contains(&WS_AFTER_SIGN_OUT.rule_id));
         let steps = o.steps.join("\n");
         for step in [

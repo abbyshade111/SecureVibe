@@ -94,6 +94,12 @@ impl Verified {
         self
     }
 
+    /// The same credit, in part when `one` says it rests on a single sample: a check that asks
+    /// every page the owner lists is in part only when one page was there to ask (ADR-053, Later).
+    pub fn in_part_if(self, one: bool) -> Self {
+        if one { self.in_part() } else { self }
+    }
+
     /// The same credit, resting on `tier`'s word rather than a check of `sv`'s own.
     pub fn resting_on(mut self, tier: Tier) -> Self {
         self.tier = tier;
