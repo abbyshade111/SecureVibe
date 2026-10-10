@@ -703,6 +703,22 @@ pub struct RunRecord {
     pub started_unix_ms: u64,
     /// The SHA-256 of `stackvet.toml`'s bytes as this run read them, in lowercase hex.
     pub securevibe_toml_sha256: String,
+    /// Twelve hex digits naming this run, on every page of its report and in its SARIF, so pages
+    /// read apart can be told to be of one run (backlog 226, part 2, item 12). Empty in a record
+    /// made before it, and then left out.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub run_id: String,
+}
+
+impl RunRecord {
+    /// "2026-10-10T00:01:02Z, run 1a2b3c4d5e6f", for the line at the top of each page.
+    pub fn describe(&self) -> String {
+        if self.run_id.is_empty() {
+            self.started.clone()
+        } else {
+            format!("{}, run {}", self.started, self.run_id)
+        }
+    }
 }
 
 fn default_manifest_file() -> String {

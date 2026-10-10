@@ -152,6 +152,7 @@ fn run() -> Result<i32> {
             }
             Ok(exit::CLEAN)
         }
+        "doctor" => finished(cmd_doctor(rest)),
         "mcp" => finished(mcp::cmd_mcp(rest)),
         other => unreachable!("{other} is in COMMANDS and has no arm"),
     }
@@ -322,6 +323,13 @@ const COMMANDS: &[Command] = &[
         flags: &[],
         valued: &["--docker", "--user", "--folder"],
         help: "  sv connect TOOL [--docker PATH] [--user UID:GID] [--folder DIR]\n                     print the settings that connect an AI coding tool (claude, vscode,\n                     or cursor) to `sv` for this folder, the paths already filled in;\n                     --docker PATH (where docker is, from `which docker`) for the\n                     container, --user UID:GID on Linux; writes nothing\n",
+    },
+    Command {
+        name: "doctor",
+        word: Some("PATH"),
+        flags: &[],
+        valued: &[],
+        help: "  sv doctor [PATH]   is everything ready? which sv this is, whether the folder is in\n                     git, whether stackvet.toml reads and says how to start the app, and\n                     whether Docker can start it; opens no network connection, writes nothing\n",
     },
     Command {
         name: "mcp",
@@ -1730,6 +1738,25 @@ fn stdout_is_a_file() -> bool {
     }
 }
 
+/// `sv doctor [PATH]`: is everything ready (`sv_cli::doctor`).
+fn cmd_doctor(args: &[String]) -> Result<()> {
+    let app_dir = args
+        .first()
+        .map_or_else(|| PathBuf::from("."), PathBuf::from);
+    anyhow::ensure!(app_dir.is_dir(), "{} is not a folder", app_dir.display());
+    let version = version_line();
+    let backend = || sv_run::detect().map(|_| ());
+    let asked = sv_cli::doctor::Asked {
+        version: &version,
+        data: sv_frameworks::data::dir(),
+        in_container: sv_cli::connect::in_a_container(),
+        backend: &backend,
+    };
+    let lines = sv_cli::doctor::answers(&app_dir, &asked);
+    print!("{}", sv_cli::doctor::text(&app_dir, &lines));
+    Ok(())
+}
+
 /// `sv dashboard`: one page for several apps, from their reports (`sv_report::dashboard`; ADR-057).
 ///
 /// It writes one file, only where it is told, and never over a file it did not make: not a link,
@@ -2494,7 +2521,9 @@ fn cmd_report(args: &[String]) -> Result<i32> {
         elsewhere,
         false,
         || {
-            let mut report = assemble_report(
+            // Each stage as it starts, on stderr, so a long run is seen to be moving and the
+            // report on stdout is left alone (backlog 226, part 2, item 15).
+            let mut report = assemble_report_saying(
                 &app_dir,
                 &ReportOptions::asked_of(
                     "`sv report`",
@@ -2504,6 +2533,7 @@ fn cmd_report(args: &[String]) -> Result<i32> {
                     advisories_dir,
                 ),
                 &loaded,
+                &|n, name| eprintln!("{}", sv_cli::assemble::stage_line(n, name)),
             )?;
             if let Some(b) = &baseline {
                 b.same_app(&report.app_name)?;

@@ -213,7 +213,7 @@ fn check_user(user: &str) -> Result<()> {
 }
 
 /// Docker marks every container with `/.dockerenv`.
-fn in_a_container() -> bool {
+pub fn in_a_container() -> bool {
     Path::new("/.dockerenv").exists() || std::env::var_os("SV_CONNECT_IN_CONTAINER").is_some()
 }
 
