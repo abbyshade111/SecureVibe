@@ -237,13 +237,7 @@ impl ContainerRecord {
         if let Some(made) = &self.network_made {
             said.push(format!("Its fenced network was made {made}."));
         }
-        if !self.not_removed.is_empty() {
-            said.push(format!(
-                "When the run ended, these could not be removed: {}. `docker rm -f <name>` removes \
-                 a container, and `docker network rm <name>` a network.",
-                self.not_removed.join("; ")
-            ));
-        }
+        said.extend(not_removed_sentence(&self.not_removed));
         if !self.volumes_kept.is_empty() {
             let names = self.volumes_kept.join(" ");
             said.push(format!(
@@ -272,6 +266,18 @@ impl ContainerRecord {
     }
 }
 
+/// What could not be removed when a run ended, each with what Docker said, and how to remove it, in
+/// one sentence: `None` when everything went. A finished run and a failed one say it alike.
+fn not_removed_sentence(not_removed: &[String]) -> Option<String> {
+    (!not_removed.is_empty()).then(|| {
+        format!(
+            "When the run ended, these could not be removed: {}. `docker rm -f <name>` removes a \
+             container, and `docker network rm <name>` a network.",
+            not_removed.join("; ")
+        )
+    })
+}
+
 /// A run that could not be finished, and what it removed from this computer before it failed.
 ///
 /// A run removes what an earlier, killed run left behind before it starts anything (`cleanup`).
@@ -282,15 +288,20 @@ pub struct RunFailed {
     pub reason: CannotRun,
     /// As `RunOutcome::left_over_removed`.
     pub left_over_removed: Vec<String>,
+    /// What the failed run's own teardown could not remove, as `ContainerRecord::not_removed`
+    /// (backlog 226, part 2, item 18): until 10 October 2026 a failed run dropped it unsaid.
+    pub not_removed: Vec<String>,
 }
 
 impl RunFailed {
-    /// Why the run failed, and then what it removed first, when it removed anything.
+    /// Why the run failed, then what it removed first, when it removed anything, and then what it
+    /// could not remove of its own.
     pub fn explain(&self) -> String {
-        match cleanup::removed_sentence(&self.left_over_removed) {
-            Some(removed) => format!("{} {removed}", self.reason.explain()),
-            None => self.reason.explain(),
-        }
+        std::iter::once(self.reason.explain())
+            .chain(cleanup::removed_sentence(&self.left_over_removed))
+            .chain(not_removed_sentence(&self.not_removed))
+            .collect::<Vec<_>>()
+            .join(" ")
     }
 }
 

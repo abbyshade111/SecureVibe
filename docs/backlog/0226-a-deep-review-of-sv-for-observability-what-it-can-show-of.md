@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 2 items 13 (a time on each running-app step), 15 (a line per outside tool and per running-app suite), 18 (what a failed run could not remove), and 20 (ids and a reason code on each gap); part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 2 items 13 (a time on each running-app step), 15 (a line per outside tool and per running-app suite), and 20 (ids and a reason code on each gap); part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -153,7 +153,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
     the app's exit code and out-of-memory flag on that path, the seconds to healthy, how the fence was made
     (`made_with`, now shown only on failure), teardown errors (now `let _`), and that a download volume was kept, its
     name and how to remove it. ADR-052 names the old label `securevibe.deps`; the code uses `stackvet.deps`.
-   **Part status:** claimed by securevibe-e2, 10 October 2026
+   **Part status:** done, 10 October 2026
 19. **The MCP server's errors.** It keeps no record of an error it returns; one stderr line per error (tool and
     kind, no app text), which the AI tool's own log usually keeps.
    **Part status:** done, 10 October 2026
@@ -371,6 +371,11 @@ with the teardown's answer dropped, or the old wording, a test fails.
 "continue to work through and pick up new items", in branch `claude/securevibe-e2-failed-left`: what a run that
 failed could not remove, said in the failure as a finished run says it (`RunFailed`), where today the teardown's answer is dropped
 on every failing path; with a test that fails without it.
+
+**Part 2, item 18 done on 10 October 2026** (`docs/design/0360-what-a-run-that-failed-could-not-remove-10-october-2026.md`): a run that failed says what its own teardown could not
+remove, with what Docker said and the command to remove it, in the same sentence a finished run uses
+(`RunFailed::not_removed`). Breaks: with the answer dropped, the list left empty, or the sentence left out, the new
+test fails.
 
 **Part 2, item 20 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue", in branch
 `claude/stackvet-e9-obs-20`: a version catalog that does not parse said as not understood, among the package lists

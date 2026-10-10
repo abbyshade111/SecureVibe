@@ -129,6 +129,10 @@ pub struct DockerBackend {
     /// The first request that found the sidecar gone, when one did: the request's id and what
     /// Docker said. Every request after it reads as "no answer", and the run says why.
     sidecar_lost: std::sync::Mutex<Option<String>>,
+    /// What the teardown of the last run that failed could not remove, each with what Docker said:
+    /// that teardown runs as the run unwinds (`Teardown`'s drop), after the run's own answer is
+    /// gone, so it is kept here for the failure to say (backlog 226, part 2, item 18).
+    left_behind: std::sync::Mutex<Vec<String>>,
 }
 
 /// The label naming the one run a container or network belongs to. The owner label says which
@@ -151,6 +155,7 @@ impl DockerBackend {
             run: std::sync::Mutex::new(None),
             clock_offset: OnceLock::new(),
             sidecar_lost: std::sync::Mutex::new(None),
+            left_behind: std::sync::Mutex::new(Vec::new()),
         }
     }
 
@@ -372,10 +377,18 @@ impl Backend for DockerBackend {
         // First, and outside the run proper, so that a run that then fails still says what it
         // removed.
         let left_over_removed = self.remove_leftovers();
+        if let Ok(mut left) = self.left_behind.lock() {
+            left.clear();
+        }
         self.run_after_cleanup(plan, probes, left_over_removed.clone())
             .map_err(|reason| RunFailed {
                 reason,
                 left_over_removed,
+                not_removed: self
+                    .left_behind
+                    .lock()
+                    .map(|mut left| std::mem::take(&mut *left))
+                    .unwrap_or_default(),
             })
     }
 }
@@ -2049,9 +2062,14 @@ impl Teardown<'_> {
 }
 
 impl Drop for Teardown<'_> {
+    /// The teardown of a run that ended early, on a failure or a panic: what it could not remove is
+    /// kept on the backend for the failure to say.
     fn drop(&mut self) {
         if !self.done {
-            self.remove();
+            let left = self.remove();
+            if let Ok(mut kept) = self.backend.left_behind.lock() {
+                *kept = left;
+            }
         }
     }
 }
@@ -2288,6 +2306,7 @@ mod tests {
             run: std::sync::Mutex::new(None),
             clock_offset: OnceLock::new(),
             sidecar_lost: std::sync::Mutex::new(None),
+            left_behind: std::sync::Mutex::new(Vec::new()),
         };
         let err = backend.available().unwrap_err();
         match err {
