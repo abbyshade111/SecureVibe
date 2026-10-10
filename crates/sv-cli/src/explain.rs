@@ -1,4 +1,4 @@
-//! `sv explain ID [PATH]`: one requirement, explained at the terminal (backlog item "From the
+//! `sv explain ID [--app DIR]`: one requirement, explained at the terminal (backlog item "From the
 //! end-of-day write-up of 8 October 2026: ideas for `sv` itself", part 5).
 //!
 //! A person reading "V7.4.1 not verified" in a report needs three things the report does not put in one
@@ -155,6 +155,20 @@ fn from_report(report: &Value, id: &str, checks: &[CheckLine]) -> String {
     out
 }
 
+/// Whether the report read as `bytes` from `dir` is one `sv` can show it wrote on this computer and
+/// nothing has changed since: its folder's seal holds (`report_seal::proven`, what the MCP server asks
+/// before it offers a report, ADR-034), and the bytes read are the ones sealed, so a file swapped
+/// after the check is not taken for the sealed one. Why not otherwise (backlog 0226, part 1, item 9:
+/// `sv explain` repeated any `report.json` in the folder, which the AI coding tool can write).
+fn sealed_as_read(dir: &Path, bytes: &[u8]) -> std::result::Result<(), String> {
+    let sealed = crate::report_seal::proven(dir)?;
+    match sealed.get("report.json") {
+        Some(digest) if *digest == crate::bundle::sha256(bytes) => Ok(()),
+        Some(_) => Err("its report.json changed after it was sealed".to_owned()),
+        None => Err("its seal does not cover report.json".to_owned()),
+    }
+}
+
 /// The whole explanation of `id`, with what `report` (an app's last `report.json`) said about it
 /// when one is given.
 pub fn explain(
@@ -257,23 +271,39 @@ pub fn command(id: &str, app: Option<&Path>) -> Result<String> {
     let prompts = sv_check::prompts::Prompts::load_all(&[&paths[0], &paths[1]])?;
     let human =
         sv_check::human::HumanChecks::load(&sv_frameworks::data::file("human-checks.json"))?;
-    let report = match app {
-        None => None,
+    let (report, unproven) = match app {
+        None => (None, None),
         Some(app) => {
-            let path = sv_scan::ecosystems::default_report_dir_in(app).join("report.json");
-            let text = std::fs::read_to_string(&path).with_context(|| {
+            let dir = sv_scan::ecosystems::default_report_dir_in(app);
+            let path = dir.join("report.json");
+            let bytes = std::fs::read(&path).with_context(|| {
                 format!(
                     "reading {}: no report there yet; `sv report {}` writes one",
                     path.display(),
                     app.display()
                 )
             })?;
-            Some(
-                serde_json::from_str::<Value>(&text)
-                    .with_context(|| format!("parsing {}", path.display()))?,
-            )
+            match sealed_as_read(&dir, &bytes) {
+                Ok(()) => (
+                    Some(
+                        serde_json::from_slice::<Value>(&bytes)
+                            .with_context(|| format!("parsing {}", path.display()))?,
+                    ),
+                    None,
+                ),
+                Err(why) => (None, Some((path, why))),
+            }
         }
     };
+    if let Some((path, why)) = unproven {
+        let mut out = explain(&frameworks, &reach, &rules, &prompts, &human, id, None)?;
+        out.push_str(&format!(
+            "\nWhat {} says is left out: sv cannot show it wrote that report ({why}), and a report \
+             anything else wrote is not repeated as sv's. `sv report` on the app writes one it can.\n",
+            path.display()
+        ));
+        return Ok(out);
+    }
     explain(
         &frameworks,
         &reach,

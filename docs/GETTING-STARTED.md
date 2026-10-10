@@ -310,7 +310,9 @@ packages does not start, and everything that needs it running is *not assessed*.
 
 **Where the report is.** When your AI tool writes the report (`stackvet_write_report`), or you run
 `sv report`, it goes in a folder named `stackvet-report` inside the app's folder. Open `report.html` in
-a browser; `compliance.md` and `security.md` say the same in plain text for your AI tool.
+a browser; `compliance.md` and `security.md` say the same in plain text for your AI tool. To have your AI tool
+read it with you, starting with what was not checked, give it [the report prompt](prompts/report.md) (not yet tried
+in an AI tool).
 
 Each requirement in it has one of these words, strongest first:
 
@@ -331,7 +333,7 @@ If you later run StackVet in an automatic check (CI) whenever the code changes, 
 says what happened. 0: it finished. 2: some check could not run, such as a file it could not read or a
 language it does not read, so that run left part of the app unchecked. 3: StackVet itself failed (an
 option it does not know, a folder that is not there, a `stackvet.toml` it cannot read, or, for `sv report`,
-none at all), so there is no result at all. 1 comes only from `sv audit` (a
+none at all, or a fault in StackVet itself), so there is no result at all. 1 comes only from `sv audit` (a
 known vulnerability) or when you ask for it: `sv check . --fail-on attention:high` stops the check when
 anything high or critical is found. Without `--fail-on`, findings alone never fail it. The README says
 exactly what each number covers.

@@ -10,7 +10,8 @@
 //!   `sv run`: the app could not be started, or never answered, so nothing about it running was
 //!   checked (the owner's decision, 6 October 2026).
 //! - 3: `sv` itself failed: no stackvet.toml, a manifest it cannot read, a folder that is not
-//!   there, an option it does not know. Nothing about the app is known from such a run.
+//!   there, an option it does not know, or a fault in `sv` (a panic, which `main` catches rather than
+//!   letting it end with Rust's 101). Nothing about the app is known from such a run.
 //!
 //! 1 outranks 2, and 3 is never combined with anything: a run that failed produced no result to rank.
 //! Ctrl-C keeps 130, the usual code for it.

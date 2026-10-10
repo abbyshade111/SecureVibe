@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 1 items 3, 5 to 7, and 9 to 11; part 2 items 13, 14, 15 (a line per outside tool and per running-app suite), and 16 to 20; part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 1 items 3, 7, and 11; part 2 items 13, 14, 15 (a line per outside tool and per running-app suite), and 16 to 20; part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -260,6 +260,24 @@ that nothing was assessed, and exits 3 (item 5); and a data file `sv` cannot rea
 gap in the report rather than a line on stderr, with the others of the same shape found while there (item 6); each
 with a test that fails without it. Open pull requests read first: #1311 changes `main.rs` far from `main()`, and
 #1310 (items 9 and 10, session paper-facts) touches only this file.
+
+**Part 1, items 5 and 6 done the same day** (`docs/design/0345-a-crash-in-sv-ends-as-sv-s-failure-and-an-unreadable-hints.md`): a panic now ends as `sv`'s own failure, exit 3, with what and
+where and that nothing was assessed, after the unwinding has cleaned up; other threads keep Rust's line, so `sv mcp`
+surviving a check thread is not reported as `sv` failing. An unreadable `level-hints.json` is a gap in the report
+rather than a line on stderr; no other data file in the report's path fails silently. Breaks: without the catch, and
+without the gap, each new test fails.
+
+**Part 1, items 9 and 10 claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please do"), in
+branch `claude/explain-seal-and-path`: `sv explain` checking a report's seal before repeating it, and saying when it
+is not shown to be `sv`'s (item 9); and `sv explain ID PATH` taking the path as the app, as its own documentation
+says (item 10). Open pull requests and recent branches read first: session stackvet-e9 holds items 3, 4, 7, and 8,
+and none touches `crates/sv-cli/src/explain.rs`.
+
+**Part 1, item 9 done the same day:** `sv explain --app` repeats a report only when its folder's seal holds and the bytes it
+read are the ones sealed; otherwise it says what is left out and why. Breaks: the seal check turned off failed the two
+tests in `crates/sv-cli/tests/explain_seal.rs` that rewrite or forge a report, and not the one that reads a sealed report.
+**Part 1, item 10, overtaken:** the argument checker added earlier that day already refuses a second word for `sv explain`
+by name, and its help gives `sv explain ID [--app DIR]`; the module's doc, the one place still saying `[PATH]`, now matches.
 
 **Part 2, items 12 and 15 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue to work off
 the backlog", in branch `claude/stackvet-e9-dated-progress`: every page of a report and its SARIF carrying the run's
