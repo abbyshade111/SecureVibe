@@ -25,6 +25,7 @@ fn outcome() -> RunOutcome {
         liveness: Vec::new(),
         sidecar_lost: None,
         installed: Vec::new(),
+        container: Default::default(),
     }
 }
 

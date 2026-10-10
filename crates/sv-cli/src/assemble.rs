@@ -850,6 +850,11 @@ fn running_app(
                 ) {
                     note.push_str(&format!(" {removed}"));
                 }
+                if let (Some(note), Some(container)) =
+                    (run_note.as_mut(), outcome.container.sentences())
+                {
+                    note.push_str(&format!(" {container}"));
+                }
                 if let (Some(note), Some(weaker)) =
                     (run_note.as_mut(), sv_run::weakening_note(&plan.start))
                 {

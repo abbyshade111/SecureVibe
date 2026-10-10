@@ -68,6 +68,10 @@ pub enum CannotRun {
         /// Whether its output shows it stopped with an error, which `detail` quotes. Then the error
         /// is the cause, and a guess about where it listens would only crowd it.
         crashed: bool,
+        /// How it ended, when it stopped of its own accord before answering: its exit code, and
+        /// whether it was killed for using more memory than it was given (backlog 226, part 2,
+        /// item 18). `waited_seconds` is then how long after it started that was.
+        exited: Option<Exited>,
     },
     /// The app's folder has files on this computer and arrived empty in the container: the
     /// container backend cannot see it. Colima shares only the home folder by default, and Docker
@@ -129,10 +133,28 @@ impl CannotRun {
                 detail,
                 loopback,
                 crashed,
+                exited,
             } => format!(
-                "The app started but never answered on its health path within {waited_seconds}s. \
-                 {detail} {} This is reported as not assessed rather than as a failure: an app that \
-                 will not start under `sv` has not been shown to be insecure.",
+                "{} {detail} {} This is reported as not assessed rather than as a failure: an app \
+                 that will not start under `sv` has not been shown to be insecure.",
+                match exited {
+                    Some(Exited {
+                        code,
+                        out_of_memory: true,
+                    }) => format!(
+                        "The app stopped {waited_seconds}s after it started, killed for using more \
+                         memory than the container was given (exit code {code}), and never \
+                         answered on its health path."
+                    ),
+                    Some(Exited { code, .. }) => format!(
+                        "The app stopped {waited_seconds}s after it started, with exit code \
+                         {code}, and never answered on its health path."
+                    ),
+                    None => format!(
+                        "The app started but never answered on its health path within \
+                         {waited_seconds}s."
+                    ),
+                },
                 if detail.contains("Read-only file system") {
                     "The app tried to write outside the places it may: while `sv` runs it, its \
                      file system is read-only apart from /tmp, so keep its data under /tmp."
@@ -177,6 +199,75 @@ impl CannotRun {
                  not started, so everything that needs it running is reported as not assessed."
             ),
         }
+    }
+}
+
+/// How an app that stopped of its own accord ended (`CannotRun::NeverReady`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Exited {
+    pub code: i64,
+    pub out_of_memory: bool,
+}
+
+/// What happened to a run's containers beyond the questions it asked (backlog 226, part 2, item
+/// 18): how long the app took to answer, how its network was made, what could not be removed at the
+/// end, and which download volumes were kept for the next run.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ContainerRecord {
+    /// Seconds from the app's start to its first answer on the health path.
+    pub ready_after_seconds: Option<u64>,
+    /// How the fenced network was made, as "with `<option>`" or why it was made plain internal.
+    pub network_made: Option<String>,
+    /// What could not be removed when the run ended, each with what Docker said.
+    pub not_removed: Vec<String>,
+    /// The download volumes kept for the next run with the same files (ADR-052).
+    pub volumes_kept: Vec<String>,
+}
+
+impl ContainerRecord {
+    /// The record in sentences, for `sv run` and the report, or `None` when it holds nothing.
+    pub fn sentences(&self) -> Option<String> {
+        let mut said = Vec::new();
+        if let Some(seconds) = self.ready_after_seconds {
+            said.push(format!(
+                "It answered on its health path {seconds}s after it started."
+            ));
+        }
+        if let Some(made) = &self.network_made {
+            said.push(format!("Its fenced network was made {made}."));
+        }
+        if !self.not_removed.is_empty() {
+            said.push(format!(
+                "When the run ended, these could not be removed: {}. `docker rm -f <name>` removes \
+                 a container, and `docker network rm <name>` a network.",
+                self.not_removed.join("; ")
+            ));
+        }
+        if !self.volumes_kept.is_empty() {
+            let names = self.volumes_kept.join(" ");
+            said.push(format!(
+                "The packages it downloaded are kept in the Docker volume{} {}, so the next run \
+                 with the same files reuses them: `docker volume rm {names}` removes {}, and \
+                 `docker volume ls --filter label={}` lists every one `sv` keeps.",
+                if self.volumes_kept.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                self.volumes_kept
+                    .iter()
+                    .map(|v| format!("`{v}`"))
+                    .collect::<Vec<_>>()
+                    .join(" and "),
+                if self.volumes_kept.len() == 1 {
+                    "it"
+                } else {
+                    "them"
+                },
+                install::VOLUME_LABEL
+            ));
+        }
+        (!said.is_empty()).then(|| said.join(" "))
     }
 }
 
@@ -550,6 +641,8 @@ pub struct RunOutcome {
     /// The packages installed before the run (ADR-052), and whether each came from an earlier
     /// run's download. Empty when `install` was not asked for.
     pub installed: Vec<(install::Ecosystem, bool)>,
+    /// What happened to the run's containers (backlog 226, part 2, item 18).
+    pub container: ContainerRecord,
 }
 
 impl RunOutcome {
@@ -574,6 +667,7 @@ impl RunOutcome {
             liveness: _,
             sidecar_lost: _,
             installed: _,
+            container: _,
         } = self;
         [
             ("as two test users", signed_in),
@@ -1062,6 +1156,7 @@ mod tests {
                 .to_owned(),
             loopback: None,
             crashed: false,
+            exited: None,
         }
         .explain();
         assert!(refused.contains("keep its data under /tmp"), "{refused}");
@@ -1071,6 +1166,7 @@ mod tests {
             detail: "Its last output was: ModuleNotFoundError: No module named 'flask'".to_owned(),
             loopback: None,
             crashed: false,
+            exited: None,
         }
         .explain();
         assert!(!other.contains("/tmp"), "{other}");
@@ -1084,6 +1180,7 @@ mod tests {
             detail: "Its last output was: WARNING: This is a development server.".to_owned(),
             loopback: None,
             crashed: false,
+            exited: None,
         }
         .explain();
         assert!(unnamed.contains("127.0.0.1 or localhost"), "{unnamed}");
@@ -1095,6 +1192,7 @@ mod tests {
             detail: "Its last output was: WARNING: This is a development server.".to_owned(),
             loopback: Some("127.0.0.1"),
             crashed: false,
+            exited: None,
         }
         .explain();
         assert!(
@@ -1109,6 +1207,7 @@ mod tests {
                 .to_owned(),
             loopback: None,
             crashed: false,
+            exited: None,
         }
         .explain();
         assert!(!read_only.contains("0.0.0.0"), "{read_only}");
@@ -1119,6 +1218,7 @@ mod tests {
             detail: "It stopped with an error: KeyError: 'PORT_NUMBER'".to_owned(),
             loopback: Some("127.0.0.1"),
             crashed: true,
+            exited: None,
         }
         .explain();
         assert!(crashed.contains("That error is why"), "{crashed}");
@@ -1199,7 +1299,7 @@ mod tests {
         // 2026, `sv_check::script`), whose signed-in stage is where the seed is run.
         let docker = include_str!("docker.rs");
         let healthy = docker
-            .find("let healthy = self.wait_until_ready(&via, &app, plan);")
+            .find("let ready = self.wait_until_ready(&via, &app, plan);")
             .expect("the run waits for the app's health path");
         let script = docker
             .find("sv_check::script::run(")
@@ -1678,12 +1778,14 @@ mod tests {
                 detail: "no reply".into(),
                 loopback: None,
                 crashed: false,
+                exited: None,
             },
             CannotRun::NeverReady {
                 waited_seconds: 30,
                 detail: "no reply".into(),
                 loopback: Some("localhost"),
                 crashed: false,
+                exited: None,
             },
         ] {
             let text = reason.explain();

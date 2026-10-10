@@ -26,6 +26,7 @@ fn every_failure_quoting(text: &str) -> Vec<CannotRun> {
             detail: format!("It stopped with an error: {text}"),
             loopback: None,
             crashed: true,
+            exited: None,
         },
         CannotRun::InstallFailed {
             registry: "PyPI",

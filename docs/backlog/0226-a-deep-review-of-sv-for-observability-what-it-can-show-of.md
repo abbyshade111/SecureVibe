@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 1 item 11; part 2 items 13 (a time on each running-app step), 15 (a line per outside tool and per running-app suite), 17, 18, and 20; part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 1 item 11; part 2 items 13 (a time on each running-app step), 15 (a line per outside tool and per running-app suite), 17, 18 (what a failed run could not remove), and 20; part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -153,7 +153,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
     the app's exit code and out-of-memory flag on that path, the seconds to healthy, how the fence was made
     (`made_with`, now shown only on failure), teardown errors (now `let _`), and that a download volume was kept, its
     name and how to remove it. ADR-052 names the old label `securevibe.deps`; the code uses `stackvet.deps`.
-   **Part status:** claimed by stackvet-e9, 10 October 2026
+   **Part status:** partly done: what a run that failed could not remove
 19. **The MCP server's errors.** It keeps no record of an error it returns; one stderr line per error (tool and
     kind, no app text), which the AI tool's own log usually keeps.
    **Part status:** done, 10 October 2026
@@ -360,3 +360,9 @@ wrong (the true wait, the app's exit code and out-of-memory flag, the seconds to
 teardown errors, a kept download volume), and ADR-052's old label name corrected; each with a test that fails
 without it. Item 20 waits for open pull request #1337 (another session), which adds the list of package files `sv`
 could not read, where a version catalog that does not parse belongs.
+
+**Part 2, item 18 partly done on 10 October 2026** (`docs/design/0350-what-happened-to-the-container-the-true-wait-how-it-ended.md`): an app that stopped before it answered is said with
+how long after it started, its exit code, and whether it was killed for memory; a run that worked says how long the
+app took to answer, how its network was made, what could not be removed, and which download volumes it kept, with
+the commands for each; ADR-052 names `stackvet.deps`. Still open: what a run that failed could not remove. Breaks:
+with the teardown's answer dropped, or the old wording, a test fails.
