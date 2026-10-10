@@ -430,7 +430,7 @@ or, for a tool configured with JSON:
 { "mcpServers": { "stackvet": { "command": "/path/to/sv", "args": ["mcp", "--root", "/home/you/code"] } } }
 ```
 
-It offers eleven tools: `stackvet_spec` (the `stackvet.toml` to write), `stackvet_plan` (the plan for the
+It offers twelve tools: `stackvet_status` (whether everything is ready, as `sv doctor` says), `stackvet_spec` (the `stackvet.toml` to write), `stackvet_plan` (the plan for the
 app from it, below), `stackvet_preflight` (what `sv run` will need, read from the code without running it),
 `stackvet_before` (one feature's brief before it is built, below), `stackvet_guidance` (the
 rules to follow while coding; see "Rules your AI coding tool follows while it codes" above),

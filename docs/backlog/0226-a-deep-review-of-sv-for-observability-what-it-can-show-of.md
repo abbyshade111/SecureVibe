@@ -114,7 +114,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
     answer reaches a report: build that fixture first. Making such an answer "incomplete" changes what counts as
     evidence, so the fix itself is the owner's (part 3, item H); saying in the report that the manifest was not
     understood is not.
-   **Part status:** open
+   **Part status:** claimed by securevibe-e2, 10 October 2026
 
 ### Part 2: cheap visibility (small to medium, not the owner's)
 

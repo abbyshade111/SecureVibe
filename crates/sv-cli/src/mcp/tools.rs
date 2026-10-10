@@ -167,6 +167,47 @@ impl Server {
         }))
     }
 
+    /// Is everything ready (`crate::doctor`, as `sv doctor` gives it). The folder's name and what
+    /// stackvet.toml says are the app's own text, so they are fenced; the rest is `sv`'s.
+    pub(super) fn status(&self, args: &Value) -> Result<Value> {
+        let app_dir = self.app_dir(args)?;
+        let version = crate::doctor::version_line();
+        let backend = || sv_run::detect().map(|_| ());
+        let asked = crate::doctor::Asked {
+            version: &version,
+            data: sv_frameworks::data::dir(),
+            in_container: std::env::var_os(super::IN_CONTAINER).is_some()
+                || crate::connect::in_a_container(),
+            backend: &backend,
+        };
+        let lines = crate::doctor::answers(&app_dir, &asked);
+        let shown = args.get("path").and_then(Value::as_str).unwrap_or(".");
+        let text = sv_report::fence::fenced(|fence| {
+            crate::doctor::text_quoting(shown, &lines, &|t| fence.wrap(t))
+        });
+        let not_ready = lines
+            .iter()
+            .filter(|l| l.state == crate::doctor::State::NotReady)
+            .count();
+        Ok(json!({
+            "content": [{ "type": "text", "text": text }],
+            "structuredContent": {
+                "lines": lines.iter().map(|l| json!({
+                    "topic": l.topic,
+                    "state": match l.state {
+                        crate::doctor::State::Ready => "ready",
+                        crate::doctor::State::NotReady => "not-ready",
+                        crate::doctor::State::CannotTell => "cannot-tell",
+                    },
+                    "says": l.said,
+                })).collect::<Vec<_>>(),
+                "notReady": not_ready,
+                "creditsNothing": true,
+            },
+            "isError": false,
+        }))
+    }
+
     /// One feature's brief, before it is built: built from the same report as the plan, crediting
     /// nothing. The feature is checked before the report is built, so a misspelt one is said at once.
     pub(super) fn before(&self, args: &Value, progress: &Progress) -> Result<Value> {
