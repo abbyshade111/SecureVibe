@@ -25,7 +25,7 @@ use sv_check::seal::{Key, REPORT_KEY_FILE};
 
 /// The files a seal covers, in the order they are sealed: every report file `sv` writes, from the
 /// one list of them.
-pub const SEALED: [&str; 5] = crate::report_files::NAMES;
+pub const SEALED: [&str; crate::report_files::NAMES.len()] = crate::report_files::NAMES;
 
 /// How the seal's line in the marker starts.
 const SEAL_LINE: &str = "seal: ";
@@ -68,7 +68,7 @@ fn digests(dir: &Path) -> Result<BTreeMap<&'static str, String>, String> {
     let mut found = BTreeMap::new();
     for name in SEALED {
         let path = dir.join(name);
-        let meta = std::fs::symlink_metadata(&path).map_err(|_| format!("{name} is missing"))?;
+        let meta = std::fs::symlink_metadata(&path).map_err(|_| missing(name))?;
         if !meta.is_file() {
             return Err(format!("{name} is a link or a folder, not a report file"));
         }
@@ -79,6 +79,21 @@ fn digests(dir: &Path) -> Result<BTreeMap<&'static str, String>, String> {
         found.insert(name, crate::bundle::sha256(&bytes));
     }
     Ok(found)
+}
+
+/// Why a sealed file is not there. `seen.json` joined the report files with ADR-082, so a report
+/// written before then has none, and its seal was made over the five before it: writing the report
+/// again seals all six.
+fn missing(name: &str) -> String {
+    if name == sv_report::seen::FILE {
+        format!(
+            "{name} is missing, as it is from a report written by an sv from before it kept what the \
+             running app answered, whose seal covers five files and not the six sv seals now; write \
+             the report again"
+        )
+    } else {
+        format!("{name} is missing")
+    }
 }
 
 /// Where this computer's report key is, or why there is nowhere for it.

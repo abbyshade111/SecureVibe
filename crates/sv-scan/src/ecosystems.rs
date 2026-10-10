@@ -939,16 +939,17 @@ pub const REPORT_LOCK: &str = sv_frameworks::names::REPORT_LOCK;
 /// Who holds `REPORT_LOCK`, beside it: the one file of the lock another run can read on Windows.
 pub const REPORT_HOLDER: &str = sv_frameworks::names::REPORT_HOLDER;
 
-/// The five files a report is written as, in the order they are written and sealed. The one list
+/// The six files a report is written as, in the order they are written and sealed. The one list
 /// the names of a report folder derive from: `REPORT_FOLDER_NAMES` here, and in `sv-cli` the table
 /// that says how each is rendered and what kind of file it is (`report_files`), which the compiler
 /// holds to this one, the seal (`report_seal::SEALED`), and the MCP server's resources.
-pub const REPORT_FILES: [&str; 5] = [
+pub const REPORT_FILES: [&str; 6] = [
     "report.html",
     "compliance.md",
     "security.md",
     "findings.sarif",
     "report.json",
+    "seen.json",
 ];
 
 /// The record of the build loop (ADR-076): one line for each call the AI coding tool made to `sv`'s
@@ -957,7 +958,7 @@ pub const REPORT_FILES: [&str; 5] = [
 pub const BUILD_LOOP_RECORD: &str = "build-loop.jsonl";
 
 /// Every name `sv` writes in a report folder: the marker, the lock, their old forms (a report folder
-/// from before the rename holds those), the record of the build loop, and the five reports.
+/// from before the rename holds those), the record of the build loop, and the six report files.
 pub const REPORT_FOLDER_NAMES: &[&str] = &{
     let mut names = [""; 6 + REPORT_FILES.len()];
     names[0] = REPORT_MARKER;

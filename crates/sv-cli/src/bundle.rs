@@ -543,7 +543,8 @@ pub fn readme(
         "This is a bundle of {app_name}, made by sv on {made_at}.\n\n\
          app/      the application's own files ({included} of them)\n\
          report/   the report sv wrote about it: report.html to read, compliance.md and security.md,\n\
-         \x20         findings.sarif for tools that read it, report.json, and sbom.cdx.json, the list of what it ships\n\
+         \x20         findings.sarif for tools that read it, report.json, seen.json (what the running app\n\
+         \x20         answered, credentials cut out), and sbom.cdx.json, the list of what it ships\n\
          BUNDLE.json  which sv made this, when, and a SHA-256 for every file, so you can check\n\
          \x20         that what is here is what was checked (on a Mac: shasum -a 256 FILE)\n\n"
     );

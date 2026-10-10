@@ -213,6 +213,9 @@ pub(super) fn report_file_description(name: &str) -> &'static str {
         "compliance.md" => "Each requirement and what was found for it.",
         "security.md" => "The findings, worst first.",
         "findings.sarif" => "The findings in SARIF, for code-scanning tools.",
+        "seen.json" => {
+            "What the running app answered when sv asked it, credentials cut out: the app's own text."
+        }
         _ => "The whole report, for a program to read.",
     }
 }

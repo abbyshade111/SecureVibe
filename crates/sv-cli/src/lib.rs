@@ -986,6 +986,8 @@ pub mod build_loop;
 
 pub mod report_seal;
 
+pub mod seen;
+
 /// The coding prompts shown to work, in full, for the two places every builder reads before any code:
 /// the end of the specification (`sv init`, `stackvet_spec`) and of the MCP server's opening
 /// instructions. In the delivery test (docs/prompts/library-trial/delivery.md) a prompt pasted where
@@ -1282,7 +1284,7 @@ pub fn write_bundle(
     })
 }
 
-/// Every name `sv` writes in a report folder: the marker, the lock, and the five reports. A test
+/// Every name `sv` writes in a report folder: the marker, the lock, and the six report files. A test
 /// holds this to what `write_report_files` writes. Kept in `sv-scan`, whose walk leaves a report
 /// folder out only while it holds nothing but these (deep review H6).
 pub const REPORT_FOLDER_NAMES: &[&str] = sv_scan::ecosystems::REPORT_FOLDER_NAMES;

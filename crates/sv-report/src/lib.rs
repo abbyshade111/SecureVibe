@@ -30,6 +30,7 @@ pub mod json;
 pub mod live;
 pub mod markdown;
 pub mod sarif;
+pub mod seen;
 pub mod threats;
 
 use serde::Serialize;
@@ -798,6 +799,10 @@ pub struct Report {
     /// 226, part 2, item 13). Empty for a report not made by a run, and then left out.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub timings: Vec<Timing>,
+    /// What `sv` saw of the running app (ADR-082), written as its own file, `seen.json`, and kept
+    /// out of `report.json`. `None` when the app was not asked anything.
+    #[serde(skip)]
+    pub seen: Option<seen::Seen>,
     /// Passed in rather than read from a clock, so the same app twice produces the same bytes.
     pub generated: Option<String>,
     /// Which `sv` made this report, so whoever reads it can tell which checks it had. Without it, a
@@ -2261,6 +2266,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         baseline: None,
         build_loop: None,
         timings: Vec::new(),
+        seen: None,
         app_name: inputs.app_name.to_owned(),
         target_level: inputs.target_level,
         generated: inputs.generated,
