@@ -484,11 +484,24 @@ fn advisories(scene: &Scene, examined: &mut Vec<sv_report::Examined>) -> Result<
                         disagreement.manifest, disagreement.lockfile
                     ));
                 }
-                examined.push(if short.is_empty() {
-                    sv_report::Examined::ran("advisory.")
-                } else {
-                    sv_report::Examined::partly("advisory.", short.join("; "))
-                });
+                // Which database, how big, and how recent (backlog 226, part 2, item 20).
+                let compared_with = sv_report::AdvisoryDatabase {
+                    folder: dir.display().to_string(),
+                    records: database.len(),
+                    newest: database
+                        .iter()
+                        .filter_map(|a| a.published.as_deref())
+                        .map(|day| day.chars().take(10).collect::<String>())
+                        .max(),
+                };
+                examined.push(
+                    if short.is_empty() {
+                        sv_report::Examined::ran("advisory.")
+                    } else {
+                        sv_report::Examined::partly("advisory.", short.join("; "))
+                    }
+                    .with_advisories(compared_with),
+                );
                 // Records in a file nobody read were not compared, so nothing is credited on the
                 // comparison, as `sv audit` credits nothing (the deep review's improvement 4).
                 if !unread.is_empty() {

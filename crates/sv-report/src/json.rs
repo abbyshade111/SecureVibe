@@ -37,11 +37,19 @@ pub const LISTS_WITH_TEXT: &[&[&str]] = &[
     &["ai_process", "lines"],
 ];
 
+/// Which shape of `report.json` this is (backlog 226, part 2, item 20), so a program reading one can
+/// tell a report it knows how to read from one written by a later `sv`. Raised when a field is
+/// removed, renamed, or changes what it means; a field added does not raise it.
+pub const REPORT_FORMAT: u64 = 1;
+
 /// The report as `report.json` holds it.
 pub fn to_value(report: &Report) -> Value {
     let mut value = serde_json::to_value(report).expect("a report serializes");
     file_text(&mut value);
     only_you_by_id(&mut value);
+    if let Value::Object(top) = &mut value {
+        top.insert("report_format".to_owned(), Value::from(REPORT_FORMAT));
+    }
     value
 }
 

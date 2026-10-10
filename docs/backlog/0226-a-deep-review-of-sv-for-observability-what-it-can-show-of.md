@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 2 items 13 (a time on each running-app step), 15 (a line per outside tool and per running-app suite), 17, 18 (what a failed run could not remove), and 20; part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 2 items 13 (a time on each running-app step), 15 (a line per outside tool and per running-app suite), 17, 18 (what a failed run could not remove), and 20 (ids and a reason code on each gap); part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -165,7 +165,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
     say "not understood". Gaps are prose only (`Gap { what, why }`), and the trial scorer splits them on commas: add
     requirement ids and a reason code. `report.json` has no format version. Whether a report names the advisory
     database it used, its size, and its newest record was not settled: read `assemble.rs` past the part read.
-   **Part status:** claimed by stackvet-e9, 10 October 2026
+   **Part status:** partly done: requirement ids and a reason code on each gap
 
 ### Part 3: the owner's decisions
 
@@ -377,3 +377,8 @@ with the teardown's answer dropped, or the old wording, a test fails.
 against, named with its size and its newest record. Read in `assemble.rs`: today a report names none of the three.
 Not claimed: requirement ids and a reason code on each gap, which touches 69 places and needs a set of reason codes
 someone settles first. Each with a test that fails without it.
+
+**Part 2, item 20 partly done on 10 October 2026** (`docs/design/0351-the-smaller-ones-a-catalog-not-understood-report-json-s.md`): a version catalog that does not parse is said as not
+understood and named among the unread package lists; `report.json` carries `report_format`; the advisory comparison
+names its database, its size, and its newest record, in `report.json` and at the top of both pages. Still open:
+requirement ids and a reason code on each gap. Breaks: with each change undone, its test fails.

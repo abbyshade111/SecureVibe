@@ -378,6 +378,40 @@ pub struct Examined {
     /// exit code, and how long it took (backlog 226, part 2, item 14). `None` for `sv`'s own checks.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool: Option<sv_check::adapters::ToolRun>,
+    /// For the advisory comparison: which database it was, how many records it held, and the newest
+    /// of them (backlog 226, part 2, item 20). A comparison against a database months old reads the
+    /// same as one against today's unless the report says which it was.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub advisories: Option<AdvisoryDatabase>,
+}
+
+/// The advisory database a report compared the app's packages with.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct AdvisoryDatabase {
+    /// The folder, as it was given with `--advisories`.
+    pub folder: String,
+    /// The records `sv` read from it.
+    pub records: usize,
+    /// The day the newest of them was published, when any says.
+    pub newest: Option<String>,
+}
+
+/// "The app's packages were compared with …", naming the advisory database, its size and its newest
+/// record, for the top of a page, or `None` when no comparison was made.
+pub fn advisories_line(report: &Report) -> Option<String> {
+    let db = report.examined.iter().find_map(|e| e.advisories.as_ref())?;
+    Some(format!(
+        "The app's packages were compared with the advisory database in {}: {} record{}, {}.",
+        db.folder,
+        db.records,
+        if db.records == 1 { "" } else { "s" },
+        match &db.newest {
+            Some(day) => format!(
+                "the newest published {day}. A vulnerability published after that is not in it"
+            ),
+            None => "none of them saying when it was published".to_owned(),
+        }
+    ))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -404,6 +438,7 @@ impl Examined {
             why: None,
             stand_in: None,
             tool: None,
+            advisories: None,
         }
     }
 
@@ -414,6 +449,7 @@ impl Examined {
             why: Some(why.into()),
             stand_in: None,
             tool: None,
+            advisories: None,
         }
     }
 
@@ -424,7 +460,14 @@ impl Examined {
             why: Some(why.into()),
             stand_in: None,
             tool: None,
+            advisories: None,
         }
+    }
+
+    /// The same entry, with the advisory database it compared against.
+    pub fn with_advisories(mut self, database: AdvisoryDatabase) -> Self {
+        self.advisories = Some(database);
+        self
     }
 
     /// The same entry, with what the outside tool was and how its run went.
@@ -446,6 +489,7 @@ impl Examined {
             why: Some(why.into()),
             stand_in: None,
             tool: None,
+            advisories: None,
         }
     }
 

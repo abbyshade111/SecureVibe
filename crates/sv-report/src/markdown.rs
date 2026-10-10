@@ -200,6 +200,9 @@ pub fn compliance(report: &Report) -> String {
     if let Some(line) = crate::slowest_line(report) {
         out.push_str(&format!("{}\n\n", inert(&line)));
     }
+    if let Some(line) = crate::advisories_line(report) {
+        out.push_str(&format!("{}\n\n", inert(&line)));
+    }
     let (worst, rest) = crate::bluf::worst_findings(report);
     if !worst.is_empty() {
         for f in worst {
