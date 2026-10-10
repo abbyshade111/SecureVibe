@@ -55,7 +55,8 @@ it saw; `sv-report` says what that is called; `sv-cli` says it to a person or a 
    held to the running app, a person's reviews applied, one finding per line (ADR-023).
 8. **The report built** (`sv_report::build`): per requirement, a finding beats every credit, and otherwise the
    strongest tier there decides (`status_of`). Gaps say what was not examined; `examined` says the same for a program.
-9. **Written and sealed**: the five files, each under a new name and renamed into place, never through a link; the
+9. **Written and sealed**: the six files (the five reports, and `seen.json`, what the running app answered with its
+   credentials cut out, ADR-082), each under a new name and renamed into place, never through a link; the
    folder sealed with this computer's report key so the MCP server can tell `sv`'s report from one anything else wrote
    (ADR-034). The lock goes; the folder stays.
 
