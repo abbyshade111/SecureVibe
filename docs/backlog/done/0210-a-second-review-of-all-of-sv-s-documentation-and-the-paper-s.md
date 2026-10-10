@@ -1,6 +1,6 @@
 # A second review of all of `sv`'s documentation, and the paper's figures and analyses
 
-**Status:** claimed by a session not named, as its markers read on 8 October 2026
+**Status:** done, 10 October 2026
 
 Asked for by the owner on 7
 October 2026 ("the deep scrub and review of the documentation to get everything up-to-date, including the figures
@@ -25,3 +25,5 @@ made the same everywhere.
 server's descriptions and instructions, the prompts' "Not tested" labels (now "Tried, not shown to work" and "Not
 tried yet"), the help on the install step's download, and the feature briefs' settings; and the preflight now reads
 the install step, by calling it. With that, the second review is done.
+
+**Checked against origin/main, 10 October 2026:** built: commits `e40d0ba7`, `436e612a`, `8f99c802`; `docs/paper/TRIALS.md`, `figure-trials.html`, `SINCE-THE-CUTOFF.md`; `PARTIAL-CHECKS.md` says "63 of these 382".

@@ -1,6 +1,6 @@
 # A leaky guessing limit makes `probe.forwarded-for-trusted` say the opposite of the truth, in both directions
 
-**Status:** claimed by securevibe-e9, as its markers read on 8 October 2026
+**Status:** done, 10 October 2026
 
 Found on 26 September 2026 reviewing #130/#131. **Claimed on 26 September 2026
 by session securevibe-e9, and done the same day** with the fix below: two claimed attempts from two
@@ -39,3 +39,5 @@ do better; the check is finding-only, so nothing is credited either way.
 Note also that alternating the attempts (plain, spoofed, plain, spoofed) does **not** work, and it
 is the first thing that comes to mind: a limiter releasing one attempt in two produces exactly that
 alternation.
+
+**Checked against origin/main, 10 October 2026:** built: `crates/sv-check/src/signed_in/signin.rs` `forwarded_check`, which needs both spoofed answers refused, and both plain ones.

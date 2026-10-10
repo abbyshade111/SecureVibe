@@ -1,6 +1,6 @@
 # Investigate MITRE ATLAS for the threat model
 
-**Status:** claimed by a session not named, as its markers read on 8 October 2026
+**Status:** done, 10 October 2026
 
 Asked for by the owner on 26 September 2026:
 how feasible it would be, whether it adds anything of value, and whether it is worth it. ATLAS
@@ -32,3 +32,5 @@ securevibe-e8. Done the same day: adopt in part.** Cite ATLAS techniques by ID o
 threats, for a reviewer; no copy of ATLAS in `sv`, no checks from it (35 of its 40 mitigations
 already have an AISVS chapter, and AISVS cites ATLAS itself), and nothing in the owner's
 plain-language view. See DESIGN, "MITRE ATLAS: adopt in part".
+
+**Checked against origin/main, 10 October 2026:** built: design 0035 recommends "adopt in part"; `data/atlas-references.json` maps T-07 to T-12 to ATLAS IDs, with `crates/sv-cli/tests/atlas_references.rs`.

@@ -1,6 +1,6 @@
 # The two-factor reuse check credits V6.5.1 when the time step rolls over mid-check
 
-**Status:** claimed by a session not named, as its markers read on 8 October 2026
+**Status:** done, 10 October 2026
 
 Found on
 26 September 2026 reviewing the TOTP probes (#129). **Claimed on 26 September 2026 by session
@@ -42,3 +42,5 @@ probe shows a code from five steps back being refused. That demonstrates *a defi
 is the requirement's first clause, and not the 30-second bound. The suite's correct app accepts one
 step either side, so an app accepting 60-second-old codes is credited with V6.5.5 today. Tolerating
 drift is the right engineering call; the evidence line should say which of the two clauses was shown.
+
+**Checked against origin/main, 10 October 2026:** built: `totp.rs` keeps clear of the last 10 seconds, retries once in the new step, and reports unsure when the step ends twice; V6.5.1 is not assessed and V6.5.5 says the 30-second bound was not shown.

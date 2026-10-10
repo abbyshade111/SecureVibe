@@ -1,6 +1,6 @@
 # The running-app checks, reviewed on 3 October 2026: one fault in the counts, and what to add
 
-**Status:** partly done: parts 9 (C9.1.1's per-tool quotas), 13 (a limit kept by a proxy in production), 14 (a run against a real app), and 15 (tar, 7z, and rar)
+**Status:** partly done: tar, 7z and rar archives are not read; CPU, memory, disk and egress quotas are recorded unchecked; item 13 by a proxy; item 14 needs a real-app run
 
 By session
 securevibe-e9, at the owner's asking ("review them and then propose additional checks that would provide strong
@@ -348,3 +348,7 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
     the OCSP stapling check (#465), so one handshake held to an old version is the fourth. To be confirmed in the
     code before anything else.
    **Part status:** done, 3 October 2026
+
+**Decided by the owner, 10 October 2026:** kept partly done, with the gaps listed. Remaining: tar, 7z and rar archives are not read (zip and gzip are); CPU, memory, disk and egress quotas are recorded as unchecked in `crates/sv-check/src/ai.rs`; item 13 is kept by a proxy; item 14 needs a real-app run.
+
+**Items opened from this item, 10 October 2026:** tar archives, backlog 0241; 7z and rar, 0242; the host-side resource question for the quotas, 0243; the example app's email change for the real-app run, 0244. The proxy limit (part 13) stays a known limit, with no item.

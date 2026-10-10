@@ -1,6 +1,6 @@
 # A review of all of `sv`'s documentation, against what `sv` does now
 
-**Status:** claimed by securevibe-e10, as its markers read on 8 October 2026
+**Status:** partly done: GETTING-STARTED.md:119 says the twelve stackvet_ tools, and the catalog lists thirteen; PARTIAL-CHECKS.md's count of 57 of the 382 is not checked against its own line 9. Claim released 10 October 2026.
 
 Asked for by the owner on 5 October 2026,
 after many changes in a short time. Every document a person or an AI tool reads, read against the code and the

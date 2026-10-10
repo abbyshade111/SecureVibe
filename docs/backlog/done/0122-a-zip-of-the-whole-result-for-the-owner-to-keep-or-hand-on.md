@@ -1,6 +1,6 @@
 # A zip of the whole result, for the owner to keep or hand on
 
-**Status:** claimed by a session not named, as its markers read on 8 October 2026
+**Status:** done, 10 October 2026
 
 Asked for by the owner on
 26 September 2026: the application, its scans and its report in one download, at the end of a build
@@ -44,3 +44,5 @@ Three things decide the design:
   "at the end" means the tool offers it once the report is written, and "on request" means a
   command (`sv bundle`, say) and an MCP tool. The two are the same feature; nothing should make one
   on every run.
+
+**Decided by the owner, 10 October 2026:** data categories stay named only, in the listing, the README and on screen, and are not acted on. `sv` cannot tell which files hold the data, so it does not guess. The outside tools' own SARIF stays out, as decided on 6 October.

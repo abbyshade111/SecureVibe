@@ -1,6 +1,6 @@
 # A security-notes file, and policy numbers the probes can test
 
-**Status:** claimed by securevibe-e8, as its markers read on 8 October 2026
+**Status:** done, 10 October 2026
 
 For the 30 requirements that ask for
 a document. `sv init` writes a template with one section per applicable one, headed by its id and
@@ -46,3 +46,5 @@ whatever the app is for; V14.2.4, V16.2.3, and V16.3.3 need the logs or the stor
 the app asked; V15.2.1 is already the advisory check's; V6.2.11 needs the word list, which is the
 document itself; and V7.6.1 needs a real identity provider. So this is worth doing for V6.3.1 at
 Level 1 and two at Level 2, which is a smaller prize than the entry promised.
+
+**Checked against origin/main, 10 October 2026:** built: `data/security-notes.json`, `sv notes`, `data/design-questions.json`, the design tier, the failed-sign-ins policy, and the session timeouts in `signed_in/sessions.rs`.

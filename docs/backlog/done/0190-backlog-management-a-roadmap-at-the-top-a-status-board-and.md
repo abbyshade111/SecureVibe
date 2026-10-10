@@ -1,6 +1,6 @@
 # Backlog management: a roadmap at the top, a status board, and the proposal of one file per item
 
-**Status:** partly done: see its done note; what remains is not yet written, as its markers read on 8 October 2026
+**Status:** done, 10 October 2026
 
 Asked for by the
 owner on 8 October 2026 ("do you have suggestions for managing the backlog better? ... it's hard for me to parse what's
@@ -23,3 +23,5 @@ owner's decision: an ADR, `Status: proposed`, with the claim that builds it.
 `crates/sv-cli/tests/backlog_board.rs`; the three items appended just above this one; `CLAUDE.md`, the roadmap
 bullet and the tools list; design entry "The backlog's roadmap and status board"). The one-file-per-item layout is
 proposed in its own item above, not built.
+
+**Built 10 October 2026:** the status board, as `python3 tools/backlog.py board` (Markdown, read from the status lines alone, with the claims that need the owner's check flagged) and `board --html FILE` (one page for a browser or phone). The roadmap section of `docs/BACKLOG.md` was left as it was: its order is unchanged, and it is a reading of the items, not a list of them.

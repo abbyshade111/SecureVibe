@@ -1,6 +1,6 @@
 # A review of the code merged on 1 to 4 October 2026, for faults
 
-**Status:** partly done: parts 18, 21, 22 (backlog 0228's conversion read them as not done)
+**Status:** done, 10 October 2026
 Asked for by the owner on 6 October 2026, after
 the review of 5 and 6 October found seventeen faults, four of them false passes. The same method: four reviewers read
 the changes from `34ca633` to `0d5258e` in four parts, each fault is reproduced by running `sv` on a small app made for it
@@ -78,7 +78,7 @@ claimed yet. Items 8 and 11 touch a decision the owner made (ADR-026) and are th
 18. **The SQL rule misses the usual query calls of some languages and credits V1.2.4**: Go's `QueryRowContext`,
     `Prepare`, `PrepareContext`; Kotlin's `prepareStatement`; C#'s `CommandText` assigned and then executed.
     Confirmed by reading `data/ast-rules.json`.
-   **Part status:** claimed by securevibe-e2, date not recorded
+   **Part status:** done, 10 October 2026
 19. **The open-redirect rule judges a destination safe by how it starts**: `redirect("/home" if not nxt else nxt)`
     credits V3.7.2. Confirmed by reading.
    **Part status:** done, date not recorded
@@ -86,10 +86,10 @@ claimed yet. Items 8 and 11 touch a decision the owner made (ADR-026) and are th
     `file:`, npm aliases, and `pkg @ git+…` in requirements.txt. Confirmed by reading `manifest_lock.rs` and `sbom.rs`.
    **Part status:** done, date not recorded
 21. **A panic on a build file**: `implementation 'g:a:['` slices `[1..0]` in `gradle_range`. Confirmed by reading.
-   **Part status:** claimed by securevibe-e2, date not recorded
+   **Part status:** done, 10 October 2026
 22. **The `shell: true` rule flags fixed argument lists in JavaScript and Python**, whose grammars call a list `array`
     and `list`. Confirmed by reading `ast.rs`.
-   **Part status:** claimed by securevibe-e2, date not recorded
+   **Part status:** done, 10 October 2026
 23. **`go.mod` is compared with itself**: since A3 its lock list comes from its own `require` lines, so the comparison
     DESIGN describes can never disagree. Confirmed by reading `sbom.rs`.
    **Part status:** done, date not recorded
@@ -144,3 +144,5 @@ branch `claude/securevibe-e2-review-1to4-b5`. Read on `main` just before this cl
 them.
 **Items 9, 10, 15, 16, 17, and 24 done the same day** (DESIGN, "The review of 1 to 4 October, the last batch").
 With them, every item of this review is done.
+
+**Checked against origin/main, 10 October 2026:** every part is in the closing note as done. Parts 18, 21 and 22 checked: `QueryRowContext` in `data/ast-rules.json`, `gradle_range` guarded in `manifest_lock.rs`, and fixed argument lists treated as fixed (`crates/sv-check/src/ast/tests.rs`). Other parts spot-checked only.
