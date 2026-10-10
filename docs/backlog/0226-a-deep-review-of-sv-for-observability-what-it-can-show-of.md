@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 2 item 13 (a time on each request inside a running-app suite); part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -128,7 +128,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
    **Part status:** done, 10 October 2026
 13. **How long each part took.** Every `Instant::now()` outside tests sets a deadline and is never recorded.
     `started_ms` and `took_ms` on each `Examined` entry and each running-app step; "the slowest five" on the page.
-   **Part status:** claimed by stackvet-e9, 10 October 2026
+   **Part status:** done, 10 October 2026
 14. **What each outside tool was.** Its version line (asked, then thrown away), its arguments, its exit code, and
     its time, in `Examined` (`crates/sv-check/src/adapters.rs`). Keeping its raw output is part 3, item A.
    **Part status:** done, 10 October 2026
@@ -466,3 +466,7 @@ continue with the leftovers", in branch `claude/stackvet-e9-request-times`: a ti
 running-app suite, taken where every request to the app is sent (`DockerBackend::probe` and the two that send
 several), so no suite has to time itself, and listed in `report.json`'s `timings` beside the suites', left out of the
 total as they are. With a test that fails without it.
+
+**Part 2, item 13 done on 10 October 2026** (`docs/design/0364-a-time-on-each-request-to-the-running-app-10-october-2026.md`): each request to the running app is timed where it is sent,
+and listed in `report.json`'s `timings` after the suites, counted in no total and named among no slowest five. With
+it, part 2 is done. Breaks: with each piece undone, its test fails.

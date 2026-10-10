@@ -133,6 +133,9 @@ pub struct DockerBackend {
     /// that teardown runs as the run unwinds (`Teardown`'s drop), after the run's own answer is
     /// gone, so it is kept here for the failure to say (backlog 226, part 2, item 18).
     left_behind: std::sync::Mutex<Vec<String>>,
+    /// How long each request to the app took, in milliseconds, in the order sent: one entry for a
+    /// request sent alone, one for several sent in one call (backlog 226, part 2, item 13).
+    request_times: std::sync::Mutex<Vec<(String, u64)>>,
 }
 
 /// The label naming the one run a container or network belongs to. The owner label says which
@@ -156,6 +159,7 @@ impl DockerBackend {
             clock_offset: OnceLock::new(),
             sidecar_lost: std::sync::Mutex::new(None),
             left_behind: std::sync::Mutex::new(Vec::new()),
+            request_times: std::sync::Mutex::new(Vec::new()),
         }
     }
 
@@ -182,6 +186,22 @@ impl DockerBackend {
     /// What `note_if_sidecar_lost` wrote down, if anything, for the run's outcome.
     fn sidecar_lost(&self) -> Option<String> {
         self.sidecar_lost.lock().ok().and_then(|l| l.clone())
+    }
+
+    /// Writes down how long the request (or the requests sent in one call) named `what` took.
+    fn note_request_time(&self, what: String, started: std::time::Instant) {
+        let took = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+        if let Ok(mut times) = self.request_times.lock() {
+            times.push((what, took));
+        }
+    }
+
+    /// The request times written down since the last call, which empties them.
+    fn take_request_times(&self) -> Vec<(String, u64)> {
+        self.request_times
+            .lock()
+            .map(|mut t| std::mem::take(&mut *t))
+            .unwrap_or_default()
     }
 
     /// How far the clock the app's containers read is ahead of this computer's, in seconds, asked of the
@@ -374,6 +394,8 @@ impl Backend for DockerBackend {
     ) -> Result<RunOutcome, RunFailed> {
         // Before anything is started, so Ctrl-C from here on removes what was.
         crate::catch_interrupts();
+        // Each run's request times are its own.
+        self.take_request_times();
         // First, and outside the run proper, so that a run that then fails still says what it
         // removed.
         let left_over_removed = self.remove_leftovers();
@@ -854,6 +876,7 @@ impl DockerBackend {
             container,
             stand_ins,
             suite_timings,
+            request_timings: self.take_request_times(),
         })
     }
 }
@@ -2325,6 +2348,7 @@ mod tests {
             clock_offset: OnceLock::new(),
             sidecar_lost: std::sync::Mutex::new(None),
             left_behind: std::sync::Mutex::new(Vec::new()),
+            request_times: std::sync::Mutex::new(Vec::new()),
         };
         let err = backend.available().unwrap_err();
         match err {
@@ -2915,9 +2939,10 @@ impl DockerBackend {
     ) -> Option<sv_check::probes::ProbeResponse> {
         let raw = request_bytes(request, app)?;
         let script = exchange_script(app, port);
-        let (code, out) = self
-            .inside_fence_with_input(via, &["sh", "-c", &script], &raw)
-            .ok()?;
+        let started = std::time::Instant::now();
+        let sent = self.inside_fence_with_input(via, &["sh", "-c", &script], &raw);
+        self.note_request_time(request.id.clone(), started);
+        let (code, out) = sent.ok()?;
         if self.note_if_sidecar_lost(&request.id, code, &out) {
             return None;
         }
@@ -2939,9 +2964,10 @@ impl DockerBackend {
         let (input, sizes, which) = together_input(requests, app)?;
         let mark = at_once_mark();
         let script = in_turn_script(app, port, &sizes, &which, &mark);
-        let (code, out) = self
-            .inside_fence_with_input(via, &["sh", "-c", &script], &input)
-            .ok()?;
+        let started = std::time::Instant::now();
+        let sent = self.inside_fence_with_input(via, &["sh", "-c", &script], &input);
+        self.note_request_time(several(requests, "one after another"), started);
+        let (code, out) = sent.ok()?;
         let first = requests.first().map_or("", |r| r.id.as_str());
         if self.note_if_sidecar_lost(first, code, &out) || !out.contains(&mark) {
             return None;
@@ -2962,15 +2988,26 @@ impl DockerBackend {
         let (input, sizes, which) = together_input(requests, app)?;
         let mark = at_once_mark();
         let script = at_once_script(app, port, &sizes, &which, &mark);
-        let (code, out) = self
-            .inside_fence_with_input(via, &["sh", "-c", &script], &input)
-            .ok()?;
+        let started = std::time::Instant::now();
+        let sent = self.inside_fence_with_input(via, &["sh", "-c", &script], &input);
+        self.note_request_time(several(requests, "together"), started);
+        let (code, out) = sent.ok()?;
         let first = requests.first().map_or("", |r| r.id.as_str());
         if self.note_if_sidecar_lost(first, code, &out) || !out.contains(&mark) {
             return None;
         }
         let ids: Vec<&str> = requests.iter().map(|r| r.id.as_str()).collect();
         Some(parse_at_once(&ids, &out, &mark))
+    }
+}
+
+/// How several requests sent in one call are named in the request times: the first, how many more,
+/// and how they were sent.
+fn several(requests: &[sv_check::probes::ProbeRequest], how: &str) -> String {
+    match requests {
+        [] => format!("no requests, sent {how}"),
+        [one] => one.id.clone(),
+        [first, rest @ ..] => format!("{} and {} more, sent {how}", first.id, rest.len()),
     }
 }
 

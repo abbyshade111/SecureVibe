@@ -1722,7 +1722,10 @@ pub fn slowest_line(report: &Report) -> Option<String> {
 
 /// `slowest_line`, from the timings alone.
 fn slowest_of(timings: &[Timing]) -> Option<String> {
-    let mut slowest: Vec<&Timing> = timings.iter().collect();
+    let mut slowest: Vec<&Timing> = timings
+        .iter()
+        .filter(|t| !t.what.starts_with(REQUEST_TIMING))
+        .collect();
     slowest.sort_by_key(|a| std::cmp::Reverse(a.took_ms));
     let named: Vec<String> = slowest
         .iter()
@@ -1734,7 +1737,11 @@ fn slowest_of(timings: &[Timing]) -> Option<String> {
     }
     let total: u64 = timings
         .iter()
-        .filter(|t| !t.what.starts_with(TOOL_TIMING) && !t.what.starts_with(SUITE_TIMING))
+        .filter(|t| {
+            !t.what.starts_with(TOOL_TIMING)
+                && !t.what.starts_with(SUITE_TIMING)
+                && !t.what.starts_with(REQUEST_TIMING)
+        })
         .map(|t| t.took_ms)
         .sum();
     Some(format!(
@@ -1751,6 +1758,11 @@ pub const TOOL_TIMING: &str = "the outside tool ";
 /// How a suite of questions to the running app is named in the timings, for the same reason: it
 /// runs inside the stage that runs the app (backlog 226, part 2, item 13).
 pub const SUITE_TIMING: &str = "the running app, ";
+
+/// How one request to the running app is named in the timings (backlog 226, part 2, item 13). It
+/// runs inside its suite, so it is counted in no total, and it is left out of the slowest parts,
+/// which would otherwise name a request beside the suite that holds it.
+pub const REQUEST_TIMING: &str = "the request ";
 
 /// One paragraph saying what the record of the build loop shows, for the top of the report. `None`
 /// for a report that was not written into a report folder.

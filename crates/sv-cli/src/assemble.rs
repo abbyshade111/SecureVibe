@@ -155,6 +155,9 @@ pub struct RunningApp {
     /// How long each suite of questions took, and the app's own tests (backlog 226, part 2, item
     /// 13). Empty when the app was not run.
     pub timings: Vec<(&'static str, u64)>,
+    /// How long each request to the running app took (backlog 226, part 2, item 13). Empty when the
+    /// app was not run.
+    pub request_timings: Vec<(String, u64)>,
 }
 
 /// The owner's word, from the notes, the decisions file, and the manifest's design and hand-check
@@ -264,6 +267,7 @@ pub fn assemble_report_saying(
     stage(8);
     let run = running_app(&scene, &mut findings, &mut gaps);
     let suite_timings = run.timings.clone();
+    let request_timings = run.request_timings.clone();
     stage(9);
     gaps.extend(tools.gaps);
     let manual_only = what_was_not_read(&scene, &mut gaps, &mut examined);
@@ -309,6 +313,7 @@ pub fn assemble_report_saying(
         std::time::Instant::now(),
         &report.examined,
         &suite_timings,
+        &request_timings,
     );
     Ok(report)
 }
@@ -320,6 +325,7 @@ fn timings(
     ended: std::time::Instant,
     examined: &[sv_report::Examined],
     suites: &[(&'static str, u64)],
+    requests: &[(String, u64)],
 ) -> Vec<sv_report::Timing> {
     let ms = |d: std::time::Duration| u64::try_from(d.as_millis()).unwrap_or(u64::MAX);
     let mut timings: Vec<sv_report::Timing> = began
@@ -342,6 +348,10 @@ fn timings(
     }));
     timings.extend(suites.iter().map(|(suite, took_ms)| sv_report::Timing {
         what: format!("{}{suite}", sv_report::SUITE_TIMING),
+        took_ms: *took_ms,
+    }));
+    timings.extend(requests.iter().map(|(request, took_ms)| sv_report::Timing {
+        what: format!("{}{request}", sv_report::REQUEST_TIMING),
         took_ms: *took_ms,
     }));
     timings
@@ -840,12 +850,14 @@ fn running_app(
     let mut seen = None;
     let mut run_steps: Vec<String> = Vec::new();
     let mut suite_timings = Vec::new();
+    let mut request_timings = Vec::new();
     let run_status;
 
     if options.run_the_app {
         match probe_the_running_app(manifest, app_dir, options.slow) {
             Ok((outcome, plan)) => {
                 suite_timings.clone_from(&outcome.suite_timings);
+                request_timings.clone_from(&outcome.request_timings);
                 run_status = sv_report::RunStatus::Started {
                     image: plan.image.clone(),
                     asked: anonymous_requests(&plan).len(),
@@ -1186,6 +1198,7 @@ fn running_app(
         test_verified,
         seen,
         timings: suite_timings,
+        request_timings,
     }
 }
 
