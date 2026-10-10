@@ -272,3 +272,9 @@ branch `claude/explain-seal-and-path`: `sv explain` checking a report's seal bef
 is not shown to be `sv`'s (item 9); and `sv explain ID PATH` taking the path as the app, as its own documentation
 says (item 10). Open pull requests and recent branches read first: session stackvet-e9 holds items 3, 4, 7, and 8,
 and none touches `crates/sv-cli/src/explain.rs`.
+
+**Part 1, item 9 done the same day:** `sv explain --app` repeats a report only when its folder's seal holds and the bytes it
+read are the ones sealed; otherwise it says what is left out and why. Breaks: the seal check turned off failed the two
+tests in `crates/sv-cli/tests/explain_seal.rs` that rewrite or forge a report, and not the one that reads a sealed report.
+**Part 1, item 10, overtaken:** the argument checker added earlier that day already refuses a second word for `sv explain`
+by name, and its help gives `sv explain ID [--app DIR]`; the module's doc, the one place still saying `[PATH]`, now matches.
