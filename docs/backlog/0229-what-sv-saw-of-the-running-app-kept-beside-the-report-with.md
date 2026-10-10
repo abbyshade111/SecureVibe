@@ -1,6 +1,6 @@
 # What sv saw of the running app, kept beside the report with credentials removed
 
-**Status:** claimed by paper-facts, 9 October 2026
+**Status:** partly done: part 1: probe exchanges are kept (crates/sv-report/src/seen.rs) but no finding links to them; part 3: log lines are kept, and its own status says partly. Claim released 10 October 2026.
 
 The owner's decision A of the observability review (0226, part 3), 9 October 2026: "yes to A, C, and D"; recorded as
 ADR-082. At the owner's word that evening ("yes, please go ahead"), an item of its own, as the backlog's rules now say
