@@ -1,6 +1,6 @@
 # From the gap analysis of 7 October 2026: findings for any session to pick up
 
-**Status:** partly done: part 4 ("checked in part" for the other checks that rest on one sample), part 13 (running checks an attacker would try first, the halves not yet built), and part 21's outside-tool half, folded into the owner's next loop trial
+**Status:** partly done: part 4 ("checked in part" for the other checks that rest on one sample, claimed), part 13's (a) on `creates`, and part 21's outside-tool half, folded into the owner's next loop trial
 
 Asked for by the owner on 7
 October 2026 ("please include everything else on the backlog for other sessions to pick up as they can"). Each
@@ -117,7 +117,13 @@ listed apart, below this item.
    'checked in part'"): lists and private pages, `update` and `delete` judged by the owner's read-back, and
    *checked in part* as a status of its own. Not done: "checked in part" for checks other than V8.2.2 that rest on one
    sample, each to be read on its own.
-   **Part status:** partly done: "checked in part" for the other checks that rest on one sample, besides V8.2.2 (read on 10 October 2026)
+   **The rest claimed 10 October 2026 by session securevibe-e2** (the owner's standing "please continue to work through
+   and pick up new items as you merge"): read each running check that credits a requirement from one sample (one
+   record, one page, one request, one account) and, where one sample cannot speak for the rest, give it "checked in
+   part" as V8.2.2 has, saying what was tried; the wording changes how a report concludes, so ADR-053 gains a Later
+   entry, proposed with this claim and accepted with the build. Read on `main` and the open pull requests just before
+   this claim: no other session had claimed it.
+   **Part status:** claimed by securevibe-e2, 10 October 2026
 5. **The coverage documents count requirements that can never be credited as "can settle".**
    (`docs/GAP-ANALYSIS.md`, 1.8.) Add a "can be credited" column to COVERAGE.md's summary, level, and chapter
    tables; label finding-only requirements "can only be found failing" in REQUIREMENTS.md; repeat the AISVS
@@ -410,7 +416,7 @@ listed apart, below this item.
    **(b), the test model's half, done the same day**
    (`docs/design/0331-the-model-s-reply-written-into-the-page-as-html-9-october.md`; ADR-042, Later):
    `probe.ai-reply-html-unencoded`.
-   **Part status:** open
+   **Part status:** partly done: (a) on `creates`, which needs a way in stackvet.toml to read back what those requests make, so an owner field sent there can be seen to take
 14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
    `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
    `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
