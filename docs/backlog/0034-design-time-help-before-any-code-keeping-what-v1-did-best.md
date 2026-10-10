@@ -1,6 +1,6 @@
 # Design-time help before any code: keeping what v1 did best
 
-**Status:** done, 9 October 2026
+**Status:** partly done: parts 5, 6, 9 (backlog 0228's conversion read them as not done)
 
 Proposed on 4 October 2026 by session paper-facts,
 at the owner's asking, after comparing v1 and `sv` for the paper. v1 made the decisions first (the wizard, the design
@@ -16,11 +16,13 @@ changes credits anything: a plan, a brief, or a decision is still checked only t
    does". For a folder with no code yet, they should say to write the design brief first, and to fetch the
    design-time prompt for a feature before building it; and the spec should have wording for an app not yet
    written ("what the app will do"), with a claim the code later contradicts still reported.
+   **Part status:** done, 4 October 2026
 2. **The design-time prompts as MCP prompts.** The server answers `prompts/list` with "method not found" (a test
    holds it). MCP prompts are what a client shows a person to choose (in Claude Code, as slash commands), so offering
    the design-time prompts there keeps the choice with the person and works with any client that supports them;
    `sv prompts` stays for the rest. Which clients show MCP prompts is to be tried before it is written down, as for
    `AGENTS.md`.
+   **Part status:** done, 4 October 2026
 3. **A plan before any code (`sv plan`, and `securevibe_plan`).** From the manifest alone: the requirements that
    will apply, the threat model, the tests worth writing named by requirement id, the decisions to make for the
    app's features, and the `[stack.run]` and `[stack.run.users]` entries the app must give so `sv run` can test it.
@@ -31,6 +33,7 @@ changes credits anything: a plan, a brief, or a decision is still checked only t
    **Done the same day** (ADR-030, accepted; DESIGN, "A plan before any code: `sv plan` and `securevibe_plan`"):
    `sv plan` and `securevibe_plan`, built from the report's own parts, with what the app must give `sv run` worked
    out from the brief. Whether builds given the plan come out testable is item 7's question.
+   **Part status:** done, 4 October 2026
 4. **Feature briefs, in place of v1's template features (`securevibe_before`).** For a feature about to be built
    (sign-in, uploads, payments, an AI feature, fetching a web address, admin pages, email): the requirements it
    brings, its design-time prompt, the coding-rules topic, the manifest block to fill, and the tests to write named
@@ -43,6 +46,7 @@ changes credits anything: a plan, a brief, or a decision is still checked only t
    once `securevibe.toml` says the app has the feature, the prompts in full, the rules, the tests to write, and the
    settings quoted from the spec; it credits nothing. Uploads and email have no design-time prompt yet, and admin
    pages and fetching name no coding-rule topic: each brief says so.
+   **Part status:** done, 5 October 2026
 5. **Decisions as planned, then held to.** A design answer of "yes, planned" before there is a file to point to,
    which becomes a finding when the code exists and nothing does it: decided, never built. Item 15 of the
    design-time prompts above, made a check; and a per-app record of decisions like v1's.
@@ -56,6 +60,7 @@ changes credits anything: a plan, a brief, or a decision is still checked only t
    `design.planned-never-built`, one that is there asks for yes or no, and one with no `where` is reported as one
    `sv` cannot follow. Nine guards broken in turn, each caught. Not done: the design-time prompts do not ask for
    `planned` (the third trial tested their present wording), and v1's per-app record of decisions is item 9.
+   **Part status:** partly done: unclear, needs a look
 6. **The owner's answers asked by the server itself, where the client allows it.** MCP elicitation shows the person a
    form the AI tool cannot fill, so a design brief answered that way could count as the owner's word rather than the
    tool's. DESIGN lists elicitation as unused, not rejected. Client support varies, and the stateless 2026-07-28
@@ -71,6 +76,7 @@ changes credits anything: a plan, a brief, or a decision is still checked only t
    try a middle tier, "confirmed in the AI tool's form, not sealed", which would never stand in for `sv review`.
    **The owner's decision, 6 October 2026: no, not for now.** Elicitation stays unused; `sv review` is the only way
    an answer counts as the owner's.
+   **Part status:** claimed by securevibe-e2, 6 October 2026
 7. **A larger prompts trial.** One test app, one model, one build each so far. To say the help works with any tool:
    at least two AI tools or models and about three builds each, and a trial of the MCP flow itself (whether a tool
    with the server attached fetches the plan and briefs unasked, and whether the app comes out more testable).
@@ -89,8 +95,10 @@ changes credits anything: a plan, a brief, or a decision is still checked only t
    Sonnet builds testable to the same high level; with Haiku, `sv` could not sign in to either plan build. Given the
    MCP instructions and the command line, both Haiku builds came out testable. Two builds a cell: enough to see,
    not to generalize.
+   **Part status:** done, 5 October 2026
 8. **The design-time prompts not yet written,** items 8 to 15 of "Design-time prompts from the Secure by Design
    checklist" above, which the owner approved on 4 October and nobody has claimed.
+   **Part status:** done, 4 October 2026
 9. **Decisions in `design-decisions.md`, held to the code.** Split from item 5 by the owner on 5 October 2026. Four
    design-time prompts write decisions there (who to bring in, safe defaults, what we do if, which rules apply) and
    a fifth reads them before a change, and `sv` reads none of it. A per-app record like v1's eight, read by `sv`, could say which
@@ -119,6 +127,7 @@ changes credits anything: a plan, a brief, or a decision is still checked only t
    switch decided the safe way that the check finds otherwise is `decisions.not-held-to`, and without `--run` the
    report says the decisions were not looked at. Twelve guards broken in turn, each caught; the line joining the
    finding to the report needs Docker to run and is untested here.
+   **Part status:** claimed by securevibe-e2, 5 October 2026
 **Items 1, 2, and 8 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
 `claude/design-time-first`.
 **Items 1, 2, and 8 done the same day** (ADR-028; DESIGN, "Decide before you build: the instructions, the spec, and

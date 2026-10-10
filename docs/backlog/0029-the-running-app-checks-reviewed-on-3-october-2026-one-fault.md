@@ -38,6 +38,7 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    this part asked for exists. CI runs the suite with `SV_CREDIT_LOG` and then `tools/coverage.py --credits`, which
    fails when a check credits and is listed as only ever a finding, or never credits and is not listed, so the next
    such check is caught by what it does, not by reading its code.
+   **Part status:** partly done: unclear, needs a look
 2. **Finding-only checks that already have a control, and could give credit.** The reset link used once and then
    refused (V6.4.3); the old password refused after a reset while the new one works (V6.4.3); the activation link
    refused the second time (V6.4.1); a WebSocket refused after sign-out where it opened before (V4.4.3); signing
@@ -53,6 +54,7 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    went red when the credit was tried.
    **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3): the withdrawal above is
    this part's outcome, so it is marked here in the words the backlog board reads; the board had counted it open.
+   **Part status:** done, 8 October 2026
 3. **The stranger checks credit headers from one answer.** Security headers, cookies, and content types are
    credited from the answer on the health path, which is often a small JSON status reply rather than a page
    anyone sees. Judge every page the run fetched (the home page, the signed-in private pages) and credit only
@@ -76,6 +78,7 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    page that sets the session cookie again is held to HttpOnly and SameSite as sign-in is, and found when it drops
    either; pages the run does not ask for cannot be judged, which the credit already says by naming its pages. With
    it, part 3 is done.
+   **Part status:** partly done: unclear, needs a look
 4. **Sign-in tokens the app issues itself (V9.1.1, V9.1.2, V9.2.1, V9.1.3; all level 1).** When the token the
    app hands the test user is a JWT, send it back altered with the same signature, with `alg: none`, past its
    expiry, and naming a key the probe controls (`jku`, `kid`). The real token opening the page is the control, so
@@ -96,6 +99,7 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3), read against `main`: V9.1.3
    and the `jku` and `kid` forms were built later, under "V9.1.3: a token must not choose where the app gets its keys"
    (`docs/backlog/0026-…`), with a key server inside the fence; that item is done.
+   **Part status:** partly done: unclear, needs a look
 5. **Text reflected into a page without encoding (V1.2.1, V1.2.3; level 1).** A unique marker with `<"'` in a
    query parameter on every page the run visits: echoed raw is a finding, echoed encoded is credit for that page,
    and the marker appearing at all is the control.
@@ -104,6 +108,7 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    Twelve guards broken in turn, each caught: five by two tests or more, seven by the one test written for each.
    **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
    `claude/reflected-text`.
+   **Part status:** done, 3 October 2026
 6. **Requests the app makes for someone (V1.3.6, V15.3.2, V13.2.4).** For a feature that fetches an address,
    named in `securevibe.toml`, give it the test model's canary inside the fence, which already records every
    fetch; a canary that answers with a redirect shows whether the app follows it. The fence makes this safe.
@@ -112,6 +117,7 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    finding against V15.3.2. Eight guards broken in turn, each caught.
    **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking to continue with the backlog,
    in branch `claude/app-fetches`.
+   **Part status:** done, 3 October 2026
 7. **SQL injection on the app's own records and search (V1.2.4; level 1).** The same request with an always-true
    and an always-false condition added; answers that differ show the database reading the input. Only ever a
    finding, read-only payloads only.
@@ -132,6 +138,7 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3), read against `main`: the
    owner's decision of 6 October 2026 above keeps the probe as it is, so what it leaves out is decided, and nothing
    here waits on a build.
+   **Part status:** partly done: unclear, needs a look
 8. **Open redirect (V3.7.2).** The sign-in flow's own return parameter, and `next`, `redirect`, `returnTo`, given
    a foreign address; a `Location` header pointing there is the finding.
    **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
@@ -151,6 +158,7 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3), read against `main`:
    redirects outside the sign-in flow were built on 7 October 2026, as the note above says. A run against a real app
    is a trial, which the owner asks for when wanted, not a build.
+   **Part status:** partly done: unclear, needs a look
 9. **An AI agent with no limit (C9.1.2, level 1; C9.1.1).** The test model asks for a tool again on every turn;
    credit when the app stops within a bound, a finding when it is still going after, say, 50 rounds.
    **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -180,6 +188,7 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    ADR-064, accepted). The test model's `MCPHANG` has the MCP server hold the call for 40 seconds;
    `probe.ai-tool-timeout` credits C9.1.1 in part when the app answers by itself within 15 seconds while the call is
    held, and is never a finding. CPU, memory, disk and egress quotas remain unchecked.
+   **Part status:** partly done: unclear, needs a look
 10. **The AI service failing (V16.5.2, V16.5.3; C7.1.1 where the app asks for a structured answer).** The test
     model answers with an error, a timeout, or malformed JSON; credit when the app shows a plain error, keeps
     working, and passes on neither the raw error nor the bad structure.
@@ -217,6 +226,7 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
     **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3), read against `main`: both
     parts the note names are built: the malformed structured answer (C7.1.1, ADR-042, 6 October 2026) and the service
     that answers nothing (7 October 2026), each as the notes above say.
+   **Part status:** partly done: unclear, needs a look
 11. **Another user's documents reaching the AI (C5.2.2, C5.2.4, C8.1.3).** A marker planted in one user's
     document, then a chat as another user; the marker arriving at the test model is the finding. The same shape
     as `probe.ai-tool-reads-others-records`. Proposed in `docs/PARTIAL-CHECKS.md` for C5.2.2.
@@ -224,6 +234,7 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
     `reads-owned = true` under [stack.run.ai]. Seven guards broken in turn, each caught: three by two tests or more.
     **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
     `claude/ai-others-documents`.
+   **Part status:** done, 3 October 2026
 12. **The app's own MCP server, hardened (C10.2.1, C10.4.3, level 1; C10.4.4, C10.4.5).** No token, a junk token,
     an undeclared parameter, the wrong type, and an oversized payload, each against the ordinary call as the
     control. Proposed in `docs/PARTIAL-CHECKS.md` for C10.2.1 and C10.4.3.
@@ -232,6 +243,7 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
     caught.
     **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking to continue with the backlog,
     in branch `claude/app-mcp-hardened`.
+   **Part status:** done, 3 October 2026
 13. **Limits and double-booking on the owner's own actions (V2.4.1, V2.3.4).** A burst, and parallel requests, at
     an action `securevibe.toml` names; more successes than its stated limit is the finding. Proposed in
     `docs/PARTIAL-CHECKS.md`.
@@ -250,6 +262,7 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
     makes a record, held to the same `[policy] requests-per-minute` as `owned`'s create.
     **Done the same day** (DESIGN, "The creation rate, beyond `owned`"): `creates`, each burst and judged on its
     own.
+   **Part status:** partly done: unclear, needs a look
 14. **Changing the email address without the password again (V7.5.1).** The shape of
     `probe.password-change-without-current`. Proposed in `docs/PARTIAL-CHECKS.md`.
     **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
@@ -259,6 +272,7 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
     through `signup`. A change counts as taken only when the new address signs in, so an app that signs in by user
     name, or that waits for the new address to be confirmed, is not assessed rather than passed. Not yet run
     against a real app: the example has no email change.
+   **Part status:** partly done: unclear, needs a look
 15. **Upload names with `../` (V5.3.2, level 1) and compressed bombs (V5.2.3).** Extends the upload probes: a
     file named to land outside the upload folder, then asked for where it would have landed.
     **The `../` half done on 3 October 2026** (DESIGN, "A file named to land outside the upload folder"): found one
@@ -322,6 +336,7 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
     **Done the same day** (`docs/design/0316-a-zip-whose-stated-sizes-are-false-9-october.md`; ADR-046, later,
     accepted): the zip is sent and judged as described, and V5.2.3's credit for zip needs it refused. Tar, 7z, and
     rar are what remains of this part.
+   **Part status:** partly done: unclear, needs a look
 16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
     **The owner's decision first:** it raises `sv probe`'s limit of four requests, which `CLAUDE.md` states.
     **Done on 3 October 2026** (DESIGN, "Old TLS versions on the live site"): one handshake offering only TLS 1.0
@@ -332,3 +347,4 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
     `claude/old-tls-versions`. It may not raise the limit: a run of `sv probe` makes at most three requests since
     the OCSP stapling check (#465), so one handshake held to an old version is the fourth. To be confirmed in the
     code before anything else.
+   **Part status:** done, 3 October 2026

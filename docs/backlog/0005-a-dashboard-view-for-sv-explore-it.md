@@ -8,14 +8,18 @@ dashboard view for sv"). Today `sv` writes one report per run (`report.html`, `c
 exploration is a written proposal, `docs/DASHBOARD.md`, and nothing is built from it without the owner's decision:
 1. **What a dashboard could show**, from what `sv` already records: one run at a glance, one app's runs over time,
    several apps together. What each needs that `sv` does not keep today (a run's history, for one).
+   **Part status:** open
 2. **How it could be delivered**: a page written beside the report, a command that writes one page for several
    reports, or a page served while `sv` runs. Each against `sv`'s rules: no network connection of its own, nothing
    fetched from the internet by the page, nothing written into the app's folder that is not already, and plain
    language.
+   **Part status:** open
 3. **How it stays honest**: a not-assessed requirement is never drawn as a pass, a count never reads as a grade,
    and a chart says what it leaves out, the same as the reports (the short version's banned words).
+   **Part status:** open
 4. **A recommendation**, with a first step small enough to build and test, and the questions only the owner can
    answer. Status: proposed. Anything that changes what `sv` writes or serves is a decision with its own record.
+   **Part status:** open
 **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("can you add an item to the backlog,
 or take it yourself"), in branch `claude/securevibe-e2-dashboard`: the proposal only.
 **Proposal written the same day:** `docs/DASHBOARD.md`. It recommends, first, one bar at the top of `report.html`
@@ -35,6 +39,7 @@ claimed on its own:
    **Done the same day** (DESIGN, "The short version opens with two bars"; ADR-057, Later): both bars, to scale,
    with every count in words, and no script. Breaks: a part one too large, "not verified" in the checked color, the
    ones that do not apply left out, the bars left off the page, and empty parts kept, each failed a test.
+   **Part status:** done, 8 October 2026
 2. **`sv dashboard`**, one page for the app folders it is given (2).
    **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please start on the sv dashboard
    command next"), in branch `claude/securevibe-e2-dashboard-command`: `sv dashboard <app folders> --out <file>`
@@ -45,6 +50,7 @@ claimed on its own:
    guide's "All your apps on one page", and the README. Breaks: the apps left unsorted, an app's name not escaped,
    the check for a place inside an app off, a file it did not make overwritten, the reports' own text not escaped,
    and the counts not taken from the report, each failed a test.
+   **Part status:** done, 8 October 2026
 3. **History**, switched on by the person and kept outside every app's folder, and the over-time view (3).
    **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
    backlog"), in branch `claude/securevibe-e2-history`, as ADR-057 and `docs/DASHBOARD.md` ("Keeping history safely")
@@ -60,6 +66,8 @@ claimed on its own:
    `sv report`, the over-time view, and `sv dashboard` with no folders. Breaks: history always on, a record others
    can read, no limit on how many are kept, every run compared whatever its kind, history's text not escaped on
    the page, and `forget` that deletes nothing, each failed a test (`crates/sv-cli/tests/history.rs`).
+   **Part status:** done, 8 October 2026
 4. **A progress page during a run**, if wanted once the first three are in use (4).
    **The owner's decision, 9 October 2026:** skipped for now; the owner means to come back to the dashboard later
    ("we can skip for now, I want to come back to the dashboard later anyway").
+   **Part status:** open

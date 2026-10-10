@@ -32,6 +32,7 @@ can be claimed on its own.**
    (high); not fetched is not assessed, never credit. Any run that signs in now starts the test model. Eleven guards
    broken in turn, each caught. Not shown in a real run: no container backend was available, so starting the test
    model for a signed-in run is read in the code, not seen working.
+   **Part status:** done, 5 October 2026
 2. **A code-reading rule.** It flags an app that passes the token's own key address (`jku`, `x5u`, or a `jwk` in
    the header) to whatever fetches its keys. Cheaper, and it runs in every check without Docker, but it is weaker
    evidence than the app seen fetching. Today only Semgrep speaks to V9.1.3 by reading the code. Like the other code
@@ -43,3 +44,4 @@ can be claimed on its own.**
    makes one, in each of the fourteen languages `sv` reads code in; shell has nothing to find, and says why. Only
    ever a finding, at medium confidence: a check against a list on an earlier line is not seen, and a value saved
    to a variable first is not followed.
+   **Part status:** done, 5 October 2026

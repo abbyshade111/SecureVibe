@@ -39,10 +39,18 @@ pub const HOLDER_NAME: &str = sv_scan::ecosystems::REPORT_HOLDER;
 /// The record of a run that started at `started` and read `manifest` as its `stackvet.toml`.
 pub fn run_record(started: SystemTime, manifest: &[u8]) -> sv_report::RunRecord {
     let ms = millis(started);
+    let manifest_sha = crate::bundle::sha256(manifest);
+    // The moment to the millisecond and this process, so two runs at once differ; hashed only to
+    // make it short, not to keep anything from anyone.
+    let run_id =
+        crate::bundle::sha256(format!("{ms}-{}-{manifest_sha}", std::process::id()).as_bytes())
+            [..12]
+            .to_owned();
     sv_report::RunRecord {
         started: crate::bundle::utc_time(ms / 1000),
         started_unix_ms: ms,
-        securevibe_toml_sha256: crate::bundle::sha256(manifest),
+        securevibe_toml_sha256: manifest_sha,
+        run_id,
     }
 }
 
@@ -571,6 +579,7 @@ mod tests {
             started: "2026-10-03T18:52:00Z".into(),
             started_unix_ms: now - 60_000,
             securevibe_toml_sha256: "a".repeat(64),
+            run_id: String::new(),
         };
         let there = |start: u64| {
             std::fs::write(

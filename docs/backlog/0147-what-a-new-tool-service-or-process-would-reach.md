@@ -41,6 +41,7 @@ claimed.
    **The owner's decision, 6 October 2026: no**; V15.3.5 is not probed ("I agree with all your recommendations", 6 October 2026). A
    "too-deep" GraphQL query needs the schema, which introspection being off withholds; a
    thousand aliases of `__typename` needs none.
+   **Part status:** partly done: unclear, needs a look
 2. **A mock identity provider inside the fence (~10, all Level 2).** One small container — an
    OIDC provider made for tests — that the app is pointed at for the run, so the probes can
    drive a real sign-in and then replay the code, drop the `state`, reuse the `nonce`, change
@@ -63,6 +64,7 @@ claimed.
    parameter and in the ID token's `iss` claim, and an app that refuses both has the defense. **Done
    the same day**, credit only; Level 2 goes from 62 to 63 of 183. See DESIGN, "Which provider a
    sign-in came from".
+   **Part status:** done, 26 September 2026
 3. **A mail sink inside the fence (~7).** A container that accepts the app's email and lets the
    probes read it. Password reset stops needing a person: the reset link can be used twice,
    used late, and inspected for how guessable its code is (V6.4.1, V6.4.3, V6.5.1, V6.5.4,
@@ -89,6 +91,7 @@ claimed.
    used ten minutes after it was asked for is a finding if it signs in, and credited only when a
    fresh code then works. V6.5.5 was already counted, through the two-factor check, so no level
    changes. See DESIGN, "How long an emailed code lasts".
+   **Part status:** claimed by securevibe-e9, 26 September 2026
 4. **A seeded TOTP secret (2).** Not a tool: the `seed` script makes a user with two-factor sign-in
    and hands `sv` the secret, and `sv` computes the codes itself (RFC 6238) to try one twice and
    one late (V6.5.1, V6.5.5). **Claimed on 26 September 2026 by session securevibe-e8.** A third account, made by
@@ -99,11 +102,13 @@ claimed.
    **Done on 26 September 2026.** Level 2 goes from 54 to 55 of 183. The order changed on the way:
    an old code tried after a used one is refused by the rule that stops reuse, whatever its age,
    so it now goes first. See DESIGN, "Two-factor codes, computed rather than waited for".
+   **Part status:** done, 26 September 2026
 5. **A slow mode (2).** `sv run --slow`, waiting out the idle timeout the owner states, then asking
    whether the session is dead (V7.3.1, V7.3.2). Belongs with the policy numbers. **Claimed on 26
    September 2026 by session securevibe-e9, and done the same day:** `idle-timeout-minutes` and
    `session-lifetime-minutes` under `[policy]`, held to by `sv run --slow`. Level 2 gains V7.3.1
    and V7.3.2. See DESIGN, "Session timeouts, waited out".
+   **Part status:** claimed by securevibe-e9, date not recorded
 6. **A real browser (~6, and two existing checks made stronger).** Headless Chromium, run as a
    container inside the fence. It can see what only a browser decides: whether a request needs a
    CORS preflight (V3.5.2), whether markup submitted through a form executes when the page renders
@@ -133,6 +138,7 @@ claimed.
    `no-referrer`. A finding of its own with no requirement behind it, since nothing in ASVS asks
    an app to accept its own forms. **Done the same day**; see DESIGN, "An app that refuses its
    own forms".
+   **Part status:** done, 26 September 2026
 7. **Taint analysis (~5 ASVS, and most of the AISVS rules).** An adapter reading CodeQL's SARIF
    — CodeQL already runs in this repository's own CI — or semgrep's taint mode. Every rule `sv`
    writes matches a call; none follows a value from where it came in to where it is used, which
@@ -156,6 +162,7 @@ claimed.
    nothing the app planted; on a Rails controller it found nine problems, and 24 of its suite's 50 queries cite
    requirements. Java's build-less mode ran Maven, which reached for Maven Central, and ran a `gradlew` planted in the
    app, so there is no Java entry. Go stays out, as the owner decided. Nothing of item 7 is left to build.
+   **Part status:** claimed by securevibe-e9, 9 October 2026
 8. **The live site, with a TLS scanner (~5, mostly Level 3).** Beside `sv probe`: testssl.sh or
    sslyze for OCSP stapling and Encrypted Client Hello (V12.1.4, V12.1.5), the HSTS preload list
    (V3.7.4), a spoofed `X-Forwarded-For` to see whether rate limiting trusts it (V15.3.4), and,
@@ -184,6 +191,7 @@ claimed.
    handshake `sv probe` already makes"); and request smuggling (V4.2.1), which means
    sending a live site deliberately malformed requests, which `sv probe`'s read-only rule does
    not allow.
+   **Part status:** done, 29 September 2026
 
 9. **Named pages for sign-up, password change, and one multi-step flow (3).** No new tool: three
    addresses in `[stack.run.users]`, the way `upload` names one. Try `Password123!` (V6.2.12, L2),
@@ -220,6 +228,7 @@ claimed.
    password against Have I Been Pwned was refused by this environment's network policy, so the
    finding says "one of the 100,000 most common" rather than "breached". See DESIGN, "Two more
    passwords at sign-up".
+   **Part status:** partly done: unclear, needs a look
 
 Additions from session securevibe-e8, which answered the same question separately on the same
 day; the two answers are merged here rather than kept as two entries. To item 5: the alternative to

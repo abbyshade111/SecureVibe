@@ -11,6 +11,7 @@ yes, and the trials' cost approved when each comes to be run.** Each numbered it
    a build unusable (could not start, could not sign in, a check that needs `--slow` not given it). The third
    trial's scoring changed twice after results were seen, each time for a stated reason; deciding it first is the
    cleaner method.
+   **Part status:** done, 5 October 2026
 2. **The real loop, a pilot.** Each build in a fresh folder by a headless AI coding tool (`claude -p`, with
    `sv mcp` attached for that run only by `--mcp-config`, so no settings change), with no instruction to use `sv`
    beyond what the server itself says. Its transcript (`--output-format stream-json`) records every tool call. About
@@ -20,17 +21,22 @@ yes, and the trials' cost approved when each comes to be run.** Each numbered it
    `claude/loop-pilot`. Builder: the Claude Code program the desktop app carries (2.1.286), headless, with
    `--restricted`, `--strict-mcp-config`, `--no-session-persistence`, and `--max-budget-usd` on each build; the shell
    allowed only for `python3`, which is not confined to the build's folder, and said so with the results.
+   **Part status:** done, 5 October 2026
 3. **Which part of the loop does the work.** Arms: the server's instructions with no `sv`; `sv check` with no
    instructions; the plan only; the whole loop.
+   **Part status:** done, 5 October 2026
 4. **The loop's own measures,** from the transcripts: whether the brief and plan came before any code, how many
    check-and-fix rounds, the findings after each round and whether they fell or were argued with, and the time and
    tokens a loop costs.
+   **Part status:** done, date not recorded
 5. **`securevibe_preflight`: the run settings checked against the code, without running it.** Most testability
    failures in the third trial were sign-ins `sv` could not make: a seed that ignores the `SV_` accounts, a sign-in
    path not where the settings say, tables made only by the seed. A static check of those, offered in the loop,
    executes nothing, keeping the MCP server's rule that a model never starts the app.
+   **Part status:** done, 5 October 2026
 6. **Scale.** About five builds a cell, the second brief (`docs/prompts/trial-2`), and security outcomes (the
    running-app findings) as well as testability; other vendors' tools where available.
+   **Part status:** done, 6 October 2026
 **Item 1 claimed on 5 October 2026 by session paper-facts**, at the owner's word, in branch `claude/loop-confounds`.
 **Item 1 done the same day** (DESIGN, "When the seed runs, said"): the spec and the plan say the seed runs after
 the app answers on `health`, in each copy `sv` starts, so the app makes its own tables; a test holds that sentence to

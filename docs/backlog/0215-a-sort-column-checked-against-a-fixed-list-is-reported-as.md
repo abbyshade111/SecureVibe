@@ -17,11 +17,15 @@ To build, for Python, the language of all ten apps; the other languages keep the
 
 1. **A name judged in its own function:** a name the enclosing function binds once, and does not take as a parameter,
    is judged by that binding, whatever other functions do with the same name.
+   **Part status:** done, with the item
 2. **A guard on a fixed list:** after `if name not in FIXED:` whose block always leaves (`return`, `raise`, or a call
    to `abort`), the name is fixed, where `FIXED` is fixed text: a list, tuple or set of fixed items, or a name for one.
+   **Part status:** done, with the item
 3. **A choice between fixed values:** `a if c else b` with both values fixed.
+   **Part status:** done, with the item
 4. **Fixed pieces joined:** `SEP.join(name)` where `SEP` is fixed and the function binds `name` once to a list of
    fixed items and only ever `append`s or `extend`s fixed items to it.
+   **Part status:** done, date not recorded
 
 Each with witnesses both ways (the safe shape quiet, the same shape with a request value still reported), and each
 guard broken on purpose and seen caught. The record: a "Later" entry on ADR-018 in the pull request that builds it.

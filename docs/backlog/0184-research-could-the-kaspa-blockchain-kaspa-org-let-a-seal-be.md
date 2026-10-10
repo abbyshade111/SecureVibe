@@ -17,21 +17,26 @@ and cited rather than remembered):
 1. **What Kaspa offers that bears on this.** How Kaspa records data in a transaction (a payload, or only payments),
    how long a record stays retrievable (whether nodes prune old data, and what an archival node keeps), how quickly
    a record settles, and what a record costs in fees and in KAS that has to be bought and held.
+   **Part status:** done, with the item
 2. **What a blockchain would and would not fix.** The per-computer limit comes from the seal being a shared secret
    (HMAC): checking one needs the key that made it. A chain could publish a key, or a seal's hash and time, where
    anyone can read them. It cannot show that a person, rather than an AI coding tool with the same access, made a
    seal, which is what ADR-026 rests on (a terminal the tool does not have). Say which of these a chain helps with.
+   **Part status:** done, with the item
 3. **The alternatives without a chain**, compared on the same questions: a public-key signature (Ed25519, say) with
    each person's public key committed in the app's repository, so any computer can check a seal and only the person
    can make one; SSH or GPG signing keys people already have; Sigstore's keyless signing and its public transparency
    log. If one of these fixes the limit without a network connection, a dependency on a chain, or money, say so
    plainly.
+   **Part status:** done, with the item
 4. **What it would cost `sv`'s rules.** `sv` opens no network connection of its own apart from `sv probe`
    (CLAUDE.md, ADR-027): checking a seal against a chain would be a second exception, or the check would read data
    the person downloads, as advisory data is now. Holding KAS spends the owner's money. A new crate is a dependency.
    Each is a decision for the owner, and the research says which ones any design would need.
+   **Part status:** done, with the item
 5. **A recommendation**, with what it rests on, for the owner to decide: Kaspa, another approach, or keeping the
    record per computer.
+   **Part status:** done, with the item
 
 **Note, 6 October 2026, session securevibe-e10.** The first findings. A read-only research agent read the sources
 below; this session opened KIP-14, Kaspa's payload page, and the `ssh-keygen` manual itself and found them as quoted.
@@ -52,6 +57,7 @@ below; this session opened KIP-14, Kaspa's payload page, and the `ssh-keygen` ma
      `mining/src/mempool/config.rs`), and mass is the larger of compute and storage mass (kaspa.aspectron.org,
      fees). A small transaction would cost a few thousandths of a KAS (inferred, **not confirmed**). The fee comes
      from the sender's own coins, so publishing means buying KAS and keeping a wallet on the computer (inferred).
+   **Part status:** done, with the item
 2. **What a chain would and would not fix** (inferred). It gives a public, dated record anyone can read: a public
    key, or a seal's hash. It **cannot** show who made a seal: a wallet key on the owner's computer is as usable by an
    AI coding tool running as the owner as `review-key` is, which is ADR-026's own limit ("not who was at the
@@ -59,6 +65,7 @@ below; this session opened KIP-14, Kaspa's payload page, and the `ssh-keygen` ma
    trusted only if the checker already trusts the wallet that published it, so a list of trusted keys is still
    needed. And it **cannot** keep a record readable on its own, past about 30 hours, without an archival node. The one
    thing it adds beyond a public-key signature is a time nobody can backdate.
+   **Part status:** done, with the item
 3. **Without a chain.**
    - *Ed25519 signatures,* each person's public key listed somewhere a checker trusts: any computer checks offline,
      and only the private key's holder signs (inferred). Rust: `ed25519-dalek` (crates.io, BSD-3-Clause).
@@ -72,18 +79,21 @@ below; this session opened KIP-14, Kaspa's payload page, and the `ssh-keygen` ma
    - *In every design,* the list of trusted keys is the weak point: if the AI coding tool can edit it in the
      repository, it can add a key of its own. It has to live where the tool cannot write (a CI setting, a file in the
      person's own home folder), or every change to it has to be flagged (inferred).
+   **Part status:** done, with the item
 4. **What each would cost `sv`'s rules.** `Cargo.lock` holds `hmac` and `sha2` and no signature crate today.
    - *Kaspa:* a second exception to "no network of its own" (a node or indexer to publish, archival access to
      check), the owner's money (KAS for every seal), and a Kaspa client and wallet as dependencies (not sized).
    - *Ed25519:* no network, no money, one crate (`ed25519-dalek`).
    - *SSH signatures:* no network, no money, one crate (`ssh-key`).
    - *Sigstore:* the network to sign, an account, and a public record of who signed; crates not sized.
+   **Part status:** done, with the item
 5. **Recommendation, for the owner to decide:** not Kaspa. SSH-format Ed25519 signatures (`ssh-key`) would let any
    computer check a seal offline, with no shared secret, no money, and the "no network" rule unchanged, using a key
    the person may already have and that `ssh-keygen -Y verify` can check without `sv`. The list of trusted public
    keys would have to be kept where the AI coding tool cannot write. Under every design, "a person, not the tool, made
    this" stays unproven, as ADR-026 says. Building it would change ADR-026 and add a dependency, so its record goes in
    the same pull request, and it needs a claim and the owner's decision first.
+   **Part status:** done, with the item
 
 **Closed 9 October 2026 at the owner's word:** another session answered the owner's questions on this on 8 October
 2026, and the owner asked for the item to be taken off the board ("another session answered my questions on that

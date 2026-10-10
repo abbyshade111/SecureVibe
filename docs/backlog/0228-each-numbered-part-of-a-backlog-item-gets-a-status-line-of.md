@@ -1,6 +1,6 @@
 # Each numbered part of a backlog item gets a status line of its own
 
-**Status:** claimed by paper-facts, 9 October 2026
+**Status:** partly done: parts 6 to 8: the done folder, a review's findings as items, and the size warning
 
 Decided by the owner on 9 October 2026, after asking for "a better overview of what's done from the backlog and what
 isn't", since the board "is clearly not tracking things properly": "yes, please add that change when it fits into your
@@ -21,18 +21,41 @@ the board in the documentation set (`tools/docs_page.py`) shows those guesses. T
 
 **What to build.**
 
-1. A status line under each numbered part, in the item file's one form: `Status: open`, `claimed by <session>,
+1. **A status line under each part.** A status line under each numbered part, in the item file's one form: `Status: open`, `claimed by <session>,
    <date>`, `done, <date>`, `partly done: <what remains>`, set by `backlog.py claim 226.3 --by <session>` and `done
    226.3`, which refuse a part another session holds, as for items.
-2. The board and `backlog.py list` read parts only from those lines, never from prose, and show each item with its parts
+   **Part status:** done, 9 October 2026
+2. **The board and `list` read only those lines.** The board and `backlog.py list` read parts only from those lines, never from prose, and show each item with its parts
    under it: how many are done, claimed and by whom, and open.
-3. `backlog.py --check` fails when a part has no status line, when one is not in the form, and when an item's own status
+   **Part status:** done, 9 October 2026
+3. **`--check` holds parts to their lines.** `backlog.py --check` fails when a part has no status line, when one is not in the form, and when an item's own status
    disagrees with its parts (`done` with a part open); and when a note at the end of an item names a part ("part 1, item
    3 claimed", "items 3 and 7 done") that its line does not agree with.
-4. A one-time conversion of every item: each part's line set from what can be read without doubt; where the prose leaves
+   **Part status:** done, 9 October 2026
+4. **A one-time conversion.** A one-time conversion of every item: each part's line set from what can be read without doubt; where the prose leaves
    it unclear, `partly done: unclear, needs a look` rather than a guess, so the board is honest from the first day and
    says where a person must look.
-5. The rules in `CLAUDE.md` and `docs/BACKLOG.md` saying to claim and finish a part with the tool, as for an item.
+   **Part status:** done, 9 October 2026
+5. **The rules say so.** The rules in `CLAUDE.md` and `docs/BACKLOG.md` saying to claim and finish a part with the tool, as for an item.
+   **Part status:** done, 9 October 2026
+
+6. **A `done` folder.** When an item is done, `backlog.py done` moves its file to `docs/backlog/done/`, keeping its
+   number and name, so the folder lists only live work (about 44 files of 229 that evening); the tool, the board, and
+   a search by title read both. References to a moved file's path are kept true.
+   **Part status:** claimed by paper-facts, 9 October 2026
+
+7. **Each finding of a future review is an item of its own.** A review keeps its write-up and lists its findings by
+   number, each an item file, so two sessions working on two findings never write to one file; the big items already
+   written stay as they are, their parts kept honest by the lines above. A rule in `CLAUDE.md` and `docs/BACKLOG.md`.
+   **Part status:** claimed by paper-facts, 9 October 2026
+
+8. **A soft size warning.** `--check` names an item past about 300 lines, as one to split before it grows into
+   another 0006 (890 lines that evening); a warning, not a failure.
+   **Part status:** claimed by paper-facts, 9 October 2026
+
+**The owner's decision on 6 to 8, 9 October 2026,** after asking for "additional suggestions for keeping the backlog
+more manageable" and remembering a done area that had never been built: "yes, I agree with all those fixes, thank
+you". Built after 1 to 5, in a pull request of their own.
 
 **Showing it** belongs to the observability dashboard (0227), at the owner's word: the board's view of parts, and how
 far each item has come, is built there. This item makes the data true; 0227 decides how a person sees it.

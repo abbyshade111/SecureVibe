@@ -21,6 +21,7 @@ hands to add here as they choose.
    Docker's own `python` and `node` images"; ADR-052, Later, 8 October 2026): `install::official_image`, and `plan`
    refusing any other image before the folder is read. Not done: a terminal confirmation for other images, since
    the MCP server has no terminal to ask at; building the packages into your own image stays the route.
+   **Part status:** partly done: unclear, needs a look
 2. **Brakeman reads `config/brakeman.yml` from the app, and that file can name Ruby files Brakeman loads**
    (`data/adapters.json`, the brakeman entry passes no config of its own; `additional_checks_path` is a documented
    option whose `*.rb` files Brakeman requires). A Rails app handed to the owner runs Ruby on their computer under
@@ -33,6 +34,7 @@ hands to add here as they choose.
    there since 3.6.2 (2017) unless asked to allow it; the review's "high" was wrong. What was built is the smaller
    thing that stood: Brakeman now reads an empty settings file of `sv`'s own and never the app's, so a clean run
    over an app with `config/brakeman.yml` is credited rather than withheld.
+   **Part status:** done, 8 October 2026
 3. **`sv review` writes `securevibe.toml` and `security-notes.md` through a link the app planted, and not
    atomically** (`crates/sv-cli/src/review.rs`, `save_text`): the one writer left on a plain write after S3 fixed
    `sv notes` and `sv rules`. Branch `claude/securevibe-review-links`: `refuse_link` and `write_without_following`,
@@ -40,6 +42,7 @@ hands to add here as they choose.
    **Done the same day** (DESIGN, "Writing nothing through a link", the `sv review` paragraph): both names looked
    at before anything is asked, a link at either refused, and each file written under a new name renamed into
    place; the test lives in `review_terminal.rs`, which has the terminal `sv review` needs.
+   **Part status:** done, date not recorded
 4. **A `--tools` program is whatever `PATH` says, and `PATH` can point inside the app** (`crates/sv-check/src/adapters.rs`
    spawns by bare name with the owner's `PATH` passed on, in the app's folder): `source .venv/bin/activate` before
    `sv report --tools` runs the app's own `.venv/bin/bandit`. Branch `claude/securevibe-review-tool-path`: the
@@ -49,3 +52,4 @@ hands to add here as they choose.
    "The program itself"): `adapters::located`, with a program found nowhere still run by name, so "not installed"
    reads as it did. Not done: naming the program's path in the report, since the path can hold the owner's home
    folder and a report may be shared; the refusal names it instead.
+   **Part status:** partly done: unclear, needs a look

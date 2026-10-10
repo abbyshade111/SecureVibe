@@ -84,6 +84,7 @@ listed apart, below this item.
    **That part done the same day** (DESIGN, "The SQL rule reads Supabase's filter text"): `.or`/`.filter` on npm and
    `.or_`/`.filter` in Python (`crates/sv-check/src/ast/orm_supabase_tests.rs`), and the unread list empty; the
    hold-back's end-to-end tests run on a stand-in list. With it, both halves of finding 1 are done.
+   **Part status:** open
 2. **Dependencies in .NET, Dart, Swift, Elixir, and Deno are invisible, and V15.2.1 is credited anyway.**
    (`docs/GAP-ANALYSIS.md`, 1.5.) Detect `*.csproj`, `packages.lock.json`, `pubspec.yaml`/`.lock`,
    `Package.swift`/`.resolved`, `mix.exs`, and `deno.json`/`.lock` as ecosystems `sv` does not read, so they hold
@@ -93,6 +94,7 @@ listed apart, below this item.
    V15.2.1, and in the pinning check, which then cannot pass V15.1.2 either. Recorded as a Later entry on ADR-037.
    **Done the same day** (DESIGN, "Dependencies `sv` does not read are named, and hold back the credit"; ADR-037,
    Later).
+   **Part status:** done, 8 October 2026
 3. **"Debug mode off" and "generic error messages" are credited from a 404 alone.** (`docs/GAP-ANALYSIS.md`, 1.6.)
    `probe.error-detail-leak` credits V13.4.2 and V16.5.1 from a missing page's answer. Provoke a real error
    (malformed JSON to a create request, a non-number id) and credit only when an error answer was seen and was
@@ -103,6 +105,7 @@ listed apart, below this item.
    error. **`Status: proposed`: ADR-056.**
    **Done the same day** (DESIGN, "An error answer is credited only when the app was made to give one"; ADR-056,
    accepted).
+   **Part status:** done, 8 October 2026
 4. **One read earns "checked" for one user reaching another's data (V8.2.2).** (`docs/GAP-ANALYSIS.md`, 1.7.) Have
    user B also open every private page and the record's list (A's marker there is a finding); optional `update` and
    `delete` templates under `[stack.run.users] owned` that B sends and A reads back; and "checked in part" wording
@@ -114,6 +117,7 @@ listed apart, below this item.
    'checked in part'"): lists and private pages, `update` and `delete` judged by the owner's read-back, and
    *checked in part* as a status of its own. Not done: "checked in part" for checks other than V8.2.2 that rest on one
    sample, each to be read on its own.
+   **Part status:** partly done: unclear, needs a look
 5. **The coverage documents count requirements that can never be credited as "can settle".**
    (`docs/GAP-ANALYSIS.md`, 1.8.) Add a "can be credited" column to COVERAGE.md's summary, level, and chapter
    tables; label finding-only requirements "can only be found failing" in REQUIREMENTS.md; repeat the AISVS
@@ -123,6 +127,7 @@ listed apart, below this item.
    **Done the same day** (DESIGN, "The coverage documents count what can be credited"): a **Can be credited**
    column (ASVS 119 of 345, 34%; level 1, 43 of 70), the sentence for ASVS, and the label "Can only be found
    failing". Left for whoever next updates the paper's `figure-security.html`: it quotes "can settle" only.
+   **Part status:** done, 7 October 2026
 6. **The development-server check passes `python app.py` that starts Flask's debugger.** (`docs/GAP-ANALYSIS.md`,
    1.9.) A code rule for `app.run(debug=True)`, `app.debug = True`, and Django's `DEBUG = True` (finding only), or
    have `config.development-server-started` say the script it runs decides, instead of passing.
@@ -135,6 +140,7 @@ listed apart, below this item.
    that only raises findings changes no requirement's status, so no ADR is proposed.
    **Done the same day** (DESIGN, "A web framework's debug mode switched on in the code"): `ast.debug-mode-on`,
    findings only, citing V13.4.2, and the start-command check naming the file a command runs.
+   **Part status:** done, 7 October 2026
 7. **Token-based apps get false "request from another site accepted" findings.** (`docs/GAP-ANALYSIS.md`, 2.1.) The
    forged requests in `signed_in/forgery.rs` keep the session's `Authorization: Bearer` header, which another
    website cannot send. When the session's token is not a cookie, send them without it; a refusal then means
@@ -148,6 +154,7 @@ listed apart, below this item.
    **Done the same day** (DESIGN, "A request from another site carries no `Authorization` header"; ADR-021, Later,
    7 October 2026, accepted): both requests go with the session's cookies only; with no cookie neither is sent and
    both are not assessed; a refusal with the token left off is not credited.
+   **Part status:** done, 7 October 2026
 8. **Single-page apps get a false "private page open to anyone".** (`docs/GAP-ANALYSIS.md`, 2.2.) An anonymous 2xx
    counts as served (`signed_in/mod.rs`), so a React or Vite app's page shell for `/dashboard` is reported high.
    Treat an answer identical to the root page's as a shell, not judged; tell builders in the spec to list API
@@ -160,6 +167,7 @@ listed apart, below this item.
    **Done the same day** (DESIGN, "A single-page app's page shell is not its private page"; ADR-021, Later, 7
    October 2026, accepted): a private page answering nobody exactly as the front page does is set aside, not
    judged, and every later check is given the pages that are left; the spec says to list `/api/me`-style addresses.
+   **Part status:** done, 7 October 2026
 9. **Apps that install packages cannot be run by `sv run`.** (`docs/GAP-ANALYSIS.md`, 3.1.) Now: fix
    `examples/flask-booking/securevibe.toml` (its `pip install` build cannot run read-only, and it listens on
    127.0.0.1) and the starter's `build` example; have the preflight warn about `pip`/`npm`/`yarn`/`pnpm install` in
@@ -187,6 +195,7 @@ listed apart, below this item.
    **That part done the same day**
    (`docs/design/0326-a-build-step-that-downloads-packages-said-before-the-run-9.md`): the preflight's
    `build-install` item, and "An image of your own" in `docs/GETTING-STARTED.md`. Finding 9 is done.
+   **Part status:** open
 10. **Supabase and Firebase access rules are never read.** (`docs/GAP-ANALYSIS.md`, 3.2.) Rules files
    (`firestore.rules`, `storage.rules`, `database.rules.json`: `if true`, no `request.auth`, no owner check);
    Supabase migrations (a table without `enable row level security`, grants to `anon`); a secret, service-role, or
@@ -210,6 +219,7 @@ listed apart, below this item.
    app. Read on `main` just before this claim: no other session had claimed it.
    **The fourth part done the same day** (DESIGN, "A hosted backend is named as out of the running app's reach").
    With it, every part of item 10 is done.
+   **Part status:** open
 11. **Plain `sv check` has no rule for the commonest web flaws.** (`docs/GAP-ANALYSIS.md`, 3.3.) Code rules, mostly
    finding-only, each claimable on its own: cross-site-scripting sinks by framework (`dangerouslySetInnerHTML`,
    `innerHTML`, `Markup`, `| safe`, `res.send` of built HTML); a template built from a value
@@ -277,6 +287,7 @@ listed apart, below this item.
    **The `none` algorithm done the same day** (DESIGN, "A token check that accepts the none algorithm"):
    `ast.token-none-algorithm` in Python, JavaScript and TypeScript, Go, and Ruby (`crates/sv-check/src/ast/token_none_tests.rs`),
    only ever a finding. With it, every part of finding 11 is done.
+   **Part status:** open
 12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
    Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
    and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
@@ -289,6 +300,7 @@ listed apart, below this item.
    cover. No credit changes, so no ADR is proposed.
    **Done the same day** (DESIGN, "Bandit's and gosec's findings for injection and unescaped output name their
    requirement"), with two tests in `crates/sv-check/tests/citations.rs`.
+   **Part status:** done, 7 October 2026
 13. **Running checks an attacker would try first.** (`docs/GAP-ANALYSIS.md`, 3.5.) Each claimable on its own: (a)
    mass assignment beyond sign-up: B sends `owner`/`user_id`/`role` on `owned.create`, `creates`, and
    `change-email`; (b) stored cross-site scripting: a second `owned` record with `<sv-x>` in its marker, and a
@@ -398,6 +410,7 @@ listed apart, below this item.
    **(b), the test model's half, done the same day**
    (`docs/design/0331-the-model-s-reply-written-into-the-page-as-html-9-october.md`; ADR-042, Later):
    `probe.ai-reply-html-unencoded`.
+   **Part status:** open
 14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
    `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
    `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
@@ -416,6 +429,7 @@ listed apart, below this item.
    **The second half done 8 October 2026** (DESIGN, "Astro's header and EJS's tags read as code"; ADR-054, Later):
    Astro's header, `{…}`, and scripts read as TypeScript, and EJS's tags as one JavaScript program, each at its own
    lines. `.pug`, `.erb`, `.jsp`, `.cshtml`, and `.razor` are still unread code.
+   **Part status:** done, 8 October 2026
 15. **The secrets scan misses passwords in web addresses and many AI-app providers.** (`docs/GAP-ANALYSIS.md`,
    3.7.) A rule for `scheme://user:password@host` (placeholders skipped; `secrets.rs` now skips any value with
    `://`); the published patterns for SendGrid, Groq, Resend, Supabase, Twilio, Mailgun, Postmark, Replicate,
@@ -428,6 +442,7 @@ listed apart, below this item.
    A notebook's escaped JSON is not part of this. More formats find more and credit nothing new, so no ADR is proposed.
    **Done the same day** (DESIGN, "Passwords in web addresses, and the key formats of the providers AI-built apps
    use"): `secrets.password-in-url`, and ten provider formats.
+   **Part status:** done, 7 October 2026
 16. **Smaller static gaps: workflows, and where infrastructure and CI files are looked for.**
    (`docs/GAP-ANALYSIS.md`, 3.8.) Workflows: a pull request's title or branch pasted into a `run:` line, and
    third-party actions pinned to a tag rather than a commit (finding only). Corroborators: match `Dockerfile`,
@@ -452,6 +467,7 @@ listed apart, below this item.
    none of the seven names is listed, and no other session holds this half.
    **The corroborators half done the same day** (`docs/design/0326-infrastructure-and-ci-files-at-any-depth-9-october-2026.md`;
    ADR-015, Later, 9 October 2026, accepted), with `cloudbuild.yml` beside `cloudbuild.yaml`. Finding 16 is done.
+   **Part status:** open
 17. **The answers that set the app's level are the AI tool's, never sealed, and the report does not say so.**
    (`docs/GAP-ANALYSIS.md`, 4.1.) Under the level line, say why and on whose word; let `sv review` seal the scope
    (`audience`, `[data]`); until sealed, show the level 2 count beside it; compare `audience = "just-me"` with a
@@ -498,6 +514,7 @@ listed apart, below this item.
    ADR-024, Later, accepted): `sv review` asks last for the owner to confirm the audience and the data list and seals
    `[scope-review]`; the level line says they were confirmed, and when, or that they changed since, or that a
    confirmation does not count here. Finding 17 is done.
+   **Part status:** open
 18. **The AI tool's "when to bring in a person" text is shown as the owner's.** (`docs/GAP-ANALYSIS.md`, 4.2.) A
    `design-decisions.md` section the AI tool wrote saying no outside review is needed comes out as "Your
    design-decisions.md says …" in every report file (`main.rs`, near the escalation text). Name who wrote it, and
@@ -506,6 +523,7 @@ listed apart, below this item.
    another item from the backlog"), in branch `claude/securevibe-e2-loop-lessons`.
    **Done the same day** (DESIGN, "Whose "bring in a person" text it is, and two lessons for the AI tool"): the
    report names who wrote the section, from its `Written by:` line.
+   **Part status:** done, 8 October 2026
 19. **`not-the-app` can switch off one capability's requirements.** (`docs/GAP-ANALYSIS.md`, 4.3.) List each
    condition found only inside a not-the-app folder as a question in the report, and refuse a folder holding the
    start command's file. A change to ADR-031: a Later entry.
@@ -513,6 +531,7 @@ listed apart, below this item.
    `claude/securevibe-e9-not-the-app`: a condition the scan finds only inside a not-the-app folder is not read as
    "no", and the report asks it, naming the file; an entry holding the file the start command runs is refused.
    **Done the same day** (DESIGN, "A folder set apart cannot switch a capability off"; ADR-031, Later).
+   **Part status:** done, 8 October 2026
 20. **Two lessons from the owner's first build never reached the AI tool.** (`docs/GAP-ANALYSIS.md`, 4.4.) "Never
    rewrite working code to silence a finding" and "name a requirement in a test only where the test proves it": add
    both to `data/coding-rules.json`, and the second to the brief's test line (`brief.rs`) and the spec's test
@@ -521,6 +540,7 @@ listed apart, below this item.
    `claude/securevibe-e2-loop-lessons`.
    **Done the same day** (the same DESIGN section): the first lesson in `never-weaken-a-check`, the second at the
    top of the feature brief's "Tests to write".
+   **Part status:** done, 8 October 2026
 21. **The loop trials cannot tell fixing from dodging.** (`docs/GAP-ANALYSIS.md`, 4.5.) Add to the trial measures
    how each finding went away, and credit-seeking edits (ids added to tests, `by = "owner"`, finding reviews,
    `not-the-app` or scope changes); run an outside tool as an independent check of the loop arm.
@@ -540,6 +560,7 @@ listed apart, below this item.
    kept here. Still open: an outside tool run as an independent check of the loop arm, which needs a new trial.
    **The owner's decision, 9 October 2026:** the outside-tool half is folded into the next loop trial the owner runs
    anyway, rather than paid for as a trial of its own ("agree"). It stays open until then.
+   **Part status:** open
 22. **Smaller trust gaps in the build loop.** (`docs/GAP-ANALYSIS.md`, 4.6.) Each claimable on its own: (a) the
    seal key's passphrase on by default, and the report saying when a seal's key has none (a change to ADR-043); (b)
    reports read back as MCP resources fenced as app text; (c) a "drafted by your AI tool, adopted by you" label for
@@ -647,6 +668,7 @@ listed apart, below this item.
    check's counts), and every report written into a report folder says, in one paragraph at the top, how many calls
    and checks there were and how the counts moved, or that nothing shows `sv` was used. It credits nothing; it can be
    turned off with `build-loop-record = false` under `[app]`, and the report then says so.
+   **Part status:** partly done: unclear, needs a look
 23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no
    warning and exit 0. Read it when present and exit 2 on a parse error; say plainly in its help and in the coding
    rule that the terminal command is the narrower scan.
@@ -657,6 +679,7 @@ listed apart, below this item.
    coding rule names `sv report` as the terminal's form of `securevibe_check`, which builds the whole report.
    **Done the same day** (DESIGN, "`sv check` reads securevibe.toml when it is there"; ADR-029, Later, 7 October
    2026).
+   **Part status:** done, 7 October 2026
 24. **The known-vulnerability check is out of reach for the owner.** (`docs/GAP-ANALYSIS.md`, 5.2.) Give the exact
    OSV download address per ecosystem and the folder layout in `sv audit`'s message and the guide. A command that
    downloads them (`sv advisories fetch`) would change what `sv` connects to: only as a decision with its own
@@ -669,6 +692,7 @@ listed apart, below this item.
    `docs/GETTING-STARTED.md` has a table of all six, held to the code by a test. Breaks: a wrong address format
    failed three tests; the report not naming the address, the audit message not saying how, and a row missing
    from the guide each failed the test written for it. Nothing downloads.
+   **Part status:** done, 8 October 2026
 25. **Silent failures while setting up.** (`docs/GAP-ANALYSIS.md`, 5.3.) Each claimable on its own: (a) a "did it
    connect" step for every tool in the guide, and a coding rule telling the AI tool to stop and say so when the
    `securevibe_` tools are missing; (b) the container form of `sv review` in the guide, and an `.mcp.json` example
@@ -762,12 +786,14 @@ listed apart, below this item.
    adds to the same file, so the container sees each new app. Breaks: the whole folder given to the AI tool's
    container, the list not made first, and an empty list each failed `crates/sv-cli/tests/review_container.rs`,
    whose third test makes natively what that container sees and shows a signed answer still counts.
+   **Part status:** done, 8 October 2026
 26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
    was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
    could reach (`sv-report`'s short version).
    **Done 7 October 2026 with item 27**, by session securevibe-e2 (its claim and done note are under item 27): the
    short version's "Not run this time" line (DESIGN, "The short version says what kind of run it was, and which
    level").
+   **Part status:** done, 7 October 2026
 27. **The short version does not say which level the app was held to.** (`docs/GAP-ANALYSIS.md`, 6.2.) "Held to
    ASVS level 1: N more at levels 2 and 3, and M not yet placed, are not in these numbers."
    **Items 26 and 27 claimed together on 7 October 2026 by session securevibe-e2**, at the owner's word ("please
@@ -776,6 +802,7 @@ listed apart, below this item.
    **Done the same day** (DESIGN, "The short version says what kind of run it was, and which level"): after the
    counted list, "Held to ASVS level L" with what that leaves out, and "Not run this time" with how many
    requirements only those runs could check, from `data/reach.json`.
+   **Part status:** done, 7 October 2026
 28. **Smaller report points.** (`docs/GAP-ANALYSIS.md`, 6.3.) "passed" in the short version's next steps, and the
    banned-word test extended past the headline; the spec and the MCP instructions recommending `--fail-on
    attention:high` for a CI workflow.
@@ -784,6 +811,7 @@ listed apart, below this item.
    **Done the same day** (DESIGN, "Smaller report points from the gap analysis"; ADR-029, Later): the wording
    fixed, every sentence of the short version held to the banned words, and `--fail-on attention:high` named in
    the specification and the MCP instructions.
+   **Part status:** done, 7 October 2026
 29. **Requirements nobody is told how to check by hand.** (`docs/GAP-ANALYSIS.md`, 6.4.) Add hand instructions
    (`data/human-checks.json`) for V2.2.1, V1.3.3, V1.3.5, V1.3.8, V6.5.2, V6.5.3, V8.4.1, V11.6.1, V13.3.2,
    V16.3.4, and the AISVS level 1 requirements no check settles, starting with C2, C7, C9, and C10.
@@ -793,6 +821,7 @@ listed apart, below this item.
    **Done the same day** (DESIGN, "Hand instructions for requirements nobody was told how to check"): all ten ASVS
    requirements, and the 16 AISVS level 1 ones in C2, C7, C9, and C10 with no instruction, in
    `data/human-checks.json`, each held by a test.
+   **Part status:** done, 7 October 2026
 30. **The fence tests pass without testing the fence when there is no container backend.** (`docs/GAP-ANALYSIS.md`,
    7.2.) `SV_REQUIRE_BACKEND=1`, set in `rust.yml`, turns each test's "no container backend here" branch into a
    failure, so a broken Docker on the runner turns CI red.
@@ -801,6 +830,7 @@ listed apart, below this item.
    `SV_REQUIRE_BACKEND=1`, fails when no container backend answers, and `rust.yml` setting it for the test job, so the
    38 "no container backend here" branches can no longer all pass on a runner whose Docker broke.
    **Done the same day** (DESIGN, "CI requires a container backend"; ADR-051, Later, 7 October 2026).
+   **Part status:** done, 7 October 2026
 31. **The files that decide what counts as evidence are governed by no record.** (`docs/GAP-ANALYSIS.md`, 7.3.) Add
    `crates/sv-check/src/suite.rs`, `data/applicability-v2.json`, `data/human-checks.json`, and `tools/coverage.py`
    to the Governs lists of the records they carry out, and confirm the weekly decision-record review runs.
@@ -830,6 +860,7 @@ listed apart, below this item.
    checked after 12 October.
    **The setup script added by the owner on 9 October 2026**, from the draft session securevibe-e9 gave: it installs
    Rust (stable, with `clippy` and `rustfmt`, as CI does) when it is missing, and shows that Python 3 is there.
+   **Part status:** done, 9 October 2026
 32. **Every check that can credit should be seen not crediting somewhere in the suite.** (`docs/GAP-ANALYSIS.md`,
    7.4.) Extend `tools/coverage.py --credits` (and the census) so a check that credits in the test suite must also
    be seen giving a finding or "not assessed" there, turning "break your own rule" into a CI gate.
@@ -866,11 +897,13 @@ listed apart, below this item.
    **Step 3 done the same day, and with it item 32** (DESIGN, "Step 3: the gate"; ADR-059, accepted):
    `check_withheld` in `--credits`, `NEVER_WITHHELD` empty, and `unrecorded_findings` in `--check`. Breaks: a
    finding built without `found`, a check's marker removed, and the gate switched off, each caught.
+   **Part status:** claimed by securevibe-e2, 8 October 2026
 
 33. **The backlog is too large to read reliably.** (`docs/GAP-ANALYSIS.md`, 7.5.) Move done items to a file of
    their own; track claims as GitHub issues with assignees, or have CI refuse a claim for an item already claimed
    on `main`; list the remote branches already merged into `main` for the owner, who decides whether any is
    deleted.
+   **Part status:** open
 34. **Hand Semgrep the app's templates and configuration files too.** (`docs/GAP-ANALYSIS.md`, the rest of 1.2.)
    Today 22 loaded rules read only files `sv` never hands Semgrep: templates (`*.erb`, `*.ejs`, `*.pug`, `*.jsp`,
    `*.mustache`), nginx's and Scala Play's `*.conf`, and `web.config`. They count for nothing, which is honest but
@@ -888,3 +921,4 @@ listed apart, below this item.
    when a pack changes.
    **Done 8 October 2026** (DESIGN, "Semgrep is handed the files its rules name"; ADR-018, Later), with three tests
    in `crates/sv-check/tests/unread_files.rs`.
+   **Part status:** done, 8 October 2026

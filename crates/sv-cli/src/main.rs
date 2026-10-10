@@ -2517,7 +2517,9 @@ fn cmd_report(args: &[String]) -> Result<i32> {
         elsewhere,
         false,
         || {
-            let mut report = assemble_report(
+            // Each stage as it starts, on stderr, so a long run is seen to be moving and the
+            // report on stdout is left alone (backlog 226, part 2, item 15).
+            let mut report = assemble_report_saying(
                 &app_dir,
                 &ReportOptions::asked_of(
                     "`sv report`",
@@ -2527,6 +2529,7 @@ fn cmd_report(args: &[String]) -> Result<i32> {
                     advisories_dir,
                 ),
                 &loaded,
+                &|n, name| eprintln!("{}", sv_cli::assemble::stage_line(n, name)),
             )?;
             if let Some(b) = &baseline {
                 b.same_app(&report.app_name)?;

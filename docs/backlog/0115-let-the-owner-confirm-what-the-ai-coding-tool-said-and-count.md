@@ -14,10 +14,13 @@ notes section (the finding below), then the confirmation itself.
 2. **A notes section that does not say who wrote it counts as the AI tool's**, as a design answer
    without `by` does. `sv` defines one marker line per section and reads nothing else (no guessing at
    "Decided by the owner"). Existing files are re-asked in the next interview.
+   **Part status:** done, with the item
 3. **A confirmation ranks level with the owner's own record of the same kind** (attested, checked by
    hand, documented), shown as confirmed with the owner's `how`, and never *checked*.
+   **Part status:** done, with the item
 4. **The owner or anyone named may confirm**, at the same rank, the name printed; `sv` cannot verify
    who anyone is, so a named reviewer does not rank higher.
+   **Part status:** done, with the item
 
 **Today:** when the owner does not know an answer and the tool answers from the code, it is recorded
 `by = "ai-tool"` and shown as *stated by the AI coding tool*, the lowest tier that counts for anything
@@ -50,10 +53,13 @@ can see for themselves (a page to open, a thing to try), not a yes-or-no.
 1. **Where it ranks.** Above *stated* for certain. Level with *attested by the owner*, or just below it
    (the owner checked a claim rather than knowing the answer), or just below *checked by hand by the
    owner* when the owner watched the app behave?
+   **Part status:** done, with the item
 2. **Whether it covers hand checks as well as design answers**, and the written security notes.
+   **Part status:** done, with the item
 3. **Whether "owner" is the only confirmer**, or a named reviewer (a colleague, a security person) can
    confirm too, with their name in the report. A second person is stronger evidence than the owner, and
    the manifest already has a `by` field to carry it.
+   **Part status:** done, with the item
 
 **Step 1 done the same day** (DESIGN.md, "Who wrote each section of the security notes"): each notes
 answer starts with `Written by: owner` or `Written by: AI coding tool`; no line counts as the tool's;
