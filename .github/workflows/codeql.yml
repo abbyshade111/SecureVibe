@@ -93,3 +93,42 @@ jobs:
       - uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           category: '/language:${{ matrix.language }}'
+
+  # The open findings, written where a session can read them (10 October 2026, at the owner's asking that the
+  # nightly routine add CodeQL's findings to the backlog too). A session's access to this repository cannot read
+  # code scanning alerts, and a finding does not fail the analysis, so until now a new one was seen only in the
+  # Security tab. This job reads them with the workflow's own token and writes each open one as a note on its
+  # run: a "notice" with the count, then one "warning" per finding. Findings dismissed in the Security tab are
+  # not open, so they are not listed. Not on pull requests: there GitHub shows new findings on the change itself.
+  open-findings:
+    name: Open findings
+    needs: analyze
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      security-events: read
+    steps:
+      - name: List the open code scanning findings
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          # GitHub takes a little while to turn the uploaded results into findings.
+          sleep 90
+          gh api --paginate "repos/$REPO/code-scanning/alerts?state=open&per_page=100" \
+            --jq '.[] | "\(.number)\t\(.rule.id)\t\(.rule.security_severity_level // .rule.severity)\t\(.most_recent_instance.location.path):\(.most_recent_instance.location.start_line)"' \
+            > open.tsv
+          count=$(wc -l < open.tsv)
+          # The control: every finding ever recorded, dismissed and fixed ones too, so "0 open" is seen to come
+          # from a list that could be read, not from one that came back empty.
+          ever=$(gh api --paginate "repos/$REPO/code-scanning/alerts?per_page=100" --jq '.[].number' | wc -l)
+          echo "::notice title=Open CodeQL findings::${count} open, of ${ever} ever recorded, on ${GITHUB_SHA::7}"
+          # GitHub keeps ten notes of each kind per step, so after the first ten they go twenty to a line.
+          head -10 open.tsv | while IFS=$'\t' read -r number rule severity place; do
+            echo "::warning title=Open CodeQL finding::#${number} ${rule} (${severity}) at ${place}"
+          done
+          tail -n +11 open.tsv | awk -F'\t' '{printf "#%s %s (%s) at %s\n", $1, $2, $3, $4}' \
+            | paste -sd';' | fold -w 900 | head -9 | while read -r line; do
+            echo "::notice title=More open CodeQL findings::${line}"
+          done
