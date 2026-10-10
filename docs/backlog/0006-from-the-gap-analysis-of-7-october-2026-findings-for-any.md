@@ -1,6 +1,6 @@
 # From the gap analysis of 7 October 2026: findings for any session to pick up
 
-**Status:** partly done: part 4 (the rest of the one-sample inventory, waiting for the owner's word), part 13's (a) on `creates`, and part 21's outside-tool half, folded into the owner's next loop trial
+**Status:** partly done: part 4 (the rest of the one-sample inventory, groups A to H, being built), part 13's (a) on `creates`, and part 21's outside-tool half, folded into the owner's next loop trial
 
 Asked for by the owner on 7
 October 2026 ("please include everything else on the backlog for other sessions to pick up as they can"). Each
@@ -129,7 +129,11 @@ listed apart, below this item.
    `probe.uploaded-svg-keeps-script`). **Proposed for the owner:** the rest of the inventory, about fifty credits in
    eight groups (the design entry lists them), each marked in part where one sample cannot speak for what the
    requirement names. It lowers how many requirements a report calls checked, so it waits for the owner's word.
-   **Part status:** partly done: the rest of the one-sample inventory, waiting for the owner's word on how far it goes
+   **The owner's word, 10 October 2026** ("go with your recommendation and add to the backlog to add more checks to
+   each of these"): groups A to G in part, group H in part only when one page is listed (ADR-053, Later, accepted);
+   more samples for each group are backlog 0232. **Claimed the same day by session securevibe-e2**, in branch
+   `claude/securevibe-e2-in-part-groups`, to build.
+   **Part status:** claimed by securevibe-e2, 10 October 2026
 5. **The coverage documents count requirements that can never be credited as "can settle".**
    (`docs/GAP-ANALYSIS.md`, 1.8.) Add a "can be credited" column to COVERAGE.md's summary, level, and chapter
    tables; label finding-only requirements "can only be found failing" in REQUIREMENTS.md; repeat the AISVS

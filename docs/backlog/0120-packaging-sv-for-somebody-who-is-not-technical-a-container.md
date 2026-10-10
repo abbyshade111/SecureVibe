@@ -350,3 +350,7 @@ and tested on Windows in CI, nightly since 10 October, with every test passing (
 there stays open, since Scoop and winget each install a published program and none is published. Step 3: the guide
 has "Installing with Homebrew"; its Windows section waits for that.
 
+**The owner's word, 10 October 2026, on the Windows program** ("do the Windows build after signed releases"): a
+Windows program is published, and Scoop (and later winget) offered, only once releases are signed (backlog 0191,
+part 4). Until then the guide keeps saying Windows is built and tested in CI and installs through Docker or from
+source. Step 2's remainder waits for 0191 part 4.
