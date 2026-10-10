@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 1 items 3, 7, and 11; part 2 items 13, 14, 15 (a line per outside tool and per running-app suite), and 16 to 20; part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 1 item 11; part 2 items 13, 14, 15 (a line per outside tool and per running-app suite), and 16 to 20; part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -241,6 +241,7 @@ bytes and decoded a line at a time, a line that is not UTF-8 counted as unreadab
 sentence when the record stopped at its size limit (item 7), each with a test that fails without it. No open pull
 request or branch of the last few hours touches `crates/sv-cli/src/build_loop.rs`; item 2 is session paper-facts's,
 in #1300.
+
 **Part 1, item 2 claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please go ahead with item
 2"), in branch `claude/explain-whose-word`: `sv explain` reading whose word a status rests on as the report does, so
 an answer only the AI coding tool gave, confirmed through `sv review`, is never told to the owner as their own.
@@ -311,3 +312,9 @@ name the run's start and a run id from `run_record`; `sv report` says each of te
 the old last stage split so the outside tools and the running app are stages of their own. Still open in item 15: a
 line for each outside tool and each running-app suite within their stages. Breaks: undated pages, and silent
 stages, each fail their new test.
+
+**Part 1, items 3 and 7 done the same day** (`docs/design/0344-the-build-loop-record-read-a-line-at-a-time-and-said-when.md`):
+the record is read as bytes and decoded a line at a time, so a byte that is not UTF-8 costs its line, counted as
+unreadable, and not the whole record; and `BuildLoop::full` says when the record reached its 4 MB limit, which the
+report turns into a sentence that the last check named is the last one written. Breaks: with the old reading put back
+and `full` never set, four of the five new tests fail.
