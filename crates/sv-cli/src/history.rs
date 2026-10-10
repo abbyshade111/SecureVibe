@@ -122,13 +122,17 @@ pub fn keep(app: &Path, run: &Run) -> Result<Option<PathBuf>> {
     let app = &real_place(app);
     let mine = app_folder(&history, app);
     private_dir(&mine)?;
-    private_file(
-        &mine.join("app.json"),
-        &serde_json::to_string_pretty(&serde_json::json!({
-            "folder": app.to_string_lossy(),
-            "app_name": run.app_name,
-        }))?,
-    )?;
+    // A run that did not finish never read the app's name: the name kept stays the last one known.
+    let named = mine.join("app.json");
+    if run.finished() || !named.exists() {
+        private_file(
+            &named,
+            &serde_json::to_string_pretty(&serde_json::json!({
+                "folder": app.to_string_lossy(),
+                "app_name": run.app_name,
+            }))?,
+        )?;
+    }
     let path = mine.join(format!("{}.json", run.started_unix_ms));
     private_file(&path, &serde_json::to_string_pretty(run)?)?;
     // The oldest go once there are more than `KEEP`.

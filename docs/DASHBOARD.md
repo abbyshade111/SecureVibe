@@ -149,6 +149,10 @@ What could go wrong, and what the recommendation does about each:
   got worse.
 - **Which app is which.** An app is known by its folder, so a moved or renamed folder starts a new history, and the page
   says when an app's history begins.
+- **A run that did not finish.** A run that failed, or was stopped with Ctrl-C, wrote no report, so the report shown
+  is an older one. When history is on, such a run is kept as a record of its own, saying when it started and how it
+  ended, and nothing of the error, which can quote the app's files; the page says, above the report, that the latest
+  run did not finish and which run the report is from (ADR-083).
 - **A run that cannot be read.** A kept file that does not read as a run (changed by hand, or written by a later `sv`)
   is counted, and the page says how many it could not show, rather than showing fewer runs and saying nothing. A run
   written before a field was added still reads: every field has a default.

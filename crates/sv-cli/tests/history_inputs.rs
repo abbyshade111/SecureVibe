@@ -104,7 +104,7 @@ fn a_change_to_the_security_notes_is_kept_and_named_as_why_two_runs_are_not_comp
         .collect();
     assert_eq!(kept.len(), 2);
     for run in &kept {
-        assert_eq!(run["format"], 3);
+        assert_eq!(run["format"], 4);
         assert_eq!(run["inputs"]["sv_data_sha256"], data, "{run}");
     }
 
