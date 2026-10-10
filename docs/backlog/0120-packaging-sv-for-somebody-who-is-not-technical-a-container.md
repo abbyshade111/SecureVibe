@@ -329,3 +329,10 @@ The fifth, the stopped command's child, is not settled: the test asked Git's she
 child, whether it still ran, and that number is not Windows' own. The test now takes Windows' number from the shell's
 `/proc/<n>/winpid` and asks Windows (`tasklist`), after checking that `tasklist` finds the test's own process. The
 next Windows run says whether `taskkill /T` really stops what the command started.
+Thirteenth Windows finding, 10 October 2026: with the twelfth's fixes in, the Windows run gave 2,741 passed and 2
+failed. The stop test, now asking Windows itself, showed the child of a stopped command really still running:
+`taskkill /T` follows each process's parent, and Git's shell starts a command through processes that may have ended,
+which breaks the trail. Each command `sv` starts on Windows is now held in a job object, and stopping it stops the
+job (ADR-025, Later, 10 October 2026). The other failure was a new test (the crash message, backlog 226) that looked
+for the place of the panic written with `/`, which Rust writes with `\` on Windows; the message now writes it with
+`/` on every system.

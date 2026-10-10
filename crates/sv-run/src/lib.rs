@@ -838,6 +838,12 @@ pub(crate) fn run_bounded_with_input(
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| e.to_string())?;
+    // Windows has no process groups. A job holds the command and everything it starts, so stopping
+    // the job stops them all (`job::Job`).
+    #[cfg(windows)]
+    let job = job::Job::holding(&child);
+    #[cfg(not(windows))]
+    let job: Option<NoJob> = None;
     if let Some(mut stdin) = child.stdin.take() {
         let input = input.to_vec();
         // A command that stops reading early (a refusal sent before the upload has arrived) ends
@@ -857,11 +863,11 @@ pub(crate) fn run_bounded_with_input(
         match child.try_wait().map_err(|e| e.to_string())? {
             Some(status) => break (Some(status), false),
             None if started.elapsed() >= limit => {
-                stop(&mut child);
+                stop(&mut child, job.as_ref());
                 break (None, true);
             }
             None if !cleanup && interrupted() => {
-                stop(&mut child);
+                stop(&mut child, job.as_ref());
                 return Err("stopped: the run was stopped with Ctrl-C".to_owned());
             }
             None => {
@@ -888,26 +894,97 @@ pub(crate) fn run_bounded_with_input(
     })
 }
 
-/// Stops a command started by `run_bounded`, and everything in its process group.
-fn stop(child: &mut std::process::Child) {
+/// Where there are process groups, the group stands in for a job, so there is none to hold.
+#[cfg(not(windows))]
+struct NoJob;
+
+/// Stops a command started by `run_bounded`, and everything in its process group, or on Windows its
+/// job.
+#[cfg(not(windows))]
+fn stop(child: &mut std::process::Child, _job: Option<&NoJob>) {
     #[cfg(unix)]
     if let Ok(pid) = libc::pid_t::try_from(child.id()) {
         // SAFETY: a plain system call; the group is the one `run_bounded` made for this child.
         unsafe { libc::kill(-pid, libc::SIGKILL) };
     }
-    // Windows has no process groups to stop at once, and stopping the command alone leaves what it
-    // started running and holding its output open, so the reading waits until that ends by itself:
-    // 30 seconds for a `sleep 30`, or never for a suite that hangs (backlog 0120). `taskkill /T`,
-    // Windows' own, stops the command and everything it started.
-    #[cfg(windows)]
-    let _ = Command::new("taskkill")
-        .args(["/T", "/F", "/PID", &child.id().to_string()])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status();
     let _ = child.kill();
     let _ = child.wait();
+}
+
+/// Windows has no process groups to stop at once, and stopping the command alone leaves what it
+/// started running and holding its output open, so the reading waits until that ends by itself: 30
+/// seconds for a `sleep 30`, or never for a suite that hangs (backlog 0120). `taskkill /T` was tried
+/// first (9 October 2026) and left the child of Git's `sh` running, since it follows each process's
+/// parent and a parent that has gone breaks the trail. The job is Windows' own way to stop a command
+/// and everything it started; `taskkill /T` stays for a command no job could hold.
+#[cfg(windows)]
+fn stop(child: &mut std::process::Child, job: Option<&job::Job>) {
+    match job {
+        Some(job) => job.stop_all(),
+        None => {
+            let _ = Command::new("taskkill")
+                .args(["/T", "/F", "/PID", &child.id().to_string()])
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+/// A Windows job object: every process the command starts joins it, unless it asks to leave, and
+/// stopping the job stops them all. Called through Windows' own `kernel32`, with no new dependency.
+///
+/// A process the command starts in the moment between its start and its joining the job is not held;
+/// `sh -c` and a test runner take far longer than that to start anything.
+#[cfg(windows)]
+mod job {
+    use std::ffi::c_void;
+    use std::os::windows::io::AsRawHandle;
+
+    type Handle = *mut c_void;
+
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn CreateJobObjectW(attributes: *mut c_void, name: *const u16) -> Handle;
+        fn AssignProcessToJobObject(job: Handle, process: Handle) -> i32;
+        fn TerminateJobObject(job: Handle, exit_code: u32) -> i32;
+        fn CloseHandle(handle: Handle) -> i32;
+    }
+
+    pub(crate) struct Job(Handle);
+
+    impl Job {
+        /// A new job holding `child`, or `None` when Windows would not make one or put it in.
+        pub(crate) fn holding(child: &std::process::Child) -> Option<Job> {
+            // SAFETY: no attributes and no name: a new job only this process holds.
+            let handle = unsafe { CreateJobObjectW(std::ptr::null_mut(), std::ptr::null()) };
+            if handle.is_null() {
+                return None;
+            }
+            let job = Job(handle);
+            // SAFETY: both handles are open: the job's just made, the child's held by `child`.
+            let joined = unsafe { AssignProcessToJobObject(job.0, child.as_raw_handle()) };
+            (joined != 0).then_some(job)
+        }
+
+        /// Stops every process in the job.
+        pub(crate) fn stop_all(&self) {
+            // SAFETY: the job's handle is open until `drop`.
+            unsafe { TerminateJobObject(self.0, 1) };
+        }
+    }
+
+    impl Drop for Job {
+        fn drop(&mut self) {
+            // Closing the handle stops nothing: the job was not made to stop its processes on close,
+            // so a command that ends normally leaves what it started as it would elsewhere.
+            // SAFETY: the handle is open, and closed only here.
+            unsafe { CloseHandle(self.0) };
+        }
+    }
 }
 
 /// Runs a command and hands back stdout+stderr with the status, or the reason it could not start or
