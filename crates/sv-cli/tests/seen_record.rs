@@ -100,6 +100,10 @@ fn what_the_running_app_answered_is_kept_with_no_credential_in_it() {
         "{seen}"
     );
     assert!(stand_ins.get("not_read").is_none(), "{seen}");
+    // The example signs in, so the log checks read the app's output, and its last lines are kept
+    // (backlog 0229, part 3).
+    let last = value["app_log"]["last_lines"].as_array();
+    assert!(last.is_some_and(|l| !l.is_empty()), "{seen}");
     // And the report says the record is there.
     let report = std::fs::read_to_string(folder.join("compliance.md")).unwrap();
     assert!(

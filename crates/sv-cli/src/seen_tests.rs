@@ -217,3 +217,38 @@ fn a_stand_in_record_is_bounded_and_says_what_was_cut() {
     // One string cut, and five entries.
     assert_eq!(seen.stand_ins.cut, 6);
 }
+
+#[test]
+fn no_credential_the_app_logged_reaches_the_record() {
+    let rules = rules();
+    let (key, _) = planted();
+    let asked = sv_check::signed_in::Outcome {
+        log_lines: vec![sv_check::logs::KeptLine {
+            read_for: "the failed sign-in (V16.3.1, V16.2.1, V16.2.2, V16.2.4)".to_owned(),
+            line: format!("2026-10-10T03:00:01Z WARN sign-in failed, upstream key {key}"),
+        }],
+        log_tail: vec![
+            format!("boot with ANTHROPIC_API_KEY={key}"),
+            "x".repeat(KEPT_CHARS + 3),
+        ],
+        ..Default::default()
+    };
+    // The setup: the key is in both kinds of kept line.
+    assert_eq!(format!("{asked:?}").matches(key.as_str()).count(), 2);
+    let mut seen = Seen::default();
+    app_log(&rules, Some(&asked), &mut seen);
+    let kept = serde_json::to_string(&seen).unwrap();
+    assert!(!kept.contains(&key), "a key reached the record: {kept}");
+    assert!(seen.credentials_removed >= 2, "{seen:#?}");
+    assert!(kept.contains("sign-in failed, upstream key"), "{kept}");
+    assert_eq!(
+        seen.app_log.lines_read[0].read_for,
+        asked.log_lines[0].read_for
+    );
+    assert!(seen.app_log.last_lines[1].ends_with("… (3 more characters)"));
+    assert_eq!(seen.app_log.cut, 1);
+    // No suite that read the log, nothing kept.
+    let mut none = Seen::default();
+    app_log(&rules, None, &mut none);
+    assert!(none.app_log.is_empty());
+}

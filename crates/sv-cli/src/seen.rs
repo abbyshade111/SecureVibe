@@ -146,6 +146,37 @@ pub fn stand_ins(rules: &SecretRules, received: &sv_run::stand_ins::StandIns, se
     seen.credentials_removed += removed.get();
 }
 
+/// The lines of the app's own output the log checks read, and its last lines, made ready to keep
+/// (backlog 0229, part 3): each through `redact_text` and cut at `KEPT_CHARS` characters. `sv`'s
+/// test secrets were blanked in `sv-run`. Adds the credentials cut to `seen.credentials_removed`.
+pub fn app_log(rules: &SecretRules, asked: Option<&sv_check::signed_in::Outcome>, seen: &mut Seen) {
+    let Some(asked) = asked else {
+        return;
+    };
+    let cuts = std::cell::Cell::new(0);
+    let mut removed = 0;
+    let mut cut = |text: &str| {
+        let (text, n) = redact_text(rules, text);
+        removed += n;
+        bounded(text, &cuts)
+    };
+    let lines_read = asked
+        .log_lines
+        .iter()
+        .map(|k| sv_report::seen::LogLine {
+            read_for: k.read_for.clone(),
+            line: cut(&k.line),
+        })
+        .collect();
+    let last_lines = asked.log_tail.iter().map(|l| cut(l)).collect();
+    seen.app_log = sv_report::seen::AppLog {
+        lines_read,
+        last_lines,
+        cut: cuts.get(),
+    };
+    seen.credentials_removed += removed;
+}
+
 /// `text`, cut at `KEPT_CHARS` characters with how many more there were said, counting a cut.
 fn bounded(text: String, cuts: &std::cell::Cell<usize>) -> String {
     let n = text.chars().count();

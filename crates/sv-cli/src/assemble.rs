@@ -868,6 +868,7 @@ fn running_app(
                     &outcome.probes_rate_limited,
                 );
                 crate::seen::stand_ins(secret_rules, &outcome.stand_ins, &mut record);
+                crate::seen::app_log(secret_rules, outcome.signed_in.as_ref(), &mut record);
                 seen = Some(record);
                 findings.extend(running_findings);
                 probe_verified = running_verified;

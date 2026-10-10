@@ -52,6 +52,17 @@ pub fn without_test_secrets(text: &str, secrets: &[String]) -> String {
     text
 }
 
+/// The lines of the app's output a suite kept (`log_lines`, `log_tail`), with each of `secrets`
+/// blanked.
+pub fn blank_log(asked: &mut sv_check::signed_in::Outcome, secrets: &[String]) {
+    for kept in &mut asked.log_lines {
+        kept.line = without_test_secrets(&kept.line, secrets);
+    }
+    for line in &mut asked.log_tail {
+        *line = without_test_secrets(line, secrets);
+    }
+}
+
 /// A stand-in's JSON answer, read with the test secrets blanked first.
 pub fn read_json(text: &str, secrets: &[String]) -> Option<Value> {
     serde_json::from_str(&without_test_secrets(text, secrets)).ok()

@@ -212,6 +212,10 @@ pub struct Outcome {
     pub steps: Vec<String>,
     /// The strings the probes planted for the log check to look for afterwards. See `logs.rs`.
     pub log_markers: crate::logs::Markers,
+    /// The lines of the app's output the log checks read, each with what for (ADR-082).
+    pub log_lines: Vec<crate::logs::KeptLine>,
+    /// The last lines of the app's output when the log was read, at most `crate::logs::TAIL`.
+    pub log_tail: Vec<String>,
 }
 
 /// An origin the app has certainly never heard of, for the forgery check.
