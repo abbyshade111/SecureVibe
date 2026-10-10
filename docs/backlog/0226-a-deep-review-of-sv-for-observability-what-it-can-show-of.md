@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 1 item 11; part 2 items 13 (a time on each running-app step), 15 (a line per outside tool and per running-app suite), 17, 18, and 20; part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 2 items 13 (a time on each running-app step), 15 (a line per outside tool and per running-app suite), 17, 18, and 20; part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -114,7 +114,11 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
     answer reaches a report: build that fixture first. Making such an answer "incomplete" changes what counts as
     evidence, so the fix itself is the owner's (part 3, item H); saying in the report that the manifest was not
     understood is not.
-   **Part status:** claimed by securevibe-e2, 10 October 2026
+    **Done 10 October 2026 by session securevibe-e2** (design entry "A package list sv cannot read, named beside the
+    answer it changes"): the fixture shows the wrong answer reaching the report (V1.3.9 excluded, the claim
+    "confirmed"), and the report and `sv scope` now name each package list not read, with why. Making that answer
+    "can't tell" stays the owner's, item H.
+   **Part status:** done, 10 October 2026
 
 ### Part 2: cheap visibility (small to medium, not the owner's)
 

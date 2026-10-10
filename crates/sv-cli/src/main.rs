@@ -554,6 +554,12 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
             eco.manifest
         );
     }
+    for unread in &report.unread_manifests {
+        println!(
+            "  {} was not read: {}, so a technology known only by its package may read as not used.",
+            unread.manifest, unread.why
+        );
+    }
     if !report.unread_extensions.is_empty() {
         let exts: Vec<&str> = report
             .unread_extensions
