@@ -711,6 +711,7 @@ impl DockerBackend {
             fetch,
             ai,
             liveness,
+            timings: mut suite_timings,
         } = sv_check::script::run(
             &harness,
             &sv_check::script::Plan {
@@ -752,6 +753,7 @@ impl DockerBackend {
         }
 
         // 5. The declared tests, inside the app container so they see what the app sees.
+        let tests_began = std::time::Instant::now();
         let tests = plan.test.as_ref().and_then(|test_command| {
             if let Some(crate::OnStep(say)) = plan.on_step {
                 say("the app's own tests");
@@ -821,6 +823,13 @@ impl DockerBackend {
                 stopped_after: None,
             })
         });
+        if plan.test.is_some() {
+            let took = tests_began.elapsed().as_millis();
+            suite_timings.push((
+                "the app's own tests",
+                u64::try_from(took).unwrap_or(u64::MAX),
+            ));
+        }
 
         for left in guard.finish() {
             if !container.not_removed.contains(&left) {
@@ -844,6 +853,7 @@ impl DockerBackend {
             sidecar_lost: self.sidecar_lost(),
             container,
             stand_ins,
+            suite_timings,
         })
     }
 }

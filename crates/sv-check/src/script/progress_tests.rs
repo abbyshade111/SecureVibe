@@ -8,6 +8,8 @@ use std::cell::RefCell;
 /// mark between them, so the order of the two can be read.
 struct Watched {
     said: RefCell<Vec<String>>,
+    /// A suite whose start is held back a little, so the suite before it takes that long.
+    held_before: Option<&'static str>,
 }
 
 struct Quiet;
@@ -46,6 +48,9 @@ impl Services for Watched {
         }
     }
     fn starting(&self, suite: &str) {
+        if self.held_before == Some(suite) {
+            std::thread::sleep(std::time::Duration::from_millis(60));
+        }
         self.said.borrow_mut().push(suite.to_owned());
     }
 }
@@ -84,6 +89,7 @@ fn names_before_requests(said: &[String]) -> Vec<String> {
 fn each_suite_says_its_name_before_it_asks_anything() {
     let watched = Watched {
         said: RefCell::new(Vec::new()),
+        held_before: None,
     };
     let (users, policy) = (UsersSection::default(), PolicySection::default());
     let (oidc, ai) = (OidcSection::default(), AiSection::default());
@@ -125,6 +131,7 @@ fn each_suite_says_its_name_before_it_asks_anything() {
 fn a_suite_the_manifest_does_not_ask_for_says_nothing() {
     let watched = Watched {
         said: RefCell::new(Vec::new()),
+        held_before: None,
     };
     let policy = PolicySection::default();
     let plan = Plan {
@@ -144,4 +151,45 @@ fn a_suite_the_manifest_does_not_ask_for_says_nothing() {
         watched.said.borrow().as_slice(),
         ["the questions asked as somebody not signed in", "(asks)"]
     );
+}
+
+#[test]
+fn each_suite_is_timed_from_its_start_to_the_next_one_s() {
+    let watched = Watched {
+        said: RefCell::new(Vec::new()),
+        held_before: Some("the app as an MCP server"),
+    };
+    let (users, policy) = (UsersSection::default(), PolicySection::default());
+    let (oidc, ai) = (OidcSection::default(), AiSection::default());
+    let (mcp, fetch) = (McpServerSection::default(), FetchSection::default());
+    let accounts = accounts();
+    let plan = Plan {
+        users: Some(&users),
+        policy: &policy,
+        oidc: Some(&oidc),
+        ai: Some(&ai),
+        mcp_server: Some(&mcp),
+        fetch: Some(&fetch),
+        health_path: "/health",
+        slow: false,
+        accounts: Some(&accounts),
+        mcp_token: Some("t"),
+    };
+    let out = run(&watched, &plan, &[]);
+    let names: Vec<&str> = out.timings.iter().map(|(suite, _)| *suite).collect();
+    assert_eq!(
+        names,
+        [
+            "the questions asked as somebody not signed in",
+            "the questions asked as the test users",
+            "signing in through the test provider",
+            "the app as an MCP server",
+            "the feature that fetches an address",
+            "the AI feature",
+        ]
+    );
+    // The time held back before the MCP suite began belongs to the one before it, which lasted
+    // until then.
+    let provider = out.timings[2].1;
+    assert!(provider >= 60, "{:?}", out.timings);
 }

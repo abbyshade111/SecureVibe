@@ -146,6 +146,9 @@ pub struct RunningApp {
     /// What the app answered, kept beside the report as `seen.json` (ADR-082). `None` when it
     /// was not asked anything.
     pub seen: Option<sv_report::seen::Seen>,
+    /// How long each suite of questions took, and the app's own tests (backlog 226, part 2, item
+    /// 13). Empty when the app was not run.
+    pub timings: Vec<(&'static str, u64)>,
 }
 
 /// The owner's word, from the notes, the decisions file, and the manifest's design and hand-check
@@ -252,6 +255,7 @@ pub fn assemble_report_saying(
     }
     stage(8);
     let run = running_app(&scene, &mut findings, &mut gaps);
+    let suite_timings = run.timings.clone();
     stage(9);
     gaps.extend(tools.gaps);
     let manual_only = what_was_not_read(&scene, &mut gaps, &mut examined);
@@ -292,16 +296,22 @@ pub fn assemble_report_saying(
             run_record,
         },
     )?;
-    report.timings = timings(&began.borrow(), std::time::Instant::now(), &report.examined);
+    report.timings = timings(
+        &began.borrow(),
+        std::time::Instant::now(),
+        &report.examined,
+        &suite_timings,
+    );
     Ok(report)
 }
 
 /// How long each stage took, from when each began to when the next did (the last to `ended`), then
-/// each outside tool, from the record of its run.
+/// each outside tool, from the record of its run, then each suite of questions to the running app.
 fn timings(
     began: &[(&'static str, std::time::Instant)],
     ended: std::time::Instant,
     examined: &[sv_report::Examined],
+    suites: &[(&'static str, u64)],
 ) -> Vec<sv_report::Timing> {
     let ms = |d: std::time::Duration| u64::try_from(d.as_millis()).unwrap_or(u64::MAX);
     let mut timings: Vec<sv_report::Timing> = began
@@ -321,6 +331,10 @@ fn timings(
             what: format!("{}{}", sv_report::TOOL_TIMING, tool.program),
             took_ms: tool.took_ms,
         })
+    }));
+    timings.extend(suites.iter().map(|(suite, took_ms)| sv_report::Timing {
+        what: format!("{}{suite}", sv_report::SUITE_TIMING),
+        took_ms: *took_ms,
     }));
     timings
 }
@@ -790,11 +804,13 @@ fn running_app(
     let mut run_note = None;
     let mut seen = None;
     let mut run_steps: Vec<String> = Vec::new();
+    let mut suite_timings = Vec::new();
     let run_status;
 
     if options.run_the_app {
         match probe_the_running_app(manifest, app_dir, options.slow) {
             Ok((outcome, plan)) => {
+                suite_timings.clone_from(&outcome.suite_timings);
                 run_status = sv_report::RunStatus::Started {
                     image: plan.image.clone(),
                     asked: anonymous_requests(&plan).len(),
@@ -1112,6 +1128,7 @@ fn running_app(
         probe_verified,
         test_verified,
         seen,
+        timings: suite_timings,
     }
 }
 
@@ -2494,3 +2511,6 @@ fn scope_confirmed(
         },
     )
 }
+
+#[cfg(test)]
+mod timing_tests;
