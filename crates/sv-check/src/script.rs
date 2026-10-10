@@ -298,6 +298,8 @@ fn signed_in(
     out.verified.extend(logged.verified);
     out.not_assessed.extend(logged.not_assessed);
     out.steps.extend(logged.steps);
+    out.log_lines = logged.lines;
+    out.log_tail = crate::logs::tail(&log);
     out
 }
 

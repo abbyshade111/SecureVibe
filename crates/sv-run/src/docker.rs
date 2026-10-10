@@ -705,7 +705,7 @@ impl DockerBackend {
         let sv_check::script::Outcome {
             probe_responses,
             probes_rate_limited,
-            signed_in,
+            mut signed_in,
             oidc,
             mcp_server,
             fetch,
@@ -735,6 +735,11 @@ impl DockerBackend {
         secrets.push(client_secret.clone());
         secrets.extend(mcp_token.clone());
         let stand_ins = self.stand_ins(&via, mail, provider, model, &secrets);
+        // And from the lines of the app's own output the log checks read, kept the same way: an
+        // app that logs a sign-in with its password logs the test account's.
+        if let Some(asked) = signed_in.as_mut() {
+            crate::stand_ins::blank_log(asked, &secrets);
+        }
 
         // Nothing after this point sends a request, so the sidecar goes now rather than waiting on
         // the tests, which can take as long as they like. The mail server with it: nothing reads it

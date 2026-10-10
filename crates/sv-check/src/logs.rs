@@ -165,6 +165,40 @@ pub struct LogOutcome {
     pub verified: Vec<crate::Verified>,
     pub not_assessed: Vec<(String, String)>,
     pub steps: Vec<String>,
+    /// Each line of the app's output a conclusion above was read from, with what it was read for,
+    /// so a person can check it (ADR-082, backlog 0229, part 3). The app's own text: `sv-run` blanks
+    /// `sv`'s test secrets in it, and `sv-cli` cuts every other credential before it is kept.
+    pub lines: Vec<KeptLine>,
+}
+
+/// How many of the last lines of the app's output are kept beside the report (ADR-082): enough to
+/// see what it was doing when the questions ended, not a copy of its log.
+pub const TAIL: usize = 40;
+
+/// The last `TAIL` lines of `log`.
+pub fn tail(log: &str) -> Vec<String> {
+    let lines: Vec<&str> = log.lines().collect();
+    lines[lines.len().saturating_sub(TAIL)..]
+        .iter()
+        .map(|l| (*l).to_owned())
+        .collect()
+}
+
+/// One line of the app's output a log check read, and what for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeptLine {
+    /// What the line was read for, as "the failed sign-in (V16.3.1, V16.2.1, V16.2.2, V16.2.4)".
+    pub read_for: String,
+    pub line: String,
+}
+
+impl KeptLine {
+    fn new(read_for: &str, line: &str) -> KeptLine {
+        KeptLine {
+            read_for: read_for.to_owned(),
+            line: line.to_owned(),
+        }
+    }
 }
 
 const NO_OUTPUT: &str = "The app wrote nothing to its output during the run, so there was nothing to read. An app that \
@@ -236,6 +270,16 @@ pub fn evaluate(markers: &Markers, log: &str) -> LogOutcome {
         by_name(&markers.failed_sign_in).or_else(|| by_window(&markers.failed_window, true));
     let succeeded_line = by_name(&markers.successful_sign_in)
         .or_else(|| by_window(&markers.successful_window, false));
+    if let Some((line, _)) = failed_line {
+        out.lines.push(KeptLine::new(
+            "the failed sign-in (V16.3.1, V16.2.1, V16.2.2, V16.2.4)",
+            line,
+        ));
+    }
+    if let Some((line, _)) = succeeded_line {
+        out.lines
+            .push(KeptLine::new("the successful sign-in (V16.3.1)", line));
+    }
 
     // ---- V16.3.1: authentication, successful and unsuccessful.
     let planted_failed = markers.failed_sign_in.is_some() || markers.failed_window.is_some();
@@ -342,9 +386,13 @@ pub fn evaluate(markers: &Markers, log: &str) -> LogOutcome {
         .refused_requests
         .iter()
         .filter_map(|(marker, status)| {
-            log.lines()
-                .find(|l| l.contains(marker.as_str()))
-                .map(|l| (marker.as_str(), *status, records_status(l, *status)))
+            log.lines().find(|l| l.contains(marker.as_str())).map(|l| {
+                out.lines.push(KeptLine::new(
+                    &format!("the refused private-page request, answered {status} (V16.3.2)"),
+                    l,
+                ));
+                (marker.as_str(), *status, records_status(l, *status))
+            })
         })
         .collect();
     let recorded = found.iter().find(|(_, _, with_status)| *with_status);
@@ -1203,3 +1251,7 @@ GET /sv-log-after-ok-4a91 404
         }
     }
 }
+
+#[cfg(test)]
+#[path = "logs_kept_tests.rs"]
+mod logs_kept_tests;

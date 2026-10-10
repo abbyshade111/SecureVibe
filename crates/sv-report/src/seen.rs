@@ -29,6 +29,34 @@ pub struct Seen {
     /// none ran.
     #[serde(skip_serializing_if = "StandIns::is_empty")]
     pub stand_ins: StandIns,
+    /// The lines of the app's own output the log checks read, and its last lines (backlog 0229,
+    /// part 3). Empty when no log check ran.
+    #[serde(skip_serializing_if = "AppLog::is_empty")]
+    pub app_log: AppLog,
+}
+
+/// What `sv` kept of the app's own output.
+#[derive(Debug, Clone, Default, Serialize, PartialEq, Eq)]
+pub struct AppLog {
+    /// Each line a log check read a conclusion from, with what it was read for.
+    pub lines_read: Vec<LogLine>,
+    /// The last lines of its output when the log was read.
+    pub last_lines: Vec<String>,
+    /// Lines cut at `KEPT_CHARS` characters.
+    pub cut: usize,
+}
+
+impl AppLog {
+    pub fn is_empty(&self) -> bool {
+        self.lines_read.is_empty() && self.last_lines.is_empty()
+    }
+}
+
+/// One line of the app's output, and what a log check read it for.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct LogLine {
+    pub read_for: String,
+    pub line: String,
 }
 
 /// What `sv`'s stand-in services received: the test model, the test sign-in provider, and the mail
@@ -99,7 +127,8 @@ pub const FILE: &str = "seen.json";
 const ABOUT: &str = "What sv saw of the running app while it made this report: each question it asked \
 as somebody not signed in, and what the app answered; and, under stand_ins, what sv's own stand-ins \
 for the services the app uses received from it (the test model, the test sign-in provider, and the \
-mail catcher, of whose mail only who it was to, its subject, and when are kept). This is the app's own text, with every \
+mail catcher, of whose mail only who it was to, its subject, and when are kept); and, under app_log, \
+the lines of the app's own output the log checks read, and its last lines. This is the app's own text, with every \
 credential sv recognized cut down to its first four characters and its length, and the value \
 of every cookie and sign-in header taken out. It can hold \
 personal data the app was given during the run; only sv's own test accounts were used. Each \
@@ -117,6 +146,7 @@ pub fn render(report: &Report) -> String {
             "most_kept": MOST_EXCHANGES,
             "credentials_removed": seen.credentials_removed,
             "stand_ins": seen.stand_ins,
+            "app_log": seen.app_log,
         }),
         None => serde_json::json!({
             "app": report.app_name,

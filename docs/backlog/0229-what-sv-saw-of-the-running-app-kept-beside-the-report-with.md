@@ -25,7 +25,7 @@ passes through `secrets::redact_text` first.
 
 3. **The app's own log lines the log checks rest on.** The lines a logging check matched, and a short tail of the log,
    redacted, so a V16 credit can be checked by a person.
-   **Part status:** claimed by paper-facts, 9 October 2026
+   **Part status:** partly done: the AI feature's log check naming the lines it read
 
 4. **An outside tool's raw output, when asked for.** `--keep-tool-output` copies each tool's report, redacted, beside
    the report; its version, arguments, and exit code are recorded always (0226, part 2, item 14).

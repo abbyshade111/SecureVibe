@@ -75,3 +75,26 @@ fn a_subject_keeps_short_numbers_and_everything_else() {
     assert_eq!(without_codes("Code: 1234."), "Code: [left out].");
     assert_eq!(without_codes("Order 12 of 2026"), "Order 12 of [left out]");
 }
+
+#[test]
+fn a_test_secret_in_the_kept_log_is_blanked() {
+    let s = secrets();
+    let mut asked = sv_check::signed_in::Outcome {
+        log_lines: vec![sv_check::logs::KeptLine {
+            read_for: "the successful sign-in (V16.3.1)".to_owned(),
+            line: format!("login ok user=sv-a password={}", s[0]),
+        }],
+        log_tail: vec![format!("totp seed {}", s[1]), "listening".to_owned()],
+        ..Default::default()
+    };
+    blank_log(&mut asked, &s);
+    let kept = format!("{asked:?}");
+    for secret in &s {
+        assert!(!kept.contains(secret.as_str()), "{kept}");
+    }
+    assert_eq!(
+        asked.log_lines[0].line,
+        format!("login ok user=sv-a password={TEST_SECRET}")
+    );
+    assert_eq!(asked.log_tail[1], "listening");
+}
