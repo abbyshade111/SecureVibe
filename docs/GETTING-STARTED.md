@@ -431,8 +431,9 @@ StackVet has no ready-made download yet, so you build it from its source code (t
 out as text, which a builder turns into a program you can run). It is done once and takes a few
 commands. These steps were tried on a Mac on 5 October 2026, from a fresh copy of StackVet. The Linux
 steps have not been tried by hand, though StackVet is built on Linux every time its code changes.
-**Windows:** StackVet has never been built or tried on Windows, so nothing here is known to work
-there; use the Docker steps above, and leave `--run` out for now.
+**Windows:** the project's own checks build and test StackVet on Windows every time its code changes,
+but nobody has tried these steps on a Windows computer, so nothing here is known to work there; use
+the Docker steps above, and leave `--run` out for now.
 
 **The quickest way, on a Mac or on Linux: Homebrew.** If you have [Homebrew](https://brew.sh), one command builds
 StackVet on your computer, fetching what the build needs by itself, and puts `sv` on your path with its data beside

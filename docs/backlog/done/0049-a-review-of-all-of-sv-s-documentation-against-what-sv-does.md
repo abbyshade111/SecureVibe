@@ -1,6 +1,6 @@
 # A review of all of `sv`'s documentation, against what `sv` does now
 
-**Status:** claimed by stackvet-backlog-org, 10 October 2026
+**Status:** done, 10 October 2026
 
 Asked for by the owner on 5 October 2026,
 after many changes in a short time. Every document a person or an AI tool reads, read against the code and the
@@ -46,3 +46,5 @@ starter's `[stack.run.users]` commented out, `admin-actions` needing `admin`, da
 the unanswered claim state, `sv brief` for a feature's prompts, a test report's credit, and "Tests worth writing
 first"); the MCP server's instructions and five tool descriptions; and `tools/coverage.py`'s prose and its `\u{…}`
 escapes. With that, the review is done.
+
+**Checked against the guide, 10 October 2026:** the "twelve `stackvet_` tools" in `docs/GETTING-STARTED.md` is right: the catalog (`crates/sv-cli/src/mcp/catalog.rs`) lists twelve. The "57 of the 382" this item named is not in `PARTIAL-CHECKS.md`, which says 63 at line 8, consistent with its line 9. Nothing is left to correct.

@@ -1,6 +1,6 @@
 # A walk-through for building an app from scratch in any AI coding tool, with `sv` alongside
 
-**Status:** claimed by stackvet-backlog-org, 10 October 2026
+**Status:** partly done: part 3 (a checked section per tool); part 7 (the README says `sv mcp` offers four tools; the catalog lists twelve)
 
 Asked for by the owner on 26 September 2026: "it can't be too difficult, since the whole idea is
 making it easy for people who aren't technical or security experts to vibe code safely." **Claimed
@@ -65,7 +65,7 @@ from an empty folder in Claude Code; each of these stopped the attempt:
    claude`. A `.mcp.json` in the app's folder works instead and needs nothing installed. Other tools
    keep their MCP settings in other files, and not all under the same key, so the walk-through needs
    one short, checked section per tool — each one tried, not written from memory.
-   **Part status:** open
+   **Part status:** partly done: one short checked section per tool, each one tried
 4. **`--root` has to exist, and the app has to be inside it.** Nothing says so until the tool is
    refused. The walk-through should create the folder in its first step.
    **Part status:** open
@@ -90,3 +90,5 @@ same day; see "Packaging `sv`", below), then the walk-through, with
 one checked page per AI tool (3, 4), the starter prompt (5), and an honest line about Docker (6). A
 tool without MCP can still follow it by pasting `sv init` and `sv questions` into its chat, and the
 walk-through should say so, since that is the path that works in every tool.
+
+**Part 3, 10 October 2026:** the README now says the `claude mcp add` command needs the `claude` command installed, and points desktop-app users to the `.mcp.json` in `docs/GETTING-STARTED.md`. The one-section-per-tool walk-through, each tool tried, is not written.

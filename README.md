@@ -418,7 +418,7 @@ compressed) by `sv` itself, so it adds no dependency.
 `sv mcp` offers the same checks over the Model Context Protocol, so the tool you build with can run them
 mid-conversation and work through the findings with you. Install it once (`sh tools/install.sh`, which
 builds it and puts it with its data in `~/.local/share/stackvet`, linked from `~/.local/bin/sv`), then
-register it — for Claude Code:
+register it — for Claude Code, which needs its `claude` command installed (the Claude desktop app does not install it; there, use the `.mcp.json` in the Claude section of `docs/GETTING-STARTED.md`):
 
 ```bash
 claude mcp add stackvet -- ~/.local/bin/sv mcp --root ~/code
