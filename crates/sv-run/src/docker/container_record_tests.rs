@@ -19,6 +19,7 @@ fn backend_running(test: &str, script: &str) -> DockerBackend {
         run: std::sync::Mutex::new(None),
         clock_offset: OnceLock::new(),
         sidecar_lost: std::sync::Mutex::new(None),
+        left_behind: std::sync::Mutex::new(Vec::new()),
     }
 }
 
@@ -123,4 +124,44 @@ fn the_record_says_the_wait_the_fence_what_was_left_and_the_kept_volume() {
     ] {
         assert!(said.contains(words), "missing {words:?} in {said}");
     }
+}
+
+#[test]
+fn a_run_that_fails_says_what_its_teardown_could_not_remove() {
+    // The network cannot be made, so the run fails before the app starts; its teardown then finds
+    // the run's container and cannot remove it. Until 10 October 2026 that answer was dropped with
+    // the guard, and only a run that finished said what it left (backlog 226, part 2, item 18).
+    use crate::Backend;
+    let backend = backend_running(
+        "failed-run",
+        "#!/bin/sh\n\
+         case \"$1 $2\" in\n\
+         \"network create\") echo \"Error response from daemon: no networks left\" >&2; exit 1 ;;\n\
+         \"ps -aq\") case \"$*\" in *org.stackvet.run=*) echo app1 ;; esac ;;\n\
+         \"rm -f\") echo \"Error response from daemon: container $3 is busy\" >&2; exit 1 ;;\n\
+         esac\n\
+         exit 0\n",
+    );
+    let mut manifest = sv_manifest::Manifest::default();
+    manifest.stack.run.image = Some("python:3.12".to_owned());
+    manifest.stack.run.start = Some("gunicorn app:app".to_owned());
+    let plan = crate::RunPlan::from_manifest(&manifest, std::path::Path::new("/tmp/app")).unwrap();
+    let failed = backend.run(&plan, &[]).unwrap_err();
+    assert!(
+        matches!(failed.reason, CannotRun::BackendFailed { .. }),
+        "the run is meant to fail on the network: {:?}",
+        failed.reason
+    );
+    assert_eq!(
+        failed.not_removed,
+        ["container app1 (Error response from daemon: container app1 is busy)"]
+    );
+    let said = failed.explain();
+    assert!(
+        said.contains("When the run ended, these could not be removed: container app1")
+            && said.contains("`docker rm -f <name>`"),
+        "{said}"
+    );
+    // A run after it starts afresh: what the last one left is not said again.
+    assert!(backend.left_behind.lock().unwrap().is_empty());
 }
