@@ -60,6 +60,8 @@ mod old_names_tests;
 mod protocol;
 #[cfg(test)]
 mod quoted_tests;
+#[cfg(test)]
+mod report_prompt_tests;
 mod report_writing;
 #[cfg(test)]
 mod resource_fence_tests;

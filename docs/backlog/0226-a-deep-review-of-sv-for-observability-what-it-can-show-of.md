@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 1 items 9 to 11; part 2 (9); part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 1 item 11; part 2 (9); part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -273,6 +273,12 @@ branch `claude/explain-seal-and-path`: `sv explain` checking a report's seal bef
 is not shown to be `sv`'s (item 9); and `sv explain ID PATH` taking the path as the app, as its own documentation
 says (item 10). Open pull requests and recent branches read first: session stackvet-e9 holds items 3, 4, 7, and 8,
 and none touches `crates/sv-cli/src/explain.rs`.
+
+**Part 1, item 9 done the same day:** `sv explain --app` repeats a report only when its folder's seal holds and the bytes it
+read are the ones sealed; otherwise it says what is left out and why. Breaks: the seal check turned off failed the two
+tests in `crates/sv-cli/tests/explain_seal.rs` that rewrite or forge a report, and not the one that reads a sealed report.
+**Part 1, item 10, overtaken:** the argument checker added earlier that day already refuses a second word for `sv explain`
+by name, and its help gives `sv explain ID [--app DIR]`; the module's doc, the one place still saying `[PATH]`, now matches.
 
 **Part 1, items 3 and 7 done the same day** (`docs/design/0344-the-build-loop-record-read-a-line-at-a-time-and-said-when.md`):
 the record is read as bytes and decoded a line at a time, so a byte that is not UTF-8 costs its line, counted as

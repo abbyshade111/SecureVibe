@@ -376,6 +376,12 @@ pub(super) fn prompt_list() -> Result<Value, (i64, String)> {
         .prompts
         .iter()
         .map(|p| json!({ "name": p.id, "title": p.title, "description": prompt_description(p) }))
+        // After them, the one for reading the report (backlog 0217 part 5).
+        .chain(std::iter::once(json!({
+            "name": crate::report_prompt::ID,
+            "title": crate::report_prompt::TITLE,
+            "description": crate::report_prompt::STATUS,
+        })))
         .collect();
     Ok(json!({ "prompts": listed }))
 }
@@ -387,6 +393,12 @@ pub(super) fn get_prompt(params: &Value) -> Result<Value, (i64, String)> {
         -32602,
         "prompts/get needs a name, as prompts/list gives".to_owned(),
     ))?;
+    if name == crate::report_prompt::ID {
+        return Ok(json!({
+            "description": crate::report_prompt::STATUS,
+            "messages": [{ "role": "user", "content": { "type": "text", "text": crate::report_prompt::with_mark() } }],
+        }));
+    }
     let prompts = design_prompts()?;
     let Some(p) = prompts.prompts.iter().find(|p| p.id == name) else {
         return Err((-32602, format!("there is no prompt called {name}")));

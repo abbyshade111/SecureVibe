@@ -1,6 +1,6 @@
 # Helping someone who is not technical start and keep using sv
 
-**Status:** claimed by securevibe-e2, 9 October 2026: part 5 (the report read with you), then part 3 (sv doctor); parts 1 and 7 are built (9 October 2026), neither yet tried by someone who is not technical
+**Status:** claimed by securevibe-e2, 9 October 2026: part 3 (sv doctor) is to build; parts 1, 5, and 7 are built (9 and 10 October 2026), none yet tried by someone who is not technical
 
 Asked for by the owner on 8 October 2026: "consider the best way to help someone non-technical start and use sv.
 One thought is to turn the getting started guide into a prompt so the AI tool can walk the person through the
@@ -131,3 +131,5 @@ Windows: nothing above is tried there, and every part says so until the owner de
 **Part 1 done 9 October 2026 by session securevibe-e2** (`docs/design/0339-sv-connect-and-a-prompt-that-sets-stackvet-up-9-october-2026.md`): `sv connect TOOL [--docker PATH] [--user UID:GID]` prints the settings block for Claude, VS Code, or Cursor with the folder's real path filled in, and writes nothing; `docs/prompts/setup.md` is the setup prompt, offered at the top of the guide. Neither has been tried in an AI coding tool yet.
 
 **Part 7 done 9 October 2026 by session securevibe-e2** (`docs/GLOSSARY.md`, linked from the guide; design entry "A glossary for the guide and the reports"). Not yet read by someone who is not technical.
+
+**Part 5 done 10 October 2026 by session securevibe-e2** (`docs/prompts/report.md`; design entry "A prompt that reads the report with the person"): `sv prompts report` prints a prompt that has the AI tool read the report with the person, starting with what was not checked, and the MCP server offers it as `read-my-report`. Not yet tried in an AI coding tool. Part 3 (`sv doctor`, narrowed) is next.
