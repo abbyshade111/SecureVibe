@@ -14,3 +14,8 @@ and names the ones that moved"): each kept run holds each requirement's status, 
 moved. Decisions 2 to 4 (a failed run's record, more in the comparison key, records that stay readable) and `sv
 compare` remain.
 
+**Decision 3 built 10 October 2026 by session securevibe-e2** (design entry "History says which input changed between
+two runs"): each run records the hashes of the security notes, the design decisions, and `sv`'s data, and the
+dashboard names which changed when two runs are not compared. Decision 2 (a failed run's record), what remains of
+decision 4, and `sv compare` remain.
+

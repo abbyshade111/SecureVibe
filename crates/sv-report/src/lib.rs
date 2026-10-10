@@ -839,6 +839,27 @@ pub struct RunRecord {
     /// made before it, and then left out.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub run_id: String,
+    /// What this run read besides `stackvet.toml` that can move a requirement, so two runs that
+    /// differ can say why (ADR-083, decision 3). Left out of a record made before it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inputs: Option<RunInputs>,
+}
+
+/// The SHA-256 of each thing a run read, besides `stackvet.toml`, that can change which
+/// requirements are credited, in lowercase hex; `None` for a file that was not there. The seals
+/// a review leaves are lines in these files and in `stackvet.toml`, so they are covered too. The
+/// keys that check the seals, in the person's own settings, are left out on purpose: no record
+/// of a secret key, not even its hash, is kept outside the place it lives.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct RunInputs {
+    /// The security notes (`security-notes.md`) as this run read them.
+    pub security_notes_sha256: Option<String>,
+    /// The design decisions (`design-decisions.md`) as this run read them.
+    pub design_decisions_sha256: Option<String>,
+    /// Every file in `sv`'s data folder, by name and content: the standards, the rules, and what
+    /// each check knows. Two copies of one version of `sv` can be given different data.
+    pub sv_data_sha256: Option<String>,
 }
 
 impl RunRecord {

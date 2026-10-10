@@ -144,6 +144,8 @@ pub struct PersonsWord {
     pub design_questions: sv_check::design::Questions,
     pub human_checks: sv_check::human::HumanChecks,
     pub decisions_text: Option<String>,
+    /// The SHA-256 of the security notes as read, `None` when there are none (ADR-083).
+    pub notes_sha256: Option<String>,
 }
 
 /// `assemble_report`, calling `starting` with each stage's number (from 0) and name as it begins.
@@ -1579,7 +1581,12 @@ fn the_owners_word(
     // `sv notes`, which is the common case and not a gap: the report then says the file exists to
     // be written.
     let notes_catalog = sv_check::notes::Catalog::load(&notes_path())?;
-    let notes = match std::fs::read_to_string(app_dir.join(&notes_catalog.file)) {
+    let notes_text = std::fs::read_to_string(app_dir.join(&notes_catalog.file));
+    let notes_sha256 = notes_text
+        .as_ref()
+        .ok()
+        .map(|text| crate::bundle::sha256(text.as_bytes()));
+    let notes = match notes_text {
         Ok(text) => sv_check::notes::evidence(
             &notes_catalog,
             &sv_check::notes::read_answers(&notes_catalog, &text),
@@ -2054,6 +2061,7 @@ fn the_owners_word(
         design_questions,
         human_checks,
         decisions_text,
+        notes_sha256,
     })
 }
 
@@ -2175,6 +2183,7 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
         design_questions,
         human_checks,
         decisions_text,
+        notes_sha256,
         ..
     } = word;
     examined.push(match &run_status {
@@ -2357,6 +2366,16 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
     let file_gaps = static_scan.file_gaps();
     report.could_not_run = file_gaps.could_not_run;
     report.partly_read = file_gaps.partly;
+    // What else this run read that can move a requirement, so a later run can say why it differs
+    // (ADR-083, decision 3).
+    let mut run_record = run_record;
+    run_record.inputs = Some(sv_report::RunInputs {
+        security_notes_sha256: notes_sha256.clone(),
+        design_decisions_sha256: decisions_text
+            .as_deref()
+            .map(|text| crate::bundle::sha256(text.as_bytes())),
+        sv_data_sha256: report_lock::data_sha256(),
+    });
     report.run_record = Some(run_record);
     report.seen = seen;
     report.manifest_file = manifest_file.to_owned();

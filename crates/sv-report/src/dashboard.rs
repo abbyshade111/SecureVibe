@@ -73,6 +73,9 @@ pub struct Run {
     /// status word, nothing of the app's code or text. Empty in a record from before format 2, which
     /// kept counts only.
     pub requirements: Vec<KeptStatus>,
+    /// The hashes of what else the run read that can move a requirement: the security notes, the
+    /// design decisions, and `sv`'s data (ADR-083, part 3). `None` in a record from before format 3.
+    pub inputs: Option<crate::RunInputs>,
 }
 
 /// One requirement's status in one run.
@@ -98,7 +101,7 @@ impl Run {
     pub fn of(report: &crate::Report) -> Option<Run> {
         let record = report.run_record.as_ref()?;
         Some(Run {
-            format: 2,
+            format: 3,
             started: record.started.clone(),
             started_unix_ms: record.started_unix_ms,
             app_name: report.app_name.clone(),
@@ -129,6 +132,7 @@ impl Run {
                     status: r.status,
                 })
                 .collect(),
+            inputs: record.inputs.clone(),
         })
     }
 
@@ -169,16 +173,38 @@ impl Run {
     }
 
     /// Why `self` cannot be set against `earlier`, or `None` when it can: the same kind of run, at
-    /// the same level, from the same `stackvet.toml`, by the same `sv`.
+    /// the same level, from the same `stackvet.toml`, security notes, and design decisions, by the
+    /// same `sv` with the same data. An input a record did not keep (one from before format 3) is
+    /// not held against it; `changes_since` says it is not known instead.
     pub fn not_comparable_with(&self, earlier: &Run) -> Option<&'static str> {
+        // Each input, when both records kept it: whether it differs. A file there in one run and
+        // not in the other differs; `sv`'s data, unread in either, is not known, so not held.
+        let differs =
+            |of: fn(&crate::RunInputs) -> &Option<String>| match (&self.inputs, &earlier.inputs) {
+                (Some(now), Some(then)) => of(now) != of(then),
+                _ => false,
+            };
+        let data_differs = || match (&self.inputs, &earlier.inputs) {
+            (Some(now), Some(then)) => match (&now.sv_data_sha256, &then.sv_data_sha256) {
+                (Some(a), Some(b)) => a != b,
+                _ => false,
+            },
+            _ => false,
+        };
         if self.not_run != earlier.not_run {
             Some("a different kind of run, which reaches different requirements")
         } else if self.target_level != earlier.target_level {
             Some("held to a different level")
         } else if self.securevibe_toml_sha256 != earlier.securevibe_toml_sha256 {
             Some("stackvet.toml changed between them, and with it what applies")
+        } else if differs(|i| &i.security_notes_sha256) {
+            Some("your security notes changed between them, and with them what they credit")
+        } else if differs(|i| &i.design_decisions_sha256) {
+            Some("your design decisions changed between them, and with them what they credit")
         } else if self.sv != earlier.sv {
             Some("a different sv, whose checks may differ")
+        } else if data_differs() {
+            Some("the same sv was given different data (the standards, or what its checks know)")
         } else {
             None
         }
@@ -240,6 +266,15 @@ impl Run {
                     moved.len() - MOVED_SHOWN
                 ));
             }
+        }
+        // Something moved, and one run did not keep what else it read: say the cause may be there.
+        if !out.is_empty() && (self.inputs.is_none() || earlier.inputs.is_none()) {
+            out.push(
+                "Whether the security notes, the design decisions, or sv's data changed between \
+                 these runs is not known: one of them was kept by an older sv, which did not keep \
+                 that."
+                    .to_owned(),
+            );
         }
         if out.is_empty() {
             out.push("No finding appeared or went away, and no count changed.".to_owned());
@@ -601,6 +636,8 @@ pub fn page(apps: &[App], written: &str) -> String {
     b
 }
 
+#[cfg(test)]
+mod inputs_tests;
 #[cfg(test)]
 mod moved_tests;
 #[cfg(test)]

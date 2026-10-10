@@ -133,7 +133,8 @@ What could go wrong, and what the recommendation does about each:
 - **Keeping more than it needs.** Each run adds one small record: the date, the `sv` version, the level, what kind of
   run it was, the `stackvet.toml` fingerprint the report already carries, the counts, and for each finding its
   fingerprint, severity, rule, and `sv`'s own title for it, and since 10 October 2026 each requirement's id with its
-  status word (ADR-083), so the page can say which requirements moved between two runs. Never the app's code, a
+  status word (ADR-083), so the page can say which requirements moved between two runs, and a hash of the security
+  notes, the design decisions, and `sv`'s data, so it can say why. Never the app's code, a
   file's contents, a line of it, or a credential, not even its first four characters. That is enough to say what
   changed and no more.
 - **Growing without end.** A limit on how many runs are kept for each app (the most recent 100, say), and one command
@@ -142,7 +143,8 @@ What could go wrong, and what the recommendation does about each:
   app's folder it is less in its way, not out of its reach. So history is a convenience for the person, never
   evidence: no requirement is credited from it, and the reports never read it.
 - **Comparing what cannot be compared.** Two runs are set against each other only when they were the same kind of run,
-  at the same level, from the same `stackvet.toml`, by the same `sv`. Otherwise the page says they are not compared,
+  at the same level, from the same `stackvet.toml`, security notes, and design decisions, by the same `sv` with the same
+  data (ADR-083). Otherwise the page says they are not compared,
   and why (the mock-up's 5 October run). Without this, the first full run after a plain one would look like the app
   got worse.
 - **Which app is which.** An app is known by its folder, so a moved or renamed folder starts a new history, and the page

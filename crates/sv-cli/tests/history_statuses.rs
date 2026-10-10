@@ -58,7 +58,7 @@ fn a_kept_run_holds_each_requirements_status_as_the_report_gave_it() {
     let kept: Value = serde_json::from_str(&std::fs::read_to_string(&kept[0]).unwrap()).unwrap();
     std::fs::remove_dir_all(&root).ok();
 
-    assert_eq!(kept["format"], 2);
+    assert_eq!(kept["format"], 3);
     let in_report: Vec<(String, String)> = report["requirements"]
         .as_array()
         .unwrap()
