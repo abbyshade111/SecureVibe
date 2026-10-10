@@ -604,6 +604,15 @@ pub fn adapters_examined(
                 sv_report::Examined::not_run(rules, "it was not run")
             }
         })
+        .zip(adapters.all())
+        .map(|(entry, adapter)| {
+            entry.with_tool(
+                run.tools
+                    .iter()
+                    .find(|(id, _)| id == &adapter.id)
+                    .map(|(_, tool)| tool.clone()),
+            )
+        })
         .collect()
 }
 

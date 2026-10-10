@@ -1,6 +1,6 @@
 # Each numbered part of a backlog item gets a status line of its own
 
-**Status:** partly done: parts 6 to 8: the done folder, a review's findings as items, and the size warning
+**Status:** done, 10 October 2026
 
 Decided by the owner on 9 October 2026, after asking for "a better overview of what's done from the backlog and what
 isn't", since the board "is clearly not tracking things properly": "yes, please add that change when it fits into your
@@ -42,16 +42,16 @@ the board in the documentation set (`tools/docs_page.py`) shows those guesses. T
 6. **A `done` folder.** When an item is done, `backlog.py done` moves its file to `docs/backlog/done/`, keeping its
    number and name, so the folder lists only live work (about 44 files of 229 that evening); the tool, the board, and
    a search by title read both. References to a moved file's path are kept true.
-   **Part status:** claimed by paper-facts, 9 October 2026
+   **Part status:** done, 10 October 2026
 
 7. **Each finding of a future review is an item of its own.** A review keeps its write-up and lists its findings by
    number, each an item file, so two sessions working on two findings never write to one file; the big items already
    written stay as they are, their parts kept honest by the lines above. A rule in `CLAUDE.md` and `docs/BACKLOG.md`.
-   **Part status:** claimed by paper-facts, 9 October 2026
+   **Part status:** done, 10 October 2026
 
 8. **A soft size warning.** `--check` names an item past about 300 lines, as one to split before it grows into
    another 0006 (890 lines that evening); a warning, not a failure.
-   **Part status:** claimed by paper-facts, 9 October 2026
+   **Part status:** done, 10 October 2026
 
 **The owner's decision on 6 to 8, 9 October 2026,** after asking for "additional suggestions for keeping the backlog
 more manageable" and remembering a done area that had never been built: "yes, I agree with all those fixes, thank

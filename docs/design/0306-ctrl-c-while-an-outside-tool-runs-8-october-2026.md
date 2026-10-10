@@ -2,7 +2,7 @@
 
 
 
-From the review of 8 October 2026, item 1 (`docs/backlog/0188-from-the-review-of-8-october-2026-the-medium-and-low.md`). An outside tool run by `sv report --tools` or
+From the review of 8 October 2026, item 1 (`docs/backlog/done/0188-from-the-review-of-8-october-2026-the-medium-and-low.md`). An outside tool run by `sv report --tools` or
 `sv bundle --tools` leads a process group of its own, so the 30-minute limit can stop the tool and everything it
 started. A side effect: Ctrl-C at the terminal reaches `sv` alone. Nothing on that path caught it, so `sv` ended where
 it stood, and the tool ran on with no limit. The tools' private folder in the temporary folder and the report folder's

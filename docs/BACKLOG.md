@@ -21,7 +21,10 @@ in the item's text, as before, and the design entry holds the detail. A new item
 same number, which harms nothing. An item's numbered parts each have a status line of their own (`**Part status:**`, in the same four
 forms), set with `python3 tools/backlog.py claim 0226.3 --by <session>` and `done 0226.3`, and read by the board from
 that line alone; a note of what was built still goes in the part's text. The item's status says `partly done` with
-what remains, and `--check` holds the two to each other (backlog 0228). `python3 tools/backlog.py list --open`
+what remains, and `--check` holds the two to each other (backlog 0228). A done item's file is in `docs/backlog/done/`, so the folder itself lists only live work:
+`done` moves it there and rewrites any path to it. **A review writes each finding as an item of its own**
+(`backlog.py new`), and keeps its write-up in one item that lists them by number, so two sessions working on two
+findings never write to one file; `--check` warns of a live item past 300 lines as one to split. `python3 tools/backlog.py list --open`
 prints every open item, `summary` the counts, and `--check` holds the layout. A branch written before the split
 conflicts here once it merges `main`; the steps to mend it are at the top of the script.
 

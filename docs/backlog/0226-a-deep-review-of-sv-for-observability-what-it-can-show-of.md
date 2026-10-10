@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 1 item 11; part 2 items 13, 14, 15 (a line per outside tool and per running-app suite), and 16 to 20; part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 1 item 11; part 2 items 13 (a time on each running-app step), 15 (a line per outside tool and per running-app suite), and 16 to 20; part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -128,6 +128,10 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
 14. **What each outside tool was.** Its version line (asked, then thrown away), its arguments, its exit code, and
     its time, in `Examined` (`crates/sv-check/src/adapters.rs`). Keeping its raw output is part 3, item A.
    **Part status:** claimed by stackvet-e9, 10 October 2026
+   **Part status:** partly done: a time on each step inside the running-app suites
+14. **What each outside tool was.** Its version line (asked, then thrown away), its arguments, its exit code, and
+    its time, in `Examined` (`crates/sv-check/src/adapters.rs`). Keeping its raw output is part 3, item A.
+   **Part status:** done, 10 October 2026
 15. **Progress at a terminal.** The terminal path passes an empty progress callback, and `sv report --run --tools`
     is silent for minutes. A line per stage on stderr, with a stage per outside tool and per running-app suite.
    **Part status:** partly done: a line for each outside tool and each running-app suite within their stages
@@ -137,7 +141,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
     `sv_frameworks::data` saying so, and "Nothing about the app was checked". Also the missing next step in
     `NoBackend` and `BackendFailed` (start Docker or Colima), and the MCP "check stopped before it finished", which
     gives no cause and no pointer to the terminal.
-   **Part status:** open
+   **Part status:** claimed by stackvet-e9, 10 October 2026
 17. **Credit rows that explain themselves.** A needs-attention row shows only the finding, not the checks that
     passed for the same requirement nor the rule that a finding outranks every credit (now only a comment above
     `status_of`); a false alarm set aside turns "checked" into a bare "not verified" with no pointer to why
@@ -324,3 +328,15 @@ the backlog", in branch `claude/stackvet-e9-timings`: how long each examined fam
 with the slowest named on the page (item 13), and each outside tool's version line, arguments, exit code, and time
 kept in `Examined` (item 14); each with a test that fails without it. Open pull requests read first: #1325 and #1326
 (other sessions) touch neither `crates/sv-check/src/adapters.rs` nor `Examined`.
+
+**Part 2, item 14 done, and item 13 partly, on 10 October 2026** (`docs/design/0347-how-long-each-part-of-a-run-took-and-what-each-outside-tool.md`): each outside tool's program, version
+line, arguments (unfilled), exit code, and time kept in its `Examined` entry; each of the ten stages timed in
+`report.json`'s `timings`, with the slowest five named on `report.html` and `compliance.md`. Still open in item
+13: a time on each step inside the running-app suites. Breaks: without stdout read for the version, and without the
+timings, each new test fails.
+
+**Part 2, item 16 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue to work off the
+backlog", in branch `claude/stackvet-e9-obs-16-20`: a data file `sv` ships that does not parse says it most likely
+does not match this `sv`, and that nothing about the app was checked; `NoBackend` and `BackendFailed` say to start
+Docker or Colima; each with a test that fails without it. Not the MCP server's "check stopped before it finished",
+nor item 19: open pull request #1325 (another session) rewrites `crates/sv-cli/src/mcp/`, so both wait for it.
