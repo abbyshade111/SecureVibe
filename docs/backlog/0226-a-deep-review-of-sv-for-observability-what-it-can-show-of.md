@@ -336,3 +336,6 @@ backlog", in branch `claude/stackvet-e9-obs-16-20`: a data file `sv` ships that 
 does not match this `sv`, and that nothing about the app was checked; `NoBackend` and `BackendFailed` say to start
 Docker or Colima; each with a test that fails without it. Not the MCP server's "check stopped before it finished",
 nor item 19: open pull request #1325 (another session) rewrites `crates/sv-cli/src/mcp/`, so both wait for it.
+
+**Part 3, A, became item 0229 on 9 October 2026**, at the owner's word ("yes, please go ahead"), claimed by session
+paper-facts: a review's finding is now an item of its own (backlog 0228, part 7).
