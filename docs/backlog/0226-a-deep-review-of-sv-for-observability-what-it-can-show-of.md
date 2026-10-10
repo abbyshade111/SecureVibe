@@ -74,7 +74,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
    the buffer stays empty, `summarize` counts no call and no unreadable line, and the report says "Nothing shows that
    sv was used". ADR-076 says a line that cannot be read is counted and said. Fix: read bytes, decode line by line,
    count a bad line as unreadable.
-   **Part status:** claimed by stackvet-e9, 9 October 2026
+   **Part status:** done, 10 October 2026
 4. **Two running-app suites' steps never reach anyone.** **(read twice)** The steps of the MCP-server suite (eight
    `steps.push` in `crates/sv-check/src/mcp_server.rs`) and the fetch suite (two in `fetch.rs`) are collected
    nowhere: `run_steps` (`assemble.rs`) and `sv run`'s printout take only the signed-in, sign-in-provider, and AI
@@ -94,7 +94,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
    `build_loop.rs` says "a report reads the first part and says the rest was left out"; `record` just returns at the
    cap and `BuildLoop` has no field for it, so "the last check came to …" names a check that was not the last.
    Fix: a `full` flag and a sentence.
-   **Part status:** claimed by stackvet-e9, 9 October 2026
+   **Part status:** done, 10 October 2026
 8. **The dashboard's history drops a run it cannot read, silently.** **(read twice)** `runs_in`
    (`crates/sv-cli/src/history.rs`) passes over a file that does not parse, and `Run`
    (`crates/sv-report/src/dashboard.rs`) has no `#[serde(default)]`, so the first field added to `Run` makes every
@@ -121,16 +121,16 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
 12. **Every page dated, and a run id.** `generated: None` (`assemble.rs`) leaves `report.html`, `compliance.md`,
     `security.md`, and the SARIF undated; only `report.json` has `run_record`. Add a run id and the start time to
     each, and SARIF's `startTimeUtc`; the byte-identical tests pass a fixed clock.
-   **Part status:** claimed by stackvet-e9, 10 October 2026
+   **Part status:** done, 10 October 2026
 13. **How long each part took.** Every `Instant::now()` outside tests sets a deadline and is never recorded.
     `started_ms` and `took_ms` on each `Examined` entry and each running-app step; "the slowest five" on the page.
-   **Part status:** open
+   **Part status:** claimed by stackvet-e9, 10 October 2026
 14. **What each outside tool was.** Its version line (asked, then thrown away), its arguments, its exit code, and
     its time, in `Examined` (`crates/sv-check/src/adapters.rs`). Keeping its raw output is part 3, item A.
-   **Part status:** open
+   **Part status:** claimed by stackvet-e9, 10 October 2026
 15. **Progress at a terminal.** The terminal path passes an empty progress callback, and `sv report --run --tools`
     is silent for minutes. A line per stage on stderr, with a stage per outside tool and per running-app suite.
-   **Part status:** claimed by stackvet-e9, 10 October 2026
+   **Part status:** partly done: a line for each outside tool and each running-app suite within their stages
 16. **Errors that say what to do.** Of 36 sampled, 14 say what failed, what it means for the report, and what to do;
     9 say only what failed. The worst: a data file that does not parse (`format!("parsing {}")` in nine places), which
     a person cannot fix and which most likely means the data folder does not match this `sv`. One wrapper in
@@ -318,3 +318,9 @@ the record is read as bytes and decoded a line at a time, so a byte that is not 
 unreadable, and not the whole record; and `BuildLoop::full` says when the record reached its 4 MB limit, which the
 report turns into a sentence that the last check named is the last one written. Breaks: with the old reading put back
 and `full` never set, four of the five new tests fail.
+
+**Part 2, items 13 and 14 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue to work off
+the backlog", in branch `claude/stackvet-e9-timings`: how long each examined family and each running-app suite took,
+with the slowest named on the page (item 13), and each outside tool's version line, arguments, exit code, and time
+kept in `Examined` (item 14); each with a test that fails without it. Open pull requests read first: #1325 and #1326
+(other sessions) touch neither `crates/sv-check/src/adapters.rs` nor `Examined`.
