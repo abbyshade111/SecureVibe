@@ -21,9 +21,11 @@ pub fn install() {
             .map(|s| (*s).to_owned())
             .or_else(|| info.payload().downcast_ref::<String>().cloned())
             .unwrap_or_else(|| "no message".to_owned());
+        // Written with `/` on every system, as a report to the owner quotes it: Rust names the file
+        // with `\` on Windows (backlog 0120).
         let place = info
             .location()
-            .map(|l| format!("{}:{}", l.file(), l.line()))
+            .map(|l| format!("{}:{}", l.file().replace('\\', "/"), l.line()))
             .unwrap_or_else(|| "a place not recorded".to_owned());
         if let Ok(mut seen) = SEEN.lock() {
             *seen = Some((what, place));
