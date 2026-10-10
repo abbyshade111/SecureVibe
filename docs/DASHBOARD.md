@@ -132,8 +132,10 @@ What could go wrong, and what the recommendation does about each:
   let only the person read it.
 - **Keeping more than it needs.** Each run adds one small record: the date, the `sv` version, the level, what kind of
   run it was, the `stackvet.toml` fingerprint the report already carries, the counts, and for each finding its
-  fingerprint, severity, rule, and `sv`'s own title for it. Never the app's code, a file's contents, a line of it, or a
-  credential, not even its first four characters. That is enough to say what changed and no more.
+  fingerprint, severity, rule, and `sv`'s own title for it, and since 10 October 2026 each requirement's id with its
+  status word (ADR-083), so the page can say which requirements moved between two runs. Never the app's code, a
+  file's contents, a line of it, or a credential, not even its first four characters. That is enough to say what
+  changed and no more.
 - **Growing without end.** A limit on how many runs are kept for each app (the most recent 100, say), and one command
   that deletes an app's history, or all of it. The person can also delete the folder; nothing breaks.
 - **Being edited to look better.** An AI coding tool runs as the same person, so it could rewrite history; outside the
