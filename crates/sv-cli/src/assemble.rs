@@ -35,6 +35,18 @@ pub fn stage_line(n: usize, name: &str) -> String {
     format!("sv report: {} of {}, {name}", n + 1, REPORT_STAGES.len())
 }
 
+/// One line of progress within a stage: an outside tool, or a suite of questions to the running
+/// app, as it begins (backlog 226, part 2, item 15). Before, the two longest stages printed one line
+/// each and were then silent for minutes.
+pub fn step_line(what: &str) -> String {
+    format!("  now: {what}")
+}
+
+/// `step_line`, on stderr, where the stage lines go and the report on stdout is left alone.
+pub(crate) fn say_step(what: &str) {
+    eprintln!("{}", step_line(what));
+}
+
 /// `assemble_report`, calling `starting` with each stage's number (from 0) and name as it begins.
 /// What the design answers given as `planned` come to, when they are not a finding: each credits
 /// nothing, and the report says which are plans, which are due an answer, and which `sv` cannot
@@ -652,6 +664,7 @@ fn outside_tools(
             &not_holding,
             &sv_check::adapters::scratch_dir(),
             secret_rules,
+            &say_step,
         );
         // What the tools got to before then is not a report of the app, so nothing is written.
         if sv_run::interrupted() {

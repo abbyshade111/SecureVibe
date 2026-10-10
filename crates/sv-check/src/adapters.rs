@@ -1548,10 +1548,12 @@ pub fn run_all(
         not_holding,
         scratch,
         rules,
+        &|_| {},
     )
 }
 
-/// `run_all`, with the app's files from a listing already made.
+/// `run_all`, with the app's files from a listing already made, and `starting` told each tool's
+/// name as it begins, for a person watching at a terminal (backlog 226, part 2, item 15).
 pub fn run_all_in(
     adapters: &Adapters,
     listing: &sv_scan::files::Listing,
@@ -1559,6 +1561,7 @@ pub fn run_all_in(
     not_holding: &BTreeSet<String>,
     scratch: &Path,
     rules: &SecretRules,
+    starting: &dyn Fn(&str),
 ) -> AdapterRun {
     let mut run = AdapterRun::default();
     // The reports go in a folder of this run's own, made new, readable by this user alone, and with
@@ -1584,6 +1587,7 @@ pub fn run_all_in(
     for adapter in adapters.for_languages(languages) {
         let report_path = private.path().join(format!("{}.sarif", adapter.id));
         let mut record = ToolRun::default();
+        starting(&adapter.name);
         let began = std::time::Instant::now();
         let outcome = run_one_recorded(
             adapter,
@@ -2460,5 +2464,7 @@ mod interrupt_tests;
 
 #[cfg(all(test, unix))]
 mod fence_tests;
+#[cfg(all(test, unix))]
+mod progress_tests;
 #[cfg(all(test, unix))]
 mod tool_run_tests;
