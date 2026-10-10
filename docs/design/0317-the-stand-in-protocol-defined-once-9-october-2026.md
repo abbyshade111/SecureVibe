@@ -3,7 +3,7 @@
 
 
 From the architecture assessment of 8 October 2026, item 9
-(`docs/backlog/0187-from-the-architecture-assessment-of-8-october-2026-the-four.md`). `sv` runs two stand-ins inside
+(`docs/backlog/done/0187-from-the-architecture-assessment-of-8-october-2026-the-four.md`). `sv` runs two stand-ins inside
 the fence, the test model (`crates/sv-run/assets/model-provider.mjs`) and the test sign-in provider
 (`oidc-provider.mjs`). Each script is a server whose addresses, markers, and mode names are a protocol, and every Rust
 client, the Docker runner, and every fake the tests use in a script's place wrote that protocol out again as its own

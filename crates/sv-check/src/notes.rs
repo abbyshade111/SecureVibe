@@ -251,8 +251,8 @@ impl Catalog {
     pub fn load(path: &Path) -> Result<Catalog> {
         let text =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-        let catalog: Catalog =
-            serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
+        let catalog: Catalog = serde_json::from_str(&text)
+            .with_context(|| sv_frameworks::data::not_understood(path))?;
         for section in &catalog.sections {
             if section.asks.trim().is_empty() {
                 anyhow::bail!(

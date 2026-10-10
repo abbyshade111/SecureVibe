@@ -104,6 +104,18 @@ pub fn dir() -> Result<PathBuf, String> {
         .clone()
 }
 
+/// What to say when a data file `sv` ships does not parse (backlog 226, part 2, item 16). The person
+/// cannot fix the file, and it most likely belongs to another version of `sv`, so it says that, what
+/// to do, and that nothing about the app was checked.
+pub fn not_understood(path: &Path) -> String {
+    format!(
+        "{} is one of the data files `sv` ships, and this `sv` could not read it. It most likely \
+         belongs to another version of `sv`: reinstall `sv`, or, if SV_DATA_DIR is set, point it at \
+         the `data` folder that came with this one. Nothing about the app was checked.",
+        path.display()
+    )
+}
+
 /// A file in the data folder. When there is no data folder, the path it would have in the build
 /// folder, so reading it fails with that path named; `dir` says why there is none.
 pub fn file(name: &str) -> PathBuf {

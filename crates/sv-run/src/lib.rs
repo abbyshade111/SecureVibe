@@ -104,7 +104,9 @@ impl CannotRun {
         match self {
             CannotRun::NoBackend { checked } => format!(
                 "No container backend on this computer ({checked}). Everything that needs the app \
-                 running is reported as not assessed — not as passing, and not as failing."
+                 running is reported as not assessed — not as passing, and not as failing. To have \
+                 it checked, get Docker running with Linux containers (Docker Desktop, or \
+                 `colima start` on a Mac), then run this again; `sv doctor` shows what it finds."
             ),
             CannotRun::NoRunCommand { missing } => format!(
                 "stackvet.toml does not say how to run this app ({} not set under [stack.run]), \
@@ -119,7 +121,8 @@ impl CannotRun {
             ),
             CannotRun::BackendFailed { detail } => format!(
                 "The container backend refused: {detail}. Everything that needs the app running \
-                 is reported as not assessed."
+                 is reported as not assessed. If Docker or Colima has stopped, start it and run \
+                 this again; `sv doctor` shows what it finds."
             ),
             CannotRun::NeverReady {
                 waited_seconds,
@@ -1636,6 +1639,25 @@ mod tests {
                 .health_path,
             "/"
         );
+    }
+
+    #[test]
+    fn a_backend_that_is_missing_or_refuses_says_what_to_do() {
+        // Backlog 226, part 2, item 16: what failed, what it means, and what to do.
+        for reason in [
+            CannotRun::NoBackend {
+                checked: "`docker` could not be started".into(),
+            },
+            CannotRun::BackendFailed {
+                detail: "Cannot connect to the Docker daemon".into(),
+            },
+        ] {
+            let text = reason.explain();
+            assert!(text.contains("not assessed"), "{text}");
+            assert!(text.contains("run this again"), "{text}");
+            assert!(text.contains("`sv doctor`"), "{text}");
+            assert!(text.contains("Colima") || text.contains("colima"), "{text}");
+        }
     }
 
     #[test]

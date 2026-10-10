@@ -59,7 +59,7 @@ from an empty folder in Claude Code; each of these stopped the attempt:
    folder; `tools/install.sh` puts `sv` and its data in `~/.local/share/securevibe`, linked from `~/.local/bin/sv`,
    and the guide installs that way. Not done: compiling the data into the program, which a single downloadable
    file would need.
-   **Part status:** partly done: unclear, needs a look
+   **Part status:** done, 5 October 2026
 3. **The README's MCP instructions assume a command the desktop app does not install.** It gives
    `claude mcp add securevibe -- …`; in the desktop app that fails with `zsh: command not found:
    claude`. A `.mcp.json` in the app's folder works instead and needs nothing installed. Other tools
