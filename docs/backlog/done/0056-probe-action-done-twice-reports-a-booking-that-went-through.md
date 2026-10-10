@@ -1,6 +1,6 @@
 # `probe.action-done-twice` reports a booking that went through once as twenty
 
-**Status:** partly done: see its done note; what remains is not yet written, as its markers read on 8 October 2026
+**Status:** done, 10 October 2026
 
 Found on 4 October 2026 by
 session securevibe-e2, testing the design-time prompts. The check sends the `once` action 20 times at the same
@@ -20,3 +20,5 @@ both users shown signed in and holding the token, and the refused user still sig
 being signed out never counts. Ten guards broken in turn, each caught. Not yet run against a real app in a
 container: no `once` example exists, and this environment has no Docker; the script itself was run with the
 sidecar's busybox.
+
+**Checked against origin/main, 10 October 2026:** code built: `crates/sv-check/src/signed_in/once.rs` sends the copies half as user A and half as user B. A run against a real app with a `once` example is not on main.

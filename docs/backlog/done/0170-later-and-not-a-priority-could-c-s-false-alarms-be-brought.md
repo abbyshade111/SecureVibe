@@ -1,6 +1,6 @@
 # Later, and not a priority: could C's false alarms be brought down, if `sv` is to reach all 50?
 
-**Status:** partly done: 4 of 5 parts done, 0 claimed, 1 open, as its markers read on 8 October 2026
+**Status:** done, 10 October 2026
 
 Asked for by the owner on 26 September 2026, for if the semgrep coverage is expanded down the line.
 Not claimed. The license question above comes first, since it decides whether C can be run at all. (No
@@ -39,7 +39,7 @@ Every first-party finding was read.
    and none of the 661 first-party files of this repository and v1 is.
    **Part status:** done, 6 October 2026
 2. **The secret rules' findings in test code kept apart with the rest.**
-   **Part status:** open
+   **Part status:** done, 10 October 2026
 3. **One finding per file and line, naming every rule and requirement.**
    **Claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("Yes, please go ahead with both of
    those", asked whether to reverse the rule that findings with no CWE in common stay apart), in branch
@@ -116,3 +116,5 @@ being credited, the second never decided an applicable requirement's status in t
 **Done the same day** (DESIGN, "A finding outranked by `sv`'s own run, and one about a requirement the app is not
 held to"; ADR-023, Later): `Finding::outranked`, set by the report; both kinds listed apart, in full, and marked in
 SARIF, `report.json`, and the MCP server's schema.
+
+**Checked against origin/main, 10 October 2026:** built: bundled libraries marked in `finding.rs`; test-code split at `finding.rs:298`; one finding per line; narrow secret exception; worth-a-look. Part 2 is that test-code split.

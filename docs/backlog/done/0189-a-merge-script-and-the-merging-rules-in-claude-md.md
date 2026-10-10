@@ -1,6 +1,6 @@
 # A merge script, and the merging rules in `CLAUDE.md`
 
-**Status:** partly done: see its done note; what remains is not yet written, as its markers read on 8 October 2026
+**Status:** done, 10 October 2026
 
 Asked for by the owner on 8 October 2026 ("go ahead with
 the merge script and CLAUDE.md lines please"), from the end-of-day write-up of session securevibe-review (its
@@ -23,3 +23,5 @@ name in the tools list. No decision: nothing changes what `sv` runs, writes, or 
 backlog's conflicts, and four merging rules"). The script settles a conflict in a Markdown file only when every
 block's merge base is empty; a Rust file, or a block where both sides changed the same lines, is left as Git
 left it, named, and the script fails. It never commits: the merge is staged for the session's own commit.
+
+**Checked against origin/main, 10 October 2026:** built: `tools/merge_main.py` with `crates/sv-cli/tests/merge_main.rs`, and the merging rules in `CLAUDE.md`.

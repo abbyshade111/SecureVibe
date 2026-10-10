@@ -1,6 +1,6 @@
 # More probes
 
-**Status:** claimed by securevibe-e9, as its markers read on 8 October 2026
+**Status:** done, 10 October 2026
 
 **Claimed on 26 September 2026 by session securevibe-e9.** The first four questions are asked (`sv-check/src/probes.rs`); they are the ones that
 can be asked of any app by somebody who has not signed in. Redirects, HSTS on an HTTPS app, method
@@ -17,3 +17,5 @@ DESIGN, "Six more questions for anybody".
 and HSTS are `sv probe`'s (and since #595 are credited only when they hold); method handling per route and
 anything that sends data need the app's routes or a session, which this entry already said are their own items.
 A new probe is an entry of its own.
+
+**Checked against origin/main, 10 October 2026:** built: `crates/sv-check/src/probes.rs` has the six named probes. The closing note says nothing is left.

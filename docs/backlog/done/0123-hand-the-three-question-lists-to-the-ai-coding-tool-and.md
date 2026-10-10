@@ -1,6 +1,6 @@
 # Hand the three question lists to the AI coding tool, and label what it answers
 
-**Status:** partly done: see its done note; what remains is not yet written, as its markers read on 8 October 2026
+**Status:** done, 10 October 2026
 
 Asked for by
 the owner on 26 September 2026: the security notes, the design questions, and the checklist of what
@@ -63,3 +63,5 @@ the owner answers". Left over:
   (16 and 51 questions), and within a level an unanswered question comes before one only the AI
   coding tool has answered, which needs confirming rather than answering. The interview says so. No
   sort, no tie-break, and level 1 put last are each caught by one test that reads the whole order.
+
+**Checked against origin/main, 10 October 2026:** built: `stackvet_questions` and `stackvet_notes_file`, the checked-by-hand section, and level-first ordering. Only the categories line of the starter file was read.

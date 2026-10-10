@@ -1,6 +1,6 @@
 # Research OWASP's Agentic Skills Top 10, and what it would mean for `sv`
 
-**Status:** partly done: 2 of 4 parts done, 0 claimed, 2 open, as its markers read on 8 October 2026
+**Status:** done, 10 October 2026
 
 Asked for by the owner on 7 October
 2026. A reading, not a build: what the list is (its version, date, status, and license, and whether it
@@ -33,14 +33,14 @@ Three proposals, each for the owner to decide (the document has the detail):
    allow everything, MCP servers started unpinned, base-address overrides), and report them in a section of their
    own, apart from the app's grade, as notices. AST02, AST03, AST07. No ASVS or AISVS requirement fits, so it cites
    none. Small to medium. **The owner said yes; not claimed.**
-   **Part status:** open
+   **Part status:** done, 10 October 2026
 2. **Hidden characters in the instruction files committed in the folder** (`AGENTS.md`, `CLAUDE.md`, `SKILL.md`,
    `.cursor/rules/`, and their like): Unicode tag characters and right-to-left overrides, only ever a finding. AST04.
    Cites none. Small. **The owner said yes; not claimed.**
-   **Part status:** open
+   **Part status:** done, 10 October 2026
 3. **Adopting the list as a framework `sv` cites:** this session recommends not now, and looking again at its v1.0
    release (planned for the fourth quarter of 2026). **The owner agreed.**
-   **Part status:** open
+   **Part status:** done, 10 October 2026
 
 **securevibe-e2's reading, done the same day** (#901, merged before the owner's decision below reached it; its
 document was then replaced by securevibe-e9's, as the owner decided, keeping its extra point), read from the project's own repository at `d6f7d7d`, since
@@ -66,3 +66,5 @@ Read on `main` just before this claim: no other session had claimed them.
 new section, "What your AI coding tool's files let it do", reads Claude Code's settings, `.mcp.json`, and
 `.vscode/mcp.json`. `config.instructions-hidden-characters` finds tag characters and direction overrides in the
 instruction files. Cursor's files are named and not read: its documentation could not be reached here.
+
+**Checked against origin/main, 10 October 2026:** parts 1 and 2 built: `ai_tool.rs` reads the AI tool files, and `config.instructions-hidden-characters` checks hidden characters. Part 3 is the recommendation not to adopt the list as a framework for now, so nothing to build.

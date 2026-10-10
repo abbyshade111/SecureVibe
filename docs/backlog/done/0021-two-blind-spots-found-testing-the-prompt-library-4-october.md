@@ -1,6 +1,6 @@
 # Two blind spots found testing the prompt library, 4 October 2026
 
-**Status:** partly done: parts 1, 2 (backlog 0228's conversion read them as not done)
+**Status:** done, 10 October 2026
 
 Found by session securevibe-e10, each
 reproduced against `sv` on `main`. **Each can be claimed on its own.**
@@ -12,14 +12,14 @@ reproduced against `sv` on `main`. **Each can be claimed on its own.**
    not a false pass. Read the declared dependencies too, or report the check not assessed when the bill of
    materials is incomplete. Witnesses: the app with and without the lockfile, and a declared sanitizer that keeps
    it quiet.
-   **Part status:** claimed by securevibe-e10, 4 October 2026
+   **Part status:** done, 10 October 2026
 2. **`ast.shell-command` in Python misses `subprocess` with `shell=True`.** Its Python names are `system`,
    `popen`, `getoutput`, and `getstatusoutput`, so `subprocess.run(f'notes-export "{title}" out.pdf', shell=True)`
    is reported by nothing unless Bandit or Semgrep runs (`--tools`), while `os.system` with the same text is
    caught. The same holds for `call`, `check_call`, `check_output`, and `Popen` with `shell=True`. Witnesses: each
    of those with a built string and `shell=True` caught; each with a list and no shell, and with `shell=True` and
    a fixed string, quiet.
-   **Part status:** claimed by securevibe-e10, 4 October 2026
+   **Part status:** done, 10 October 2026
 **Items 1 and 2 claimed on 4 October 2026 by session securevibe-e10**, at the owner's word ("keep going"), in
 branch `claude/blind-spots`.
 **Both done the same day** (DESIGN, "Two blind spots: a manifest with no lockfile, and a shell the call asked
@@ -30,3 +30,5 @@ not assessed, never "none is an editor", when it cannot read those either. 2: a 
 app and the Python file that showed the gaps are now caught, and their safe forms are not.
 **Marked done 8 October 2026 by session securevibe-e2**, from the roadmap (Phase 1, item 3): the status line read
 `open` because the note above says "Both done" rather than one marker per part.
+
+**Checked against origin/main, 10 October 2026:** parts 1 and 2 built: `rich_text.rs` reads `package.json`, and the `ast.shell-command-shell-true` rule is in `data/ast-rules.json`.

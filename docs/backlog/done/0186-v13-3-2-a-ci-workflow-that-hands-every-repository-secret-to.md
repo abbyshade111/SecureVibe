@@ -1,6 +1,6 @@
 # V13.3.2: a CI workflow that hands every repository secret to a job
 
-**Status:** partly done: see its done note; what remains is not yet written, as its markers read on 8 October 2026
+**Status:** done, 10 October 2026
 
 From `docs/PARTIAL-CHECKS.md` (V13.3.2,
 level 2, "reads the code, finding only"), which no check speaks to yet. In `.github/workflows`, `${{ toJSON(secrets) }}`
@@ -13,3 +13,5 @@ item whenever you're ready"), in branch `claude/securevibe-e9-workflow-all-secre
 raises findings changes no requirement's status, so no ADR is proposed.
 **Done the same day** (DESIGN, "A CI workflow that hands every secret to a job"):
 `config.workflow-hands-out-all-secrets`, citing V13.3.2. Only ever a finding.
+
+**Checked against origin/main, 10 October 2026:** built: `crates/sv-check/src/workflows.rs` flags `toJSON(secrets)`, `secrets: inherit`, and workflow-wide env; tests in `crates/sv-cli/tests/workflow_secrets.rs`.

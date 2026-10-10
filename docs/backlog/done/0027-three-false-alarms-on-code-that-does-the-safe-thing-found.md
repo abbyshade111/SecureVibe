@@ -1,6 +1,6 @@
 # Three false alarms on code that does the safe thing, found testing the prompt library, 3 October 2026
 
-**Status:** partly done: parts 2 (backlog 0228's conversion read them as not done)
+**Status:** done, 10 October 2026
 
 Found
 by session securevibe-e10 in the prompt test builds (Python and Flask, written by helper agents; see
@@ -19,7 +19,7 @@ flagged. **Each can be claimed on its own.**
    attachments and the id was made by the app (`uuid4().hex`) when the file was saved. Telling a database value
    from a request value is the hard part; at the least the finding could say `"confidence": "low"` here, as the
    rule already does for a question it cannot settle.
-   **Part status:** claimed by securevibe-e9, 5 October 2026
+   **Part status:** done, 10 October 2026
 3. **`ast.open-redirect` (V3.7.2) on a destination already checked.** `redirect(safe_next(next_url))`, and
    `next_url = safe_next(...)` then `redirect(next_url)`, where `safe_next` sends anything but a same-site path to
    the home page. Both the build with the prompt and the one without were flagged, so the rule cannot currently
@@ -45,3 +45,5 @@ flagged. **Each can be claimed on its own.**
 **Every part done, checked on `main` on 8 October 2026 by session securevibe-e9** from the roadmap (Phase 1, item 3):
 the status line read "2 of 3 parts done" because parts 2 and 3 were marked together ("Items 2 and 3 claimed", "Done
 the same day"), which the board does not read part by part. The withdrawn second claim above changes nothing.
+
+**Checked against origin/main, 10 October 2026:** parts 1 to 3 built: `fixed.rs` and `ast.sql-built-by-hand`; `ast.rs:159` gives lower confidence to values read back from the database; `safe_next` in `ast.rs`.
