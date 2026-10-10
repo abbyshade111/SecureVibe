@@ -69,7 +69,21 @@ pub struct Run {
     pub not_run: Vec<String>,
     pub counts: Counts,
     pub findings: Vec<KeptFinding>,
+    /// Each applicable requirement's status in this run, by id (ADR-083, part 1): the id and the
+    /// status word, nothing of the app's code or text. Empty in a record from before format 2, which
+    /// kept counts only.
+    pub requirements: Vec<KeptStatus>,
 }
+
+/// One requirement's status in one run.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct KeptStatus {
+    pub id: String,
+    pub status: crate::Status,
+}
+
+/// How many requirements that moved `changes_since` names before it counts the rest.
+const MOVED_SHOWN: usize = 12;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct KeptFinding {
@@ -84,7 +98,7 @@ impl Run {
     pub fn of(report: &crate::Report) -> Option<Run> {
         let record = report.run_record.as_ref()?;
         Some(Run {
-            format: 1,
+            format: 2,
             started: record.started.clone(),
             started_unix_ms: record.started_unix_ms,
             app_name: report.app_name.clone(),
@@ -107,7 +121,51 @@ impl Run {
                     title: f.title.clone(),
                 })
                 .collect(),
+            requirements: report
+                .requirements
+                .iter()
+                .map(|r| KeptStatus {
+                    id: r.id.clone(),
+                    status: r.status,
+                })
+                .collect(),
         })
+    }
+
+    /// Each requirement whose status is not the same in `earlier` and `self`, as (id, then, now),
+    /// in the order of `self`'s requirements and then those only `earlier` had. `None` for a side
+    /// that applied to only one run. Empty when either record kept no statuses: an older `sv`'s run
+    /// cannot say which requirements moved, and that is said, not guessed (`changes_since`).
+    pub fn moved_since(
+        &self,
+        earlier: &Run,
+    ) -> Vec<(String, Option<crate::Status>, Option<crate::Status>)> {
+        if self.requirements.is_empty() || earlier.requirements.is_empty() {
+            return Vec::new();
+        }
+        let then_of = |id: &str| {
+            earlier
+                .requirements
+                .iter()
+                .find(|r| r.id == id)
+                .map(|r| r.status)
+        };
+        let mut out: Vec<_> = self
+            .requirements
+            .iter()
+            .filter_map(|r| {
+                let then = then_of(&r.id);
+                (then != Some(r.status)).then(|| (r.id.clone(), then, Some(r.status)))
+            })
+            .collect();
+        out.extend(
+            earlier
+                .requirements
+                .iter()
+                .filter(|r| !self.requirements.iter().any(|s| s.id == r.id))
+                .map(|r| (r.id.clone(), Some(r.status), None)),
+        );
+        out
     }
 
     /// Why `self` cannot be set against `earlier`, or `None` when it can: the same kind of run, at
@@ -156,6 +214,30 @@ impl Run {
                 out.push(format!(
                     "{}: {was} then, {now} now",
                     status.applies_row().trim_start_matches("Applies, ")
+                ));
+            }
+        }
+        if self.requirements.is_empty() || earlier.requirements.is_empty() {
+            if crate::Status::ALL
+                .iter()
+                .any(|s| self.counts.of(*s) != earlier.counts.of(*s))
+            {
+                out.push(
+                    "Which requirements moved is not known: one of these runs was kept by an older \
+                     sv, which kept counts only."
+                        .to_owned(),
+                );
+            }
+        } else {
+            let moved = self.moved_since(earlier);
+            let word = |s: Option<crate::Status>| s.map_or("did not apply", |s| s.label());
+            for (id, then, now) in moved.iter().take(MOVED_SHOWN) {
+                out.push(format!("{id}: {} then, {} now", word(*then), word(*now)));
+            }
+            if moved.len() > MOVED_SHOWN {
+                out.push(format!(
+                    "and {} more requirements moved",
+                    moved.len() - MOVED_SHOWN
                 ));
             }
         }
@@ -519,6 +601,8 @@ pub fn page(apps: &[App], written: &str) -> String {
     b
 }
 
+#[cfg(test)]
+mod moved_tests;
 #[cfg(test)]
 mod unread_tests;
 

@@ -8,3 +8,9 @@ requirement's status in each run, not only the counts and findings, and says why
 shown. It extends ADR-057. The record is made accepted in the pull request that builds it, which says where the build
 differs from the plan. Made an item of its own on 10 October 2026, so the build has a claim others can see; item 0226
 still holds the review's write-up.
+
+**Decision 1 built 10 October 2026 by session securevibe-e2** (design entry "History keeps each requirement's status,
+and names the ones that moved"): each kept run holds each requirement's status, and the dashboard names the ones that
+moved. Decisions 2 to 4 (a failed run's record, more in the comparison key, records that stay readable) and `sv
+compare` remain.
+
