@@ -152,6 +152,8 @@ class Part:
         s = PART_STATUS.search(text)
         self.status_text = s.group("text") if s else None
         self.kind = kind_of(self.status_text)
+        self.lines = len(PART_STATUS.findall(text))
+        self.head = text.split("\n", 1)[0].strip()
 
 
 def parts_of(body):
@@ -446,6 +448,14 @@ def part_problems(item):
             found.append(f"{item.path.name}, part {part.number}, has no `**Part status:**` line")
         elif part.kind is None:
             found.append(f"{item.path.name}, part {part.number}: the status {part.status_text!r} is in none of the four forms")
+        if part.lines > 1:
+            # The board reads only the first, so a stale claim a merge left above a later line hides it (0226, part 13,
+            # on 10 October 2026).
+            found.append(f"{item.path.name}, part {part.number}, has {part.lines} `**Part status:**` lines; keep one")
+    heads = [part.head for part in item.parts]
+    for head in sorted({h for h in heads if heads.count(h) > 1}):
+        number = next(part.number for part in item.parts if part.head == head)
+        found.append(f"{item.path.name}: part {number} is written {heads.count(head)} times over; keep one")
     kinds = {part.kind for part in item.parts}
     if item.kind == "done" and kinds - {"done"}:
         found.append(f"{item.path.name} is done, and not all of its parts are")
@@ -665,6 +675,14 @@ rules
         assert any("is done, and not all of its parts are" in p for p in part_problems(find(folder, "1")))
         write_text(item.path, text.replace("partly done: two findings", "open"))
         assert any("is open, and some of its parts are under way" in p for p in part_problems(find(folder, "1")))
+        # A merge that leaves two lines on one part, or one part written twice, is named (0226, 10 October 2026).
+        write_text(item.path, text.replace("   **Part status:** claimed by alpha, 9 October 2026",
+                                           "   **Part status:** claimed by alpha, 9 October 2026\n   **Part status:** done, 9 October 2026"))
+        assert any("part 2, has 2 `**Part status:**` lines" in p for p in part_problems(find(folder, "1"))), part_problems(find(folder, "1"))
+        twice = "2. **Another.** Also wrong.\n   **Part status:** done, 9 October 2026\n"
+        write_text(item.path, text.replace("\n**Part 1, item 2", "\n" + twice + "\n**Part 1, item 2"))
+        assert any("part 2 is written 2 times over" in p for p in part_problems(find(folder, "1"))), part_problems(find(folder, "1"))
+        assert part_problems(find(folder, "1")) and not any("lines; keep one" in p for p in part_problems(find(folder, "1")))
     # The done folder (backlog 0228, part 6): `done` moves an item there and rewrites the paths to it; an item given
     # what remains moves back; the check names one in the wrong folder; a long item draws a warning, never a failure.
     with tempfile.TemporaryDirectory() as tmp:

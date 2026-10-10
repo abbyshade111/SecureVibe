@@ -128,10 +128,6 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
    **Part status:** done, 10 October 2026
 13. **How long each part took.** Every `Instant::now()` outside tests sets a deadline and is never recorded.
     `started_ms` and `took_ms` on each `Examined` entry and each running-app step; "the slowest five" on the page.
-   **Part status:** claimed by stackvet-e9, 10 October 2026
-14. **What each outside tool was.** Its version line (asked, then thrown away), its arguments, its exit code, and
-    its time, in `Examined` (`crates/sv-check/src/adapters.rs`). Keeping its raw output is part 3, item A.
-   **Part status:** claimed by stackvet-e9, 10 October 2026
    **Part status:** partly done: a time on each step inside the running-app suites
 14. **What each outside tool was.** Its version line (asked, then thrown away), its arguments, its exit code, and
     its time, in `Examined` (`crates/sv-check/src/adapters.rs`). Keeping its raw output is part 3, item A.
