@@ -33,6 +33,8 @@ and no list of items: a list every item adds a line to would bring back the conf
     python3 tools/backlog.py list                     # every item, in number order
     python3 tools/backlog.py list --open              # only the open ones (--claimed, --done, --partly likewise)
     python3 tools/backlog.py summary                  # the counts alone
+    python3 tools/backlog.py board                    # the board: in progress, partly done, open, latest done
+    python3 tools/backlog.py board --html board.html  # the same board as one page, for a browser or a phone
     python3 tools/backlog.py new "A title"            # writes an open item, numbered one past the highest; prints its path
     python3 tools/backlog.py claim 0150 --by <session>          # sets the status line (refused when another session holds it, or it is done)
     python3 tools/backlog.py claim 0226.3 --by <session>        # the same for part 3 of item 0226
@@ -530,6 +532,166 @@ def summary(found):
     print(f"{len(found)} items: " + ", ".join(f"{by.get(k, 0)} {k}" for k in ("open", "claimed", "partly done", "done")))
 
 
+STALE_DAYS = 14
+BOARD_DONE = 15
+
+
+def date_in(text):
+    """The day written in a status line ("9 October 2026"), or None when it names none."""
+    m = DATE.search(text or "")
+    return datetime.datetime.strptime(m.group(1), "%d %B %Y").date() if m else None
+
+
+def held_by(text):
+    """Who a claim's status line names: the words after "claimed by", up to the first comma."""
+    m = re.match(r"claimed by ([^,:]+)", text or "")
+    return m.group(1).strip() if m else "?"
+
+
+def board_rows(found, now):
+    """The board's lists, read from the status lines alone (never the prose): what is claimed, as an item or a
+    numbered part of one; what is partly done and what remains; what is open; what is done, latest first; and any
+    item with no readable status line. A claim is flagged for the owner to check when no session is named, when it
+    names no date, or when it is older than STALE_DAYS, since a claim left by a session that has ended is the usual
+    way two sessions end up on one item."""
+    progress, partly, open_, done, unread = [], [], [], [], []
+
+    def claim_row(label, title, text):
+        day = date_in(text)
+        check = []
+        if "not named" in text:
+            check.append("no session named")
+        if day is None:
+            check.append("no date recorded")
+        elif (now - day).days > STALE_DAYS:
+            check.append(f"{(now - day).days} days old")
+        return (label, title, held_by(text), day.strftime("%d %b %Y") if day else "not recorded", "; ".join(check))
+
+    for i in found:
+        if i.kind == "done":
+            done.append((date_in(i.status_text) or datetime.date.min, i))
+            continue
+        if i.kind == "claimed":
+            progress.append(claim_row(f"{i.number:04d}", i.title, i.status_text))
+        elif i.kind == "partly done":
+            partly.append((i, i.status_text[len("partly done: "):]))
+        elif i.kind == "open":
+            open_.append(i)
+        else:
+            unread.append(i)
+        for p in i.parts:
+            if p.kind == "claimed":
+                title = re.sub(r"^\d+\.\s*|\*\*", "", p.head)[:110]
+                progress.append(claim_row(f"{i.number:04d}.{p.number}", title, p.status_text))
+    done.sort(key=lambda pair: pair[0], reverse=True)
+    return progress, partly, open_, [i for _, i in done], unread
+
+
+def table(headers, rows):
+    """A Markdown table, with any pipe in a cell escaped so a title cannot break it."""
+    cell = lambda v: str(v).replace("|", "\\|")
+    out = ["| " + " | ".join(headers) + " |", "|" + "---|" * len(headers)]
+    out += ["| " + " | ".join(cell(v) for v in row) + " |" for row in rows]
+    return "\n".join(out)
+
+
+def board_markdown(found, now):
+    """The board as Markdown: the counts, then each list, read from the items' status lines by `board_rows`."""
+    progress, partly, open_, done, unread = board_rows(found, now)
+    counts = f"{len(found)} items: " + ", ".join(
+        f"{sum(1 for i in found if i.kind == k)} {k}" for k in ("open", "claimed", "partly done", "done"))
+    flagged = sum(1 for row in progress if row[4])
+    parts = [
+        f"# StackVet backlog board, {now.day} {now.strftime('%B %Y')}",
+        "",
+        f"{counts}. Read from each item's status line by `tools/backlog.py board`; reading it changes nothing.",
+        "",
+        f"## In progress ({len(progress)}, {flagged} to check)",
+        "",
+        "A claim is to check when no session is named, no date is recorded, or it is older than "
+        f"{STALE_DAYS} days: the owner says whether it still holds, and releases it if not.",
+        "",
+        table(["Item", "What", "Held by", "Since", "To check"], progress) if progress else "Nothing is claimed.",
+        "",
+        f"## Partly done, with what remains ({len(partly)})",
+        "",
+        table(["Item", "What", "What remains"], [(f"{i.number:04d}", i.title, remains) for i, remains in partly]),
+        "",
+        f"## Open, not started ({len(open_)})",
+        "",
+        table(["Item", "What"], [(f"{i.number:04d}", i.title) for i in open_]),
+        "",
+        f"## Done, latest {BOARD_DONE} of {len(done)}",
+        "",
+        table(["Item", "What", "Done"], [
+            (f"{i.number:04d}", i.title, (date_in(i.status_text) or "not recorded")) for i in done[:BOARD_DONE]
+        ]),
+    ]
+    if unread:
+        parts += ["", f"## No readable status line ({len(unread)})", "",
+                  table(["Item", "What"], [(f"{i.number:04d}", i.title) for i in unread])]
+    return "\n".join(parts) + "\n"
+
+
+def board_html(found, now):
+    """The same board as one HTML page with no outside requests, so it opens in any browser and can be kept or
+    sent. Its colors follow the reader's light or dark setting."""
+    import html
+
+    progress, partly, open_, done, unread = board_rows(found, now)
+
+    def section(title, headers, rows, empty):
+        if not rows:
+            return f"<h2>{html.escape(title)}</h2><p class=\"none\">{html.escape(empty)}</p>"
+        head = "".join(f"<th>{html.escape(h)}</th>" for h in headers)
+        body = "".join(
+            "<tr>" + "".join(f"<td>{html.escape(str(v))}</td>" for v in row) + "</tr>" for row in rows)
+        return f"<h2>{html.escape(title)}</h2><table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>"
+
+    counts = "".join(
+        f"<span class=\"chip {k.replace(' ', '-')}\">{sum(1 for i in found if i.kind == k)} {html.escape(k)}</span>"
+        for k in ("open", "claimed", "partly done", "done"))
+    sections = [
+        section(f"In progress ({len(progress)})", ["Item", "What", "Held by", "Since", "To check"], progress,
+                "Nothing is claimed."),
+        section(f"Partly done, with what remains ({len(partly)})", ["Item", "What", "What remains"],
+                [(f"{i.number:04d}", i.title, remains) for i, remains in partly], "Nothing is partly done."),
+        section(f"Open, not started ({len(open_)})", ["Item", "What"],
+                [(f"{i.number:04d}", i.title) for i in open_], "Nothing is open."),
+        section(f"Done, latest {BOARD_DONE} of {len(done)}", ["Item", "What", "Done"],
+                [(f"{i.number:04d}", i.title, date_in(i.status_text) or "not recorded")
+                 for i in done[:BOARD_DONE]], "Nothing is done yet."),
+    ]
+    if unread:
+        sections.append(section(f"No readable status line ({len(unread)})", ["Item", "What"],
+                                [(f"{i.number:04d}", i.title) for i in unread], ""))
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StackVet backlog board</title>
+<style>
+:root {{ --bg: #fbfaf7; --ink: #1d1d1b; --muted: #6b6a64; --line: #dcd9d0; --chip: #efece4; }}
+@media (prefers-color-scheme: dark) {{ :root:not([data-theme="light"]) {{ --bg: #161614; --ink: #ece9e1; --muted: #9c9a92; --line: #3a3934; --chip: #262520; }} }}
+:root[data-theme="dark"] {{ --bg: #161614; --ink: #ece9e1; --muted: #9c9a92; --line: #3a3934; --chip: #262520; }}
+body {{ background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, sans-serif; margin: 0; padding: 16px; }}
+h1 {{ font-size: 22px; margin: 8px 0; }} h2 {{ font-size: 17px; margin: 28px 0 8px; }}
+.chip {{ display: inline-block; background: var(--chip); border-radius: 12px; padding: 2px 10px; margin: 2px 4px 2px 0; color: var(--muted); }}
+table {{ width: 100%; border-collapse: collapse; font-size: 14px; }}
+th, td {{ text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); padding: 6px 8px; }}
+th {{ color: var(--muted); font-weight: 600; }}
+.none {{ color: var(--muted); }}
+@media (max-width: 600px) {{ table, thead, tbody, tr, td, th {{ display: block; }} thead {{ display: none; }}
+  td {{ border: 0; padding: 2px 0; }} tr {{ border-bottom: 1px solid var(--line); padding: 6px 0; }} }}
+</style></head>
+<body>
+<h1>StackVet backlog board, {now.day} {now.strftime('%B %Y')}</h1>
+<p>{counts}</p>
+<p class="none">Read from each item's status line by <code>tools/backlog.py board --html</code>. Reading it changes nothing.</p>
+{''.join(sections)}
+</body></html>
+"""
+
+
 def self_test():
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
@@ -827,7 +989,7 @@ def main(argv):
     import argparse
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("command", nargs="?", default="list",
-                        choices=["list", "summary", "new", "claim", "done", "show", "move", "convert", "tidy"])
+                        choices=["list", "summary", "board", "new", "claim", "done", "show", "move", "convert", "tidy"])
     parser.add_argument("args", nargs="*")
     parser.add_argument("--open", action="store_true")
     parser.add_argument("--claimed", action="store_true")
@@ -836,6 +998,7 @@ def main(argv):
     parser.add_argument("--by", help="the session making a claim")
     parser.add_argument("--date", default=today())
     parser.add_argument("--remains", help="with done: what remains, making the item partly done")
+    parser.add_argument("--html", help="with board: write the board as one HTML page to this path")
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     a = parser.parse_args(argv)
@@ -858,6 +1021,14 @@ def main(argv):
         return 0
     if a.command == "summary":
         summary(items())
+        return 0
+    if a.command == "board":
+        now = datetime.date.today()
+        if a.html:
+            write_text(Path(a.html), board_html(items(), now))
+            print(f"wrote {a.html}")
+        else:
+            print(board_markdown(items(), now), end="")
         return 0
     if a.command == "new" and len(a.args) == 1:
         print(new(FOLDER, a.args[0]).relative_to(ROOT))

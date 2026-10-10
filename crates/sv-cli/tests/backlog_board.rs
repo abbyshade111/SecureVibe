@@ -49,3 +49,15 @@ fn the_board_reads_the_real_items() {
         "the backlog has over a hundred items, read {count}: {said}"
     );
 }
+
+#[test]
+fn the_board_shows_each_list_and_its_count_line() {
+    let (ok, said) = run(&["board"]);
+    assert!(ok, "{said}");
+    assert!(said.contains("# StackVet backlog board"), "{said}");
+    assert!(said.contains("## In progress ("), "{said}");
+    assert!(said.contains("## Partly done, with what remains ("), "{said}");
+    assert!(said.contains("## Open, not started ("), "{said}");
+    assert!(said.contains("## Done, latest 15 of "), "{said}");
+    assert!(said.contains(" items: "), "{said}");
+}
