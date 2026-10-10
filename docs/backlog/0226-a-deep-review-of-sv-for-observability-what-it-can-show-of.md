@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 2 items 13 (a time on each running-app step), 15 (a line per outside tool and per running-app suite), 17 (sv explain), 18 (what a failed run could not remove), and 20 (ids and a reason code on each gap); part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 2 items 13 (a time on each running-app step), 15 (a line per outside tool and per running-app suite), 18 (what a failed run could not remove), and 20 (ids and a reason code on each gap); part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -152,7 +152,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
     (a `withheld_by`); `report.json` carries no tier and no "whose word" label, and `attested_by` mixes the owner's
     yes with the tool's; `sv explain` gives no finding's place, prints only `checked_by`, and reads only the latest
     report (a `--report` option). Rendering and JSON only: no status changes.
-   **Part status:** partly done: sv explain: each finding's place, every list of credits, --report
+   **Part status:** done, 10 October 2026
 18. **What happened to the container.** The true wait (the message says "within 60s" when the app exited at once),
     the app's exit code and out-of-memory flag on that path, the seconds to healthy, how the fence was made
     (`made_with`, now shown only on failure), teardown errors (now `let _`), and that a download volume was kept, its
@@ -396,3 +396,8 @@ and that a finding outranks every credit; a set-aside false alarm that kept a ch
 row (`withheld_by`); `report.json` says whose word each row rests on, and each `attested_by` entry whose yes it was.
 Still open: `sv explain` (each finding's place, every list of credits, `--report`). Breaks: with the changes undone,
 the three new tests fail.
+
+**Part 2, item 17 done on 10 October 2026** (`docs/design/0353-sv-explain-every-list-of-credits-each-finding-s-place-and.md`): `sv explain` prints every list of credits with whose word an
+entry is, a set-aside false alarm that withheld a credit, each finding with its place, and reads another report with
+`--report`, under the same seal rule. Breaks: with the lists cut to `checked_by`, no places, and `--report`
+ignored, both new tests fail.

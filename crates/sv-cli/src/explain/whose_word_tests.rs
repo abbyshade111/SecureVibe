@@ -18,7 +18,7 @@ fn report(status: &str, key: &str, ids: &[&str]) -> Value {
 }
 
 fn said(report: &Value) -> String {
-    from_report(report, "V1.1.1", &[])
+    from_report(report, "last report", "V1.1.1", &[])
 }
 
 #[test]
