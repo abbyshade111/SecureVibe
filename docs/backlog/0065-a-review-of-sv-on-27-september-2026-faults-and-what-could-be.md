@@ -1,6 +1,6 @@
 # A review of `sv` on 27 September 2026: faults, and what could be faster
 
-**Status:** done, 8 October 2026
+**Status:** partly done: parts 9, 11, 13 (backlog 0228's conversion read them as not done)
 
 By session securevibe-e8, at
 the owner's asking ("review sv and add any issues you find or ways to improve or optimize"). Read: the
@@ -52,6 +52,7 @@ same day".
    backlog sweep found this item still read as open): `sv_scan::files::Listing` is the one walk, a link is never
    followed and is named once as a gap, and the fixture is the test
    `a_link_out_of_the_app_and_a_loop_are_listed_once_and_never_followed` in `crates/sv-scan/src/files.rs`.
+   **Part status:** done, 27 September 2026
 2. **`sv run` has no time limit, and an interrupted run leaves its containers behind.** Every Docker
    call goes through `output_of` (`sv-run/src/lib.rs:327`), which waits forever; the app's own test
    suite is `docker exec sh -c <test>` (`docker.rs:424`) with nothing bounding it, so a suite that hangs
@@ -69,6 +70,7 @@ same day".
    real Docker, Ctrl-C included, and each guard broken on purpose turns at least two tests red. See
    DESIGN, "A run has an end, and Ctrl-C cleans up". `sv run --clean` was not needed for Ctrl-C; a run
    ended by `kill -9` still leaves its containers, and the DESIGN section says how to list them.
+   **Part status:** done, 28 September 2026
 3. **No size limit in the code-rule walker or the corroborator walker.** `secrets.rs` stops at 2 MB
    (`MAX_FILE_BYTES`) and says so. `ast.rs:1313` reads any file whole and hands it to tree-sitter, so a
    50 MB minified bundle or a generated file is parsed in full; `sv-scan/src/lib.rs:490` reads every
@@ -78,6 +80,7 @@ same day".
    **Done on 27 September 2026 with item 7** (DESIGN, "One walk of the app"; noted here on 5 October 2026): the
    listing holds every file's size, and a file over `MAX_FILE_BYTES` (2 MB) is not read as text by any check and is
    reported as not read, too large.
+   **Part status:** done, 27 September 2026
 4. **Options are read as folders.** `sv check --help` says "--help is not a folder"; `sv scope
    --nonsense` says "no securevibe.toml in --nonsense"; there is no `sv --version` at all (the version
    appears only in a bundle's listing). `main.rs` dispatches on the first word and hands the second to
@@ -92,6 +95,7 @@ same day".
    `sv --version` prints the version and the commit. `crates/sv-cli/tests/options.rs` holds it; each
    part, broken on purpose, turns at least two of its tests red, except `--version`, which one test
    holds.
+   **Part status:** done, 28 September 2026
 5. **A bad edit to a compiled-in data file makes `sv run` panic.** `signed_in.rs:1135-1153` uses
    `expect` while reading `data/breached-password-evidence.json`, which is compiled in with
    `include_str!`; the file is checked by a test, so this reaches an owner only from a source build with
@@ -101,6 +105,7 @@ same day".
    count, no date), and V6.2.12 is then *not assessed* with that reason, whatever the app answered;
    the rest of the run goes on. Two tests in `signed_in.rs` hold it, each failing when the password
    match or the count is taken out.
+   **Part status:** done, 28 September 2026
 
 **What could be faster.** Timed with a release build: `sv check` on the five-file Flask example takes
 about a second, `sv check .` on this repository about three, `sv report` on the example about one. None
@@ -118,6 +123,7 @@ every change, and the first is the reason.
    Queries now compile the first time their language is met and are kept for the process; the MCP
    server loads everything once in `Server`. `sv check` on a small app 957 ms → 30 ms; on this
    repository 2.33 s → 1.93 s. See DESIGN, "The second before the first file".
+   **Part status:** done, 27 September 2026
 7. **The app folder is walked six times per report, the bill of materials is built two or three
    times, and every source file is lowercased once per signature.** The walks: secrets, the code
    rules, the corroborators, the tools' file list, the test finder, and the ecosystems. `sbom::build`
@@ -132,6 +138,7 @@ every change, and the first is the reason.
    walk of the app"), and the six readers take that one listing; `sv-scan/src/lib.rs` lowercases each file once,
    before the loop over signatures; and `sbom::build` is called once per command (`sv run`, `sv sbom`), the report
    and `sv check` taking the bill of materials they built rather than making another.
+   **Part status:** done, 27 September 2026
 8. **Regexes compiled inside hot loops.** `logs.rs` compiles four patterns per log line
    (`common_format`, `timestamp`, `has_place`, lines 231-320), `ai.rs:1080` one per (line, word) pair,
    `secrets.rs:268` and `:331` one per file, `signed_in.rs:4336-4355` one per page. `probes.rs:1222`
@@ -145,6 +152,7 @@ every change, and the first is the reason.
    of 2,000 small files, 3.4 s to 0.04 s; redacting a failing test's output 2,000 times, 0.29 s to
    0.05 s. The first was the only one a person would have waited on, and only for an app that writes
    a lot while it runs.
+   **Part status:** done, 28 September 2026
 9. **The reports are large for what they say.** For the five-file example: `compliance.md` 160 KB,
    `report.html` 191 KB, `report.json` 367 KB, because each of about six hundred requirements carries
    its full text in every rendering, applicable or not. For a person the HTML is fine. For the AI tool
@@ -168,6 +176,7 @@ every change, and the first is the reason.
    `questions_for_you`; 334 KB to 306 KB on the example. See DESIGN, "The report's shape".
    **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3), read against `main`: both of
    the owner's decisions above are built, as the notes above say; nothing in this part waits on a build.
+   **Part status:** partly done: unclear, needs a look
 10. **No release profile.** `Cargo.toml` sets none, and the binary is 35.6 MB. `lto`, `codegen-units =
     1`, and `strip = true` are the usual settings for a tool built once and shipped, and typically halve
     the size; the Docker image and the "download later" packaging item both carry the binary. Measure
@@ -177,6 +186,7 @@ every change, and the first is the reason.
     the parse tables of the fifteen tree-sitter grammars, and 4.9 MB is code, so no setting can halve
     it. `lto` and one code-generation unit cut 2.4 MB for a clean build 30 s longer and no change in
     speed; the profile keeps `strip = true` only, 34.5 MB. See DESIGN, "A release profile".
+   **Part status:** done, 28 September 2026
 
 **Smaller.**
 11. **The runtime image runs as root.** `Dockerfile` sets no `USER`; the image reads mounted folders
@@ -192,6 +202,7 @@ every change, and the first is the reason.
     **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3), read against `main`: the
     image runs as its own user, and CI's image job builds and drives it on every pull request (`tools/image_smoke.py`,
     which checks the user is not root).
+   **Part status:** partly done: unclear, needs a look
 12. **`sv` holds apps to V15.2.1 and does not hold itself.** CI has no `cargo audit` or `cargo deny`
     step; Dependabot proposes updates but compares nothing; the v2 self-assessment ran the OSV
     comparison once, by hand. A weekly job running `sv audit .` against a downloaded OSV export, or
@@ -204,6 +215,7 @@ every change, and the first is the reason.
     of their own below: the report's bill of materials ignores `not-the-app`, an ecosystem counts as
     covered by a database that only mentions it in passing, and one vulnerability under two names is
     counted twice.
+   **Part status:** done, 28 September 2026
 13. **`signed_in.rs` is 15,351 lines**, with 231 tests and one fake app carrying about eighty flaw
     switches; `ai.rs` is 3,338. A session touching one check reads all of it, and every session's
     change to a check lands in the same file, which is where this week's merge conflicts were. Split by
@@ -388,3 +400,4 @@ every change, and the first is the reason.
     **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3), read against `main`: the
     split is built, as the note above says: `crates/sv-check/src/signed_in/` holds the checks by area, with a map of
     the files at the top of `mod.rs`.
+   **Part status:** partly done: unclear, needs a look

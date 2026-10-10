@@ -61,42 +61,52 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
    seed failure removes `sv`'s own test secrets. A database error that prints its address with the password would
    reach `report.html` and `report.json`; `sv bundle` refuses to zip it, but the files on disk keep it. Fix: redact
    both before they leave `sv-run`, then break it with a key built from pieces in a crash line.
+   **Part status:** done, 9 October 2026
 2. **`sv explain` says the owner answered when the AI coding tool did.** **(read twice)** `status_words`
    (`crates/sv-cli/src/explain.rs`) turns `attested` into "answered by you in stackvet.toml" and `documented` into
    "answered in the security notes", while the report says "stated by the AI coding tool, confirmed through sv
    review" for the same status when only the tool's answer stands behind it (`shown_label`, `confirmed_only` in
    `crates/sv-report/src/lib.rs`). The one place found where a person's word is overstated. Fix: use the same test
    as the report, or read the label from the JSON once part 2, item 17 gives it one.
+   **Part status:** done, 9 October 2026
 3. **One bad byte in the build-loop record makes the report say `sv` was never used.** **(read twice)**
    `read_at_most` (`crates/sv-cli/src/build_loop.rs`) ignores `read_to_string`'s error; on text that is not UTF-8
    the buffer stays empty, `summarize` counts no call and no unreadable line, and the report says "Nothing shows that
    sv was used". ADR-076 says a line that cannot be read is counted and said. Fix: read bytes, decode line by line,
    count a bad line as unreadable.
+   **Part status:** claimed by stackvet-e9, 9 October 2026
 4. **Two running-app suites' steps never reach anyone.** **(read twice)** The steps of the MCP-server suite (eight
    `steps.push` in `crates/sv-check/src/mcp_server.rs`) and the fetch suite (two in `fetch.rs`) are collected
    nowhere: `run_steps` (`assemble.rs`) and `sv run`'s printout take only the signed-in, sign-in-provider, and AI
    suites'. Their findings and credits arrive; what was asked does not. Fix: add them, with a test that fails without.
+   **Part status:** done, 9 October 2026
 5. **A crash in `sv` exits 101, says nothing useful, and loses the run.** **(read twice)** `main`
    (`crates/sv-cli/src/main.rs`) turns an `Err` into exit 3; there is no panic hook anywhere, so a panic exits 101,
    a code no document names, with Rust's default line and stripped symbols. Fix: a hook that prints "sv itself
    failed, a fault in sv and not in your app", the place, and that nothing was assessed, and exits 3. (0065 item 5
    fixed one panic's source; catching a panic per check is part 3, item F.)
+   **Part status:** done, 9 October 2026
 6. **A data file `sv` cannot read can leave no mark in the report.** **(read twice)** When `level-hints.json` does
    not load, `assemble.rs` prints one line to stderr and goes on; through MCP nobody sees it, and the report has no
    gap. Fix: a `Gap`. Look for others of the same shape while there.
+   **Part status:** done, 9 October 2026
 7. **The build-loop record stops at 4 MB without a word.** **(read twice)** `MAX_BYTES`'s comment in
    `build_loop.rs` says "a report reads the first part and says the rest was left out"; `record` just returns at the
    cap and `BuildLoop` has no field for it, so "the last check came to …" names a check that was not the last.
    Fix: a `full` flag and a sentence.
+   **Part status:** claimed by stackvet-e9, 9 October 2026
 8. **The dashboard's history drops a run it cannot read, silently.** **(read twice)** `runs_in`
    (`crates/sv-cli/src/history.rs`) passes over a file that does not parse, and `Run`
    (`crates/sv-report/src/dashboard.rs`) has no `#[serde(default)]`, so the first field added to `Run` makes every
    older run vanish from the page. Fix: defaults on `Run`, and the page counts what it could not read.
+   **Part status:** done, 9 October 2026
 9. **`sv explain` repeats an unsealed `report.json` as `sv`'s.** **(read twice)** It reads any `report.json` in the
    report folder (`explain.rs`) where the MCP server offers one only when its seal shows `sv` wrote it (ADR-034).
    Fix: check the seal and say "not shown to be sv's" when it fails.
+   **Part status:** done, 9 October 2026
 10. **`sv explain ID PATH` fails.** **(read twice)** The module's doc and backlog 0191 say `sv explain ID [PATH]`;
     the parser (`cmd_explain`, `main.rs`) takes `--app DIR`, and a bare path replaces the id. Fix either side.
+   **Part status:** done, 9 October 2026
 11. **A package list `sv` cannot read is dropped without a note.** **(read twice)** `deps::read_in`
     (`crates/sv-scan/src/deps.rs`) skips a manifest it cannot read, and a `package.json` that is not JSON gives no
     names. Technology detection counts absence as evidence by default (`absence_is_evidence`,
@@ -104,40 +114,50 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
     answer reaches a report: build that fixture first. Making such an answer "incomplete" changes what counts as
     evidence, so the fix itself is the owner's (part 3, item H); saying in the report that the manifest was not
     understood is not.
+   **Part status:** open
 
 ### Part 2: cheap visibility (small to medium, not the owner's)
 
 12. **Every page dated, and a run id.** `generated: None` (`assemble.rs`) leaves `report.html`, `compliance.md`,
     `security.md`, and the SARIF undated; only `report.json` has `run_record`. Add a run id and the start time to
     each, and SARIF's `startTimeUtc`; the byte-identical tests pass a fixed clock.
+   **Part status:** claimed by stackvet-e9, 10 October 2026
 13. **How long each part took.** Every `Instant::now()` outside tests sets a deadline and is never recorded.
     `started_ms` and `took_ms` on each `Examined` entry and each running-app step; "the slowest five" on the page.
+   **Part status:** open
 14. **What each outside tool was.** Its version line (asked, then thrown away), its arguments, its exit code, and
     its time, in `Examined` (`crates/sv-check/src/adapters.rs`). Keeping its raw output is part 3, item A.
+   **Part status:** open
 15. **Progress at a terminal.** The terminal path passes an empty progress callback, and `sv report --run --tools`
     is silent for minutes. A line per stage on stderr, with a stage per outside tool and per running-app suite.
+   **Part status:** claimed by stackvet-e9, 10 October 2026
 16. **Errors that say what to do.** Of 36 sampled, 14 say what failed, what it means for the report, and what to do;
     9 say only what failed. The worst: a data file that does not parse (`format!("parsing {}")` in nine places), which
     a person cannot fix and which most likely means the data folder does not match this `sv`. One wrapper in
     `sv_frameworks::data` saying so, and "Nothing about the app was checked". Also the missing next step in
     `NoBackend` and `BackendFailed` (start Docker or Colima), and the MCP "check stopped before it finished", which
     gives no cause and no pointer to the terminal.
+   **Part status:** open
 17. **Credit rows that explain themselves.** A needs-attention row shows only the finding, not the checks that
     passed for the same requirement nor the rule that a finding outranks every credit (now only a comment above
     `status_of`); a false alarm set aside turns "checked" into a bare "not verified" with no pointer to why
     (a `withheld_by`); `report.json` carries no tier and no "whose word" label, and `attested_by` mixes the owner's
     yes with the tool's; `sv explain` gives no finding's place, prints only `checked_by`, and reads only the latest
     report (a `--report` option). Rendering and JSON only: no status changes.
+   **Part status:** open
 18. **What happened to the container.** The true wait (the message says "within 60s" when the app exited at once),
     the app's exit code and out-of-memory flag on that path, the seconds to healthy, how the fence was made
     (`made_with`, now shown only on failure), teardown errors (now `let _`), and that a download volume was kept, its
     name and how to remove it. ADR-052 names the old label `securevibe.deps`; the code uses `stackvet.deps`.
+   **Part status:** open
 19. **The MCP server's errors.** It keeps no record of an error it returns; one stderr line per error (tool and
     kind, no app text), which the AI tool's own log usually keeps.
+   **Part status:** open
 20. **Smaller ones.** A version catalog that does not parse reads as "not found" (`crates/sv-scan/src/jvm.rs`):
     say "not understood". Gaps are prose only (`Gap { what, why }`), and the trial scorer splits them on commas: add
     requirement ids and a reason code. `report.json` has no format version. Whether a report names the advisory
     database it used, its size, and its newest record was not settled: read `assemble.rs` past the part read.
+   **Part status:** open
 
 ### Part 3: the owner's decisions
 

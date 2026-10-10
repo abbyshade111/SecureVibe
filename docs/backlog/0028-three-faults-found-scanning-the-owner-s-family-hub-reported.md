@@ -18,6 +18,7 @@ own.**
    **Done the same day** (DESIGN, "A Python project pinned by `pylock.toml`, or by a hashed `requirements.txt`").
    Both pin a Python project now. On the way: the manifest comparison read the backslash that carries a line on
    to its `--hash` as part of the version, which is fixed. Tried end to end on a folder of family-hub's shape.
+   **Part status:** done, 4 October 2026
 2. **Python pre-release versions (PEP 440) cannot be compared.** `compare` in `crates/sv-check/src/advisories.rs`
    follows semver, where a pre-release comes after `-`. PyPI writes `2.0.0rc1`, `1.0a1`, `3.0.0.dev0`, and
    `1.0.post1`, which do not parse, so an advisory whose range starts at `2.0.0rc1` goes unanswered. family-hub's
@@ -28,6 +29,7 @@ own.**
    **Done the same day** (DESIGN, "Python versions compared as pip compares them"). PyPI ranges follow PEP 440's
    order and the rest keep semver. Checked against `packaging` 24.0 on 101,481 pairs, with one deliberate
    difference: a local label (`+cu118`) is ignored, so a local build of an affected release stays affected.
+   **Part status:** done, 4 October 2026
 3. **A report does not say which `sv` made it, and the published image does not know its commit.** `report.json`
    has no version or commit, and `sv --version` in the published image prints "commit unknown", because
    `SV_GIT_COMMIT` is not set when the image is built. Write `"sv": {"version", "commit"}` into `report.json` and
@@ -37,3 +39,4 @@ own.**
    **Done the same day** (DESIGN, "A report names the `sv` that made it"). Every form of the report names the
    version and commit, and the image is built with its commit (`--build-arg SV_GIT_COMMIT`), which the CI image
    job's smoke test checks.
+   **Part status:** done, 4 October 2026

@@ -33,11 +33,14 @@ Three proposals, each for the owner to decide (the document has the detail):
    allow everything, MCP servers started unpinned, base-address overrides), and report them in a section of their
    own, apart from the app's grade, as notices. AST02, AST03, AST07. No ASVS or AISVS requirement fits, so it cites
    none. Small to medium. **The owner said yes; not claimed.**
+   **Part status:** open
 2. **Hidden characters in the instruction files committed in the folder** (`AGENTS.md`, `CLAUDE.md`, `SKILL.md`,
    `.cursor/rules/`, and their like): Unicode tag characters and right-to-left overrides, only ever a finding. AST04.
    Cites none. Small. **The owner said yes; not claimed.**
+   **Part status:** open
 3. **Adopting the list as a framework `sv` cites:** this session recommends not now, and looking again at its v1.0
    release (planned for the fourth quarter of 2026). **The owner agreed.**
+   **Part status:** open
 
 **securevibe-e2's reading, done the same day** (#901, merged before the owner's decision below reached it; its
 document was then replaced by securevibe-e9's, as the owner decided, keeping its extra point), read from the project's own repository at `d6f7d7d`, since

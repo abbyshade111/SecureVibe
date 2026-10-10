@@ -11,12 +11,14 @@ Found on 27 September 2026
    same day:** `[repository] not-the-app` names such folders. Their code is still checked and its findings
    still count, listed with test and sample code; nothing in them is evidence about what the app uses; and
    the report names the folders. See DESIGN, "Folders the manifest says are not the app".
+   **Part status:** done, 27 September 2026
 2. **Findings inside Rust `#[cfg(test)]` modules, and in test files in any language, are mixed with the
    product's.** They were 189 of the 252 findings on `sv`'s product code. Report them apart.
    **Claimed on 27 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item. **Done
    the same day:** findings inside Rust test code (`#[cfg(test)]`, `#[test]`, `#[tokio::test]`, and a file
    that starts `#![cfg(test)]`) are marked as test code, and every report lists findings in test code after
    the app's own, still counted. See DESIGN, "Findings in test code, listed after the app's own".
+   **Part status:** done, 27 September 2026
 3. **A manifest cannot say "this app is an MCP server".** So the requirements about serving tools to a model are
    never asked, of `sv` itself or of any app that serves tools. That is the surface of `sv`'s one tool-misuse
    incident (#77).
@@ -27,3 +29,4 @@ Found on 27 September 2026
    and the four about the transport between the two (C10.3.1, C10.3.2, C10.3.5, C10.4.5) apply when either
    is true. **Done the same day;** see DESIGN, "An app that serves tools over MCP". `sv`'s own count does
    not move until item 1 is done: a fixture's `from mcp` already brings in the whole chapter.
+   **Part status:** done, 27 September 2026

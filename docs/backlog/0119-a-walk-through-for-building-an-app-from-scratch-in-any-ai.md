@@ -30,6 +30,7 @@ from an empty folder in Claude Code; each of these stopped the attempt:
    then `cargo build`. Nobody the product is for has a Rust toolchain, a git checkout, or a reason to
    get either. This is the real obstacle, and the walk-through should not be written until it is
    gone: a download for each platform, built by CI.
+   **Part status:** open
 2. **A built `sv` cannot be moved.** It reads a dozen of its own data files at run time —
    `ast-rules.json`, `applicability-v2.json`, `sbd-asvs-crosswalk.json`, `tech-signatures.json` and
    others — from the folder it was built in, found through `env!("CARGO_MANIFEST_DIR")`, which is
@@ -58,25 +59,31 @@ from an empty folder in Claude Code; each of these stopped the attempt:
    folder; `tools/install.sh` puts `sv` and its data in `~/.local/share/securevibe`, linked from `~/.local/bin/sv`,
    and the guide installs that way. Not done: compiling the data into the program, which a single downloadable
    file would need.
+   **Part status:** partly done: unclear, needs a look
 3. **The README's MCP instructions assume a command the desktop app does not install.** It gives
    `claude mcp add securevibe -- …`; in the desktop app that fails with `zsh: command not found:
    claude`. A `.mcp.json` in the app's folder works instead and needs nothing installed. Other tools
    keep their MCP settings in other files, and not all under the same key, so the walk-through needs
    one short, checked section per tool — each one tried, not written from memory.
+   **Part status:** open
 4. **`--root` has to exist, and the app has to be inside it.** Nothing says so until the tool is
    refused. The walk-through should create the folder in its first step.
+   **Part status:** open
 5. **The starter manifest answers "no" to everything** — every capability in `sv init` reads
    `false`, so a tool that leaves a line as it found it has told `sv` the app has no sign-in, no
    uploads, no email. See "Hand the three question lists to the AI coding tool", above, where it is
    recorded and left for its own decision. For this audience it is the most dangerous line in the
    product: a beginner's tool will leave most of them alone. Until it changes, the starter prompt has
    to say "delete a capability you are not sure of rather than leaving it `false`."
+   **Part status:** open
 6. **The deepest checks need Docker.** `sv report --run` starts the app behind the fence, and that
    needs Docker or Colima — a second install for somebody who is not technical, and on a Mac, a
    virtual machine. Without it the running-app and signed-in checks are *not assessed*, which is
    honest; the walk-through has to say plainly what is missed without it, not bury it.
-7. Smaller: the README says `sv mcp` offers four tools; it offers six (`securevibe_questions` and
+   **Part status:** open
+7. **Smaller: the README says `sv mcp` offers four** tools; it offers six (`securevibe_questions` and
    `securevibe_notes_file` were added the same day).
+   **Part status:** open
 
 So the order is: `sv` in a container, which settles 1 and 2 with no change to the code (decided the
 same day; see "Packaging `sv`", below), then the walk-through, with

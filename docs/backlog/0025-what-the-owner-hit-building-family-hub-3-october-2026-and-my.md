@@ -29,6 +29,7 @@ are R3's. **Each item can be claimed on its own.**
    does, then starts the app anyway. Tested with a real container on 127.0.0.1 (shown to be up by answering itself)
    and a control on 0.0.0.0; each of five guards broken on its own was caught, the warning and the message's naming
    only by the container test.
+   **Part status:** done, 4 October 2026
 2. **Two runs at once write the same report folder, and the one that finishes last wins, even when it failed.**
    family-hub, 3 October: the AI tool and the owner each ran `sv report --run --tools` on the app, at about the
    same time. The AI tool's run succeeded at 14:55 (Eastern); the owner's finished two minutes later with the
@@ -52,6 +53,7 @@ are R3's. **Each item can be claimed on its own.**
    binary (a `--run` kept going by a sleeping test command, a second run beside it, `kill -9`); breaking each
    guard was caught, and testing found a second run calling the folder someone else's while the first wrote its
    marker, and Ctrl-C leaving the newly made folder behind, both fixed. S6 and S10 are unchanged.
+   **Part status:** done, 4 October 2026
 3. **The real-browser checks cannot sign in to an app whose cookies use the `__Host-` prefix, so the AI tool
    weakened the app's cookies for the run.** family-hub, 3 October: the browser checks (V7.4.4, V3.2.2, V14.3.1)
    said "the private pages did not open in the browser with the first user's cookies, though they opened for the
@@ -81,6 +83,7 @@ are R3's. **Each item can be claimed on its own.**
    ("Sanitizing cookie failed"), and end to end with a `__Host-` copy of `examples/notes-with-users` started with
    `FAMILY_HUB_INSECURE_COOKIES=1`. Each of eight guards broken was caught; parsing `Secure` was caught by nothing
    at first, until a test cookie with `Secure` and no prefix was added.
+   **Part status:** done, 4 October 2026
 4. **The log checks need the test account's email address in the log, and an app that keeps personal data out of
    its log cannot be checked.** family-hub, 3 October: V16.3.1, V16.3.2, V16.2.1, V16.2.2, and V16.2.4 were not
    assessed ("Neither sign-in was named in the app's output", and "no such line was found"). The owner's
@@ -108,6 +111,7 @@ are R3's. **Each item can be claimed on its own.**
    user id, no `@` or `?`, asserted): V16.3.1, V16.3.2, V16.2.2, and V16.2.4 are now assessed. Each of nine guards
    broken on its own was caught by its own test; the 404 guard was caught by nothing until a fixture was added.
    No `securevibe.toml` setting.
+   **Part status:** done, 4 October 2026
 5. **The admin checks sign the admin in with a password alone, so they say nothing about an app that requires an
    authenticator for admins.** family-hub, 3 October: the owner asked for an authenticator code to be required for
    admins. The AI tool warned beforehand that the seeded admin "has no authenticator app, because `sv` signs it in
@@ -133,6 +137,7 @@ are R3's. **Each item can be claimed on its own.**
    and with the wrong secret, and a leak test over everything the run hands the report; each guard broken in turn
    was caught (no code, the old reason, no second try, the secret in a step, no redaction, the secret not given
    to `seed`, no secret made).
+   **Part status:** done, 4 October 2026
 6. **A test-name warning that says it does not take the credit away does take it away.** family-hub, 3 October:
    V6.3.3 and V2.3.2, each backed by passing tests and by the owner's own check by hand, and V8.3.1, backed by the
    owner's answer, read "needs attention" because of `tests.name-does-not-match-requirement`: a test named for the
@@ -158,6 +163,7 @@ are R3's. **Each item can be claimed on its own.**
    Tested with three report tests (beside the credit, the real-finding control in four forms, and the false-alarm
    review) and an assertion in the suite's own test; seven guards broken in turn, each caught, and letting no
    finding withhold credit turned twelve tests red.
+   **Part status:** done, 4 October 2026
 7. **Two false alarms of `sv`'s own rules, one of which ended with working code removed.** family-hub,
    3 October. (The third kind the owner met, SQL "built by joining text" from fixed text, is A1.)
    - `secrets.credential-assignment` rated an error message high: `WRONG_PASSWORD = "Your current password isn't
@@ -205,6 +211,7 @@ are R3's. **Each item can be claimed on its own.**
    definition, or an import, and every call passes or leaves to a default what the rule counts as safe on its own,
    it names each call and says removing the parameter only to clear the finding is not a fix. Python only. Ten
    guards broken in turn, each caught.
+   **Part status:** done, 5 October 2026
 8. **`sv run --slow` waits out the idle timeout and then reuses the session it let expire.** family-hub,
    3 October: after the 31-minute wait (which did credit V7.3.1), the run's later steps went wrong: "A signed out
    (400)", record creation and the real-browser checks failed, where the normal run minutes before had passed
@@ -226,3 +233,4 @@ are R3's. **Each item can be claimed on its own.**
    `--slow` that it earns without, seeded and through sign-up, and sign-ins refused during the wait leave the rest
    not assessed with the reason. With the fresh sign-in turned off, both tests failed: six credits lost, and the
    sign-out credited with a dead session. No test caught it before.
+   **Part status:** done, 4 October 2026

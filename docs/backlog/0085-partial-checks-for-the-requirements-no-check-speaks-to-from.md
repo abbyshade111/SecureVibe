@@ -22,6 +22,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
    requirements a check can speak to go from 132 to 140. `crates/sv-check/tests/running_rules.rs` holds that a
    finding from each carries its requirement and that a clean run credits none of them; `py/insecure-temporary-file`
    stays out until item 5 measures the CodeQL suites.
+   **Part status:** done, 28 September 2026
 2. **Existing checks that already test the requirement. Verified against each requirement's words.** V8.2.3 by
    `probe.role-field-trusted` and `probe.record-returns-secret-fields` (field-level access is what both test); C9.3.2 by
    `probe.ai-mcp-output-unvalidated`, for tools reached over MCP; C9.3.7 by `probe.ai-output-fetched`; V14.2.2 by
@@ -47,6 +48,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
    a private page whose `Cache-Control` has `public` or an `s-maxage` with neither `private` nor `no-store`. Found
    on the way: `probe.record-returns-secret-fields` never credits anything, yet `tools/coverage.py` did not list it as
    finding-only, so V15.3.1 read as checkable by a clean run; it is listed now. Each guard broken turned its tests red.
+   **Part status:** open
 3. **Small new checks, the reviewers' first picks. Not verified.** Details for each are in `docs/PARTIAL-CHECKS.md`.
    Reads the code: V1.3.1 (a rich-text editor with no known sanitizer), V11.2.4 (a digest compared with `==`),
    V15.2.3 (a development server as the start command), C6.1.3 (model downloads not pinned to a commit),
@@ -180,6 +182,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
    (a foreign `Origin` and a foreign `Host`, each on its own, against an ordinary request as the control) and
    `probe.mcp-session-survives-end` (a session ended with `DELETE` and used again). Both are credited when
    refused. Not yet run against a real MCP library.
+   **Part status:** done, 30 September 2026
 4. **Two gaps in existing checks. Not verified.** `data/secret-rules.json` has an Anthropic key rule and none for
    OpenAI or Hugging Face keys. The `training` corroborator misses vendor fine-tuning calls such as OpenAI's
    `fine_tuning.jobs.create`.
@@ -189,6 +192,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
    `data/secret-rules.json`, from gitleaks' published patterns, and the vendor fine-tuning calls in
    the `training` corroborator, each read from the vendor's own SDK or API definition. See DESIGN,
    "OpenAI and Hugging Face keys, and fine-tuning through a vendor".
+   **Part status:** done, 28 September 2026
 5. **CodeQL queries that may already run.** `py/insecure-temporary-file` and `js/file-system-race` (V15.4.2) were
    proposed, but nothing records which queries the security-extended suites run, as `data/semgrep-packs.json` does for
    semgrep, so whether they run is not known. Measure the suites first. Bandit B113 (a web request with no time limit)
@@ -201,11 +205,13 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
    already mapped too. `data/codeql-suites.json` records the lists, `tools/codeql_suites.py` writes it, and a test
    fails on a mapped query its suite does not select. `js/file-system-race` counts for V15.4.2;
    `py/insecure-temporary-file` is found-failing-only there, as bandit's B306 for the same call already was.
+   **Part status:** done, 29 September 2026
 6. **Cautions for whoever builds these.** V12.1.4 (certificate status stapling): Let's Encrypt certificates have named
    no OCSP address since 2025, so report only when the certificate names one and the server still does not staple.
    V6.3.3 stays supporting: an account that opens with its password alone may be a test account whose two-factor setup
    failed. Most checks of an app that is itself an MCP server, or itself a sign-in service, need a new securevibe.toml
    section, and apply to few apps.
+   **Part status:** open
 7. **Two running-app halves left from item 3.** C3.2.3: the model name the app really sent the test model,
    finding when it floats (`latest`, or a name ending `-latest`). V15.2.3: a development debug console that
    answers on the running app (Werkzeug's console and the like), judged by the page's own content, never by its
@@ -227,6 +233,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
    **Done the same day** (DESIGN, "Four more development consoles"). Each of the four is known by words read from
    its own source, and each answers only in its tool's development or debug mode. Spring Boot's Actuator is left
    out, since exposing it is a setting rather than a debug mode.
+   **Part status:** done, 6 October 2026
 8. **The static half of V10.4.4: the password and implicit grants switched on in a sign-in server's code.** Left
    from item 3, whose running half reads only the settings the app publishes. Each library's own names for the two
    grants, read from its source (the proposal in `docs/PARTIAL-CHECKS.md` names Doorkeeper, django-oauth-toolkit,
@@ -246,6 +253,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
    Passport beside it, since most PHP apps reach league through Passport. `new PasswordGrant(` and `new
    ImplicitGrant(` for league, and `Passport::enablePasswordGrant()` and `Passport::enableImplicitGrant()` for
    Passport, each read from its own source. Not seen: Passport before 12, whose password grant had no switch.
+   **Part status:** done, 7 October 2026
 9. **V11.4.4: an encryption key made from a password with too little work.** From `docs/PARTIAL-CHECKS.md`: a
    code rule for PBKDF2 with a literal iteration count below OWASP's figure, and a single hash of a password used
    as a key. Only ever a finding; a count read from a setting is not judged.
@@ -277,6 +285,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
    way SHA-256 is tied to 600,000.
    **Done the same day** (DESIGN, "PBKDF2 with SHA-1 is held to 1,300,000 rounds"), in the thirteen languages where
    the rule reads the hash. A hash named only by the function, or left to its default, is still held to 210,000.
+   **Part status:** done, 6 October 2026
 10. **The static half of V13.4.7: a static-file handler pointed at the app's own folder.** Left from item 3, whose
     running half asks for private files by name. A rule that reads the code for a web framework told to serve files
     from the folder the code is in, or the current folder (Express's `static(__dirname)`, Flask's `static_folder`,
@@ -311,6 +320,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     Ktor"). Each handler is read from its framework's own source, with found and not-found witnesses in Ruby, Java,
     and Kotlin. Ktor's older `static { files(".") }` is left out, since `staticRootFolder` can make `.` a folder of
     the app's own.
+   **Part status:** done, 7 October 2026
 11. **The file half of C4.1.2: model files committed in a format that runs code when loaded.** Left from item 3,
     whose code rule (`ast.model-loaded-with-pickle`) reads the loading calls. Model files in the app's folder
     (`.pt`, `.pth`, `.ckpt`, `.bin`, `.pkl`, `.pickle`, `.joblib`) judged by their own bytes: a pickle's opening
@@ -334,6 +344,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     0 and 1, and every other file that is not code is opened for two bytes and walked when they are a `PROTO`.
     Twelve guards broken in turn, each caught (one only after a witness was added). Still not seen: a protocol 0 or
     1 pickle under another name, and a model downloaded when the app runs.
+   **Part status:** done, 6 October 2026
 12. **The code half of V9.2.3: a token check told not to check who the token is for.** From
     `docs/PARTIAL-CHECKS.md` and item 2 above, which says a code rule fits whichever way the owner decides the
     running probe. A rule for the explicit switches tutorials copy: `verify_aud` False in PyJWT and python-jose,
@@ -347,6 +358,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     source or documentation; the other ten languages have no known switch and say so. Broken ten ways, each caught.
     Not done: a check never given an audience, and Keycloak's JSON setting. `jsonwebtoken`'s `ignoreAudience`,
     named in `docs/PARTIAL-CHECKS.md`, does not exist; the library checks the audience only when given one.
+   **Part status:** done, 4 October 2026
 13. **Hidden characters smuggled into the AI feature: C2.1.2, and C2.1.5 beside it. Not verified.** From
     `docs/PARTIAL-CHECKS.md`: a message to the AI feature carrying invisible Unicode tag letters that spell an
     instruction, zero-width characters and a right-to-left override (C2.1.2), and a second carrying control and
@@ -364,6 +376,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     reaching the model, and credits C2.1.2 in part when they are taken out or the message is refused;
     `probe.ai-input-charset-unrestricted` finds control and private-use characters reaching it, and never credits.
     Not done: smuggling by encodings such as base64 or by look-alike letters, and normalization (C2.1.1).
+   **Part status:** done, 8 October 2026
 14. **V7.2.2: a session that is one fixed key, from the running app. Not verified.** From `docs/PARTIAL-CHECKS.md`,
     the running half: the session value given at two separate sign-ins of the first test user, and at the second
     user's, compared. `probe.session-id-weak` (V7.2.3) already finds a cookie repeated across two sign-ins of one
@@ -380,6 +393,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     opening a private page, is credited. Not three sign-ins of two users, as claimed: the run's promised limit of 60
     sign-ins was already reached in the busiest test, and a key fixed for everybody shows at two sign-ins of one
     person. Not done: the static half.
+   **Part status:** done, 8 October 2026
 15. **C10.3.1: an MCP link to a remote server over plain HTTP, from the code. Not verified.** From
     `docs/PARTIAL-CHECKS.md`: an `http://` address to a host that is not this computer or a private network, in an MCP
     server's entry in a configuration file or as the address an MCP client transport is opened with in code.
@@ -393,6 +407,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     accepted). `config.mcp-transport-unencrypted` finds an `http://` address to another computer as an MCP client
     transport's first argument or as an MCP server's `url` in the app's files, and never credits. Not done: the old
     SSE transport over `https://`, and the running half.
+   **Part status:** done, 9 October 2026
 16. **V1.3.11: a line break and a `Bcc` header written into the address a reset is mailed to. Not verified.** From
     `docs/PARTIAL-CHECKS.md`: the password-reset request sent with the account's address followed by a line break
     and `Bcc: ` and an address of `sv`'s own, and the run's mail server read for that address.
@@ -407,6 +422,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     ADR-069, accepted). `probe.mail-header-injected` asks for two more resets after the reset check, the address
     followed by a line break and a `Bcc` header: anything reaching the header's address is a finding, the account's
     email with nothing reaching it is credited in part, and no email is said. Not done: other fields and other mail.
+   **Part status:** done, 9 October 2026
 17. **V3.7.1: client-side technology that is no longer supported, from the code. Not verified.** From
     `docs/PARTIAL-CHECKS.md`, the retired browser plug-ins it proposes (Flash, Shockwave, Silverlight, Java applets,
     ActiveX, VBScript) in the app's pages and files; and front-end libraries past their end of life, which V3.7.1's
@@ -423,6 +439,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     AngularJS, Vue 2, Bootstrap 3 and 4, and jQuery 1 and 2 in the lockfile, the `package.json`, or a CDN address,
     each with the end of its support; it never credits. Not done: a library copied into the app's own files with no
     version in its address.
+   **Part status:** done, 9 October 2026
 18. **V16.3.4: the app's own record of an outside service failing, from the running app. Not verified.** From
     `docs/PARTIAL-CHECKS.md`: credit when an unexpected error the probes cause shows up in the app's output. The AI
     checks already make the test model fail on purpose with an error that carries a marker of its own (`SVERR` and
@@ -438,6 +455,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     accepted). `probe.ai-service-failure-logged` credits V16.3.4 in part when the test model's deliberate failure,
     by its own marker, is in the app's output, and says so when it is not; it never finds. Not done: other
     unexpected errors, and security control failures such as a backend TLS failure.
+   **Part status:** done, 9 October 2026
 19. **V16.4.2: the app's log files served to anybody who asks, from the running app. Not verified.** From
     `docs/PARTIAL-CHECKS.md`, the running half: the addresses frameworks commonly leave logs at, asked for by
     somebody not signed in, and judged by what comes back.
@@ -450,6 +468,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     **Done on 9 October 2026** (DESIGN, "The app's log files served to anybody who asks (9 October 2026)"; ADR-072,
     accepted). `probe.log-file-served` asks for nine common log addresses, not signed in, and finds one answered with
     lines that read as a log; it never credits. Not done: the static half, and whether a log can be modified.
+   **Part status:** done, 9 October 2026
 20. **C12.2.5: token use recorded for each user, from the running app. Not verified.** From
     `docs/PARTIAL-CHECKS.md`: the line the AI checks already find as the record of one model call, by the token counts
     the test model gave it, read again for whose call it was.
@@ -462,6 +481,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     `probe.ai-token-use-attributed` credits C12.2.5 in part when the line carrying the call's token counts ties
     them to the user or the session, and says so when it does not; it never finds. Not done: per feature endpoint and
     per team or workspace.
+   **Part status:** done, 9 October 2026
 21. **C12.1.2: why a caught prompt injection was stopped, written down with it, from the running app. Not
     verified.** From `docs/PARTIAL-CHECKS.md`: the line `probe.ai-injection-logged` already finds recording the
     textbook injection as caught, read for a reason and a time.
@@ -475,6 +495,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     ADR-074, accepted). `probe.ai-safety-decision-detailed` credits C12.1.2 in part when the line recording the caught
     injection says why and when, and says what was not seen otherwise; it never finds. Not done: other safety
     decisions, and the kill-switch log (C12.4.3).
+   **Part status:** done, 9 October 2026
 22. **C12.4.2: a tool action the AI took, written down with its argument, from the running app. Not verified.** From
     `docs/PARTIAL-CHECKS.md`: the control question of the MCP checks makes the app call the test tool `sv_lookup`
     with the message's tag as its argument, and the app's output is read for a line recording that call.
@@ -488,6 +509,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     2026)"; ADR-075, accepted). `probe.ai-tool-action-logged` credits C12.4.2 in part when a line of the app's output
     records the AI's call to `sv_lookup` with its argument, and says so otherwise; it never finds. Not done: a
     security-critical action, its approver, and its outcome.
+   **Part status:** done, 9 October 2026
 23. **C11.4.2: an input flagged as an attack, and whether the flag stopped it, from the running app. Not verified.**
     From `docs/PARTIAL-CHECKS.md`: the textbook injection is already judged twice, once for reaching the model
     (C2.1.3, `probe.ai-injection-unscreened`) and once for being recorded as caught in the app's output (C12.2.1,
@@ -504,3 +526,4 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     2026)"; ADR-079, accepted). `probe.ai-flag-not-gating` credits C11.4.2 in part when the textbook injection is
     recorded as caught and kept from the model, and finds it when it is recorded as caught and passed on anyway. Not
     done: other kinds of anomalous input.
+   **Part status:** done, 9 October 2026

@@ -18,6 +18,7 @@ here by the owner's word. **Not claimed; each can be claimed on its own.** None 
    wrote, and refuses an answer that says who wrote it or would not read back as written. The questions now tell
    the tool to record through it and never to change the line for the person. Thirteen guards broken in turn,
    each caught.
+   **Part status:** done, 4 October 2026
 2. **Keep the last report until the app's files change.** Every call builds the whole report again, and
    `securevibe_questions` runs the full check to list questions. Kept, "check after each feature" would be quick.
    **Measured on 3 October 2026, and not worth building yet:** with a release build, `sv check` of
@@ -26,6 +27,7 @@ here by the owner's word. **Not claimed; each can be claimed on its own.** None 
    kept past a change to the app would say something no longer true.
    **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3): the measurement above is
    this part's outcome, so it is marked here in the words the backlog board reads; the board had counted it open.
+   **Part status:** done, 8 October 2026
 3. **Declare the shape of each tool's structured result** (`outputSchema`, in the 2025-06-18 protocol), so a
    client can rely on it. None is declared now.
    **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
@@ -33,17 +35,20 @@ here by the owner's word. **Not claimed; each can be claimed on its own.** None 
    **Done the same day** (DESIGN, "The shape of each tool's result, declared"): seven tools declare their result's
    shape, closed to fields it does not name, and a test holds every tool's real result to it. Seven ways broken,
    each caught.
+   **Part status:** done, 3 October 2026
 4. **Progress notifications during a long check**, so the tool does not look stuck.
    **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
    branch `claude/securevibe-e2-mcp-progress`.
    **Done the same day** (DESIGN, "Saying how a check is going"): a client that gives a progress token hears each of
    a check's seven stages as it starts, and nothing after the answer. Eight guards broken in turn, each caught.
+   **Part status:** done, 3 October 2026
 5. **Offer the written reports as MCP resources** the tool can open, rather than only files on disk.
    **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
    branch `claude/securevibe-e2-mcp-resources`.
    **Done the same day** (DESIGN, "The written reports, offered as resources"): every report `sv` wrote below the
    root is listed, and its five files read back, in both the initializing and the stateless protocol; nothing that
    is not a file of a marked report folder can be listed or read, links included. Nineteen ways broken, each caught.
+   **Part status:** done, 3 October 2026
 6. **The newest protocol version.** The newest the server speaks is 2025-06-18; whether a later one has been
    published, and what it changes, needs checking before it is added.
    **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
@@ -53,3 +58,4 @@ here by the owner's word. **Not claimed; each can be claimed on its own.** None 
    **Done the same day** (DESIGN, "The newer protocol versions, 2025-11-25 and 2026-07-28"): a client that opens
    with `initialize` may have 2025-11-25, and one that names 2026-07-28 on each request is answered statelessly,
    with `server/discover`; wrong arguments come back as a tool's result. Nine ways broken, each caught.
+   **Part status:** done, 3 October 2026

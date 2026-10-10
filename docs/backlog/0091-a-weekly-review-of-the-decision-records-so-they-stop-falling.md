@@ -6,15 +6,20 @@ Asked for by the owner
 on 27 September 2026, after the ADR analysis (`docs/paper/ADRS.md`) found records out of date within two days
 (ADR-008, ADR-010), `main` contradicting a record for five days (ADR-012), and `sv`'s two largest choices, Rust
 and Docker, never written down. **Not claimed.** Once a week, one session:
-1. Reads every record in `docs/adr/`, and the index, against the code and the week's merged pull requests
+1. **Reads every record in `docs/adr/`, and the index,** against the code and the week's merged pull requests
    (`git log --first-parent --since="1 week ago" origin/main`).
-2. For each record, says in one line whether it still matches what was built. Where it does not, it either
+   **Part status:** open
+2. **For each record, says in one line whether it still matches what was built.** Where it does not, it either
    amends the record in place (a dated "Later" section, as ADR-016 does) or writes a superseding record (as
    ADR-018 does for ADR-012). Nothing in a record is quietly rewritten.
-3. Lists decisions made in that week's code with no record, and writes the ones that would be costly to undo
+   **Part status:** open
+3. **Lists decisions made in that week's code with** no record, and writes the ones that would be costly to undo
    without their reasons, such as a language, a runtime, a fence, or a rule about evidence.
-4. Checks each record's cited requirement ids against `data/frameworks`, as the ADR analysis did.
-5. Records the review itself in this backlog, with the date and what changed, so a skipped week is visible.
+   **Part status:** open
+4. **Checks each record's cited requirement ids against `data/frameworks`,** as the ADR analysis did.
+   **Part status:** open
+5. **Records the review itself in this backlog, with** the date and what changed, so a skipped week is visible.
+   **Part status:** open
 
 **Scheduled on 4 October 2026**, at the owner's asking: the routine "Weekly decision-record review" runs every
 Monday at 8:45 Eastern in a fresh session, claims the week's review here first, and also reports how many days each
