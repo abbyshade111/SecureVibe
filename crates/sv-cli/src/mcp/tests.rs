@@ -2,7 +2,7 @@
 use super::*;
 use sv_frameworks::paths::Canonical;
 
-fn examples() -> PathBuf {
+pub(super) fn examples() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples")
 }
 
@@ -2151,7 +2151,7 @@ fn the_whole_computer_and_the_whole_home_folder_are_not_served() {
 
 /// A request of the stateless protocol: its version, and an empty set of client capabilities,
 /// named in `_meta` as 2026-07-28 asks.
-fn stateless(id: i64, method: &str, version: &str, mut params: Value) -> Value {
+pub(super) fn stateless(id: i64, method: &str, version: &str, mut params: Value) -> Value {
     params["_meta"] = json!({
         "io.modelcontextprotocol/protocolVersion": version,
         "io.modelcontextprotocol/clientCapabilities": {},
@@ -3590,10 +3590,11 @@ fn the_design_time_prompts_are_offered_as_prompts_each_saying_whether_it_was_sho
         .expect("a list of prompts");
     let file = design_file();
     let names: Vec<&str> = listed.iter().map(|p| p["name"].as_str().unwrap()).collect();
-    let ids: Vec<&str> = file.iter().map(|p| p["id"].as_str().unwrap()).collect();
+    let mut ids: Vec<&str> = file.iter().map(|p| p["id"].as_str().unwrap()).collect();
+    ids.push(crate::report_prompt::ID);
     assert_eq!(
         names, ids,
-        "every design-time prompt, in the file's order, and nothing else"
+        "every design-time prompt, in the file's order, then the one for reading the report, and nothing else"
     );
     // The control: the file holds prompts of both kinds, so each mark below is tested.
     assert!(file.iter().any(|p| p["status"] == "shown"));
@@ -3701,7 +3702,7 @@ fn the_prompts_are_offered_in_the_stateless_protocol_too() {
     assert_eq!(list["result"]["resultType"], "complete", "{list}");
     assert_eq!(list["result"]["cacheScope"], "public");
     let listed = list["result"]["prompts"].as_array().unwrap();
-    assert_eq!(listed.len(), design_file().len());
+    assert_eq!(listed.len(), design_file().len() + 1);
     let name = listed[0]["name"].clone();
     let got = server
         .handle(&stateless(
