@@ -51,7 +51,48 @@ pub fn run_record(started: SystemTime, manifest: &[u8]) -> sv_report::RunRecord 
         started_unix_ms: ms,
         securevibe_toml_sha256: manifest_sha,
         run_id,
+        inputs: None,
     }
+}
+
+/// The SHA-256 of every file in `sv`'s data folder, by its name in the folder (written with `/` on
+/// every system) and its content, in name order, found once per run. `None` when there is no data
+/// folder, or a file in it could not be read: then which data the run had cannot be said.
+pub fn data_sha256() -> Option<String> {
+    static FOUND: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    FOUND
+        .get_or_init(|| folder_sha256(&sv_frameworks::data::dir().ok()?))
+        .clone()
+}
+
+/// `data_sha256` for any folder.
+pub fn folder_sha256(root: &Path) -> Option<String> {
+    fn walk(root: &Path, dir: &Path, out: &mut Vec<(String, PathBuf)>) -> Option<()> {
+        for entry in std::fs::read_dir(dir).ok()? {
+            let path = entry.ok()?.path();
+            if path.is_dir() {
+                walk(root, &path, out)?;
+            } else {
+                let name = path.strip_prefix(root).ok()?.components();
+                let name: Vec<String> = name
+                    .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                    .collect();
+                out.push((name.join("/"), path));
+            }
+        }
+        Some(())
+    }
+    let mut files = Vec::new();
+    walk(root, root, &mut files)?;
+    files.sort();
+    let mut all = Vec::new();
+    for (name, path) in files {
+        let bytes = std::fs::read(&path).ok()?;
+        // The name and the length before the bytes, so no two folders run together alike.
+        all.extend_from_slice(format!("{name}\0{}\0", bytes.len()).as_bytes());
+        all.extend_from_slice(&bytes);
+    }
+    Some(crate::bundle::sha256(&all))
 }
 
 fn millis(at: SystemTime) -> u64 {
@@ -580,6 +621,7 @@ mod tests {
             started_unix_ms: now - 60_000,
             securevibe_toml_sha256: "a".repeat(64),
             run_id: String::new(),
+            inputs: None,
         };
         let there = |start: u64| {
             std::fs::write(
