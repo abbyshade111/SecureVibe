@@ -46,6 +46,7 @@ pub mod cleanup;
 pub mod docker;
 pub mod image_reference;
 pub mod install;
+pub mod stand_ins;
 
 /// Why the app could not be run. Every one of these produces `not assessed`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -641,6 +642,8 @@ pub struct RunOutcome {
     /// The packages installed before the run (ADR-052), and whether each came from an earlier
     /// run's download. Empty when `install` was not asked for.
     pub installed: Vec<(install::Ecosystem, bool)>,
+    /// What `sv`'s stand-in services received, read before they were removed (ADR-082).
+    pub stand_ins: stand_ins::StandIns,
     /// What happened to the run's containers (backlog 226, part 2, item 18).
     pub container: ContainerRecord,
 }
@@ -667,6 +670,7 @@ impl RunOutcome {
             liveness: _,
             sidecar_lost: _,
             installed: _,
+            stand_ins: _,
             container: _,
         } = self;
         [

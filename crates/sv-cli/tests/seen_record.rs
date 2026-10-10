@@ -92,6 +92,14 @@ fn what_the_running_app_answered_is_kept_with_no_credential_in_it() {
         value["credentials_removed"].as_u64().unwrap() >= 2,
         "{seen}"
     );
+    // The test model ran, since the example signs in, and what it received was read before it went
+    // (backlog 0229, part 2): a record, even one with nothing sent to it, and none left unread.
+    let stand_ins = &value["stand_ins"];
+    assert!(
+        stand_ins["model"]["seen"].is_array() && stand_ins["model"]["fetched"].is_array(),
+        "{seen}"
+    );
+    assert!(stand_ins.get("not_read").is_none(), "{seen}");
     // And the report says the record is there.
     let report = std::fs::read_to_string(folder.join("compliance.md")).unwrap();
     assert!(

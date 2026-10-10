@@ -31,6 +31,12 @@ const stranger = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
 const KID = 'sv-1';
 // A provider that does not exist, named where a mix-up attack would name one.
 const OTHER_ISSUER = 'http://sv-other-idp.invalid';
+// Each request the app made, as its method, path, and the names of its query parameters, never their
+// values (a code, a state, a token), for `sv` to keep beside the report (ADR-082). `GET /_sv/requests`
+// hands it over; at most `MOST_REQUESTS`, then counted.
+const requests = [];
+const MOST_REQUESTS = 500;
+let requestsLeftOut = 0;
 const codes = new Map(); // code -> what the sign-in asked for
 const tokens = new Map(); // access token -> { sub, email }
 let mode = 'normal';
@@ -70,6 +76,16 @@ http
   .createServer(async (req, res) => {
     const url = new URL(req.url, ISSUER);
     const path = url.pathname;
+    if (req.method === 'GET' && path === '/_sv/requests') {
+      return json(res, 200, { requests, left_out: requestsLeftOut });
+    }
+    if (!path.startsWith('/_sv/')) {
+      if (requests.length < MOST_REQUESTS) {
+        requests.push({ method: req.method, path, query: [...new Set(url.searchParams.keys())] });
+      } else {
+        requestsLeftOut += 1;
+      }
+    }
     if (req.method === 'GET' && path === '/.well-known/openid-configuration') {
       return json(res, 200, {
         issuer: ISSUER,

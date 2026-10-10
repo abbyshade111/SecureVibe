@@ -795,12 +795,14 @@ fn running_app(
                 };
                 let (running_findings, running_verified, signed_in_not_assessed) =
                     running_app_evidence(&outcome, &plan);
-                seen = Some(crate::seen::record(
+                let mut record = crate::seen::record(
                     secret_rules,
                     &anonymous_requests(&plan),
                     &outcome.probe_responses,
                     &outcome.probes_rate_limited,
-                ));
+                );
+                crate::seen::stand_ins(secret_rules, &outcome.stand_ins, &mut record);
+                seen = Some(record);
                 findings.extend(running_findings);
                 probe_verified = running_verified;
                 // The summary, and the steps kept apart from it. Joining them made one

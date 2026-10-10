@@ -21,7 +21,7 @@ passes through `secrets::redact_text` first.
 2. **What the stand-in services received.** The test model's record of what it was sent and the paths it was asked
    for, the test sign-in provider's requests, and each mail's recipient, subject, and time (not its body), saved before
    their containers are removed.
-   **Part status:** claimed by paper-facts, 9 October 2026
+   **Part status:** done, 9 October 2026
 
 3. **The app's own log lines the log checks rest on.** The lines a logging check matched, and a short tail of the log,
    redacted, so a V16 credit can be checked by a person.

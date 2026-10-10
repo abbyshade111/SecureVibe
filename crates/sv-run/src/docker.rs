@@ -715,6 +715,13 @@ impl DockerBackend {
             probes,
         );
 
+        // What the stand-ins received, read before they go (ADR-082), with the run's test secrets
+        // blanked by value.
+        let mut secrets = accounts.as_ref().map(test_secrets).unwrap_or_default();
+        secrets.push(client_secret.clone());
+        secrets.extend(mcp_token.clone());
+        let stand_ins = self.stand_ins(&via, mail, provider, model, &secrets);
+
         // Nothing after this point sends a request, so the sidecar goes now rather than waiting on
         // the tests, which can take as long as they like. The mail server with it: nothing reads it
         // after the probes.
@@ -820,6 +827,7 @@ impl DockerBackend {
             installed,
             sidecar_lost: self.sidecar_lost(),
             container,
+            stand_ins,
         })
     }
 }
@@ -1429,6 +1437,44 @@ fn mail_text(message: &str) -> Option<String> {
 }
 
 impl DockerBackend {
+    /// What each stand-in that ran received, read from it while it is still up.
+    fn stand_ins(
+        &self,
+        via: &Via,
+        mail: Option<&str>,
+        provider: Option<&str>,
+        model: Option<&str>,
+        secrets: &[String],
+    ) -> crate::stand_ins::StandIns {
+        use crate::stand_ins::{StandIns, mail_of, read_json};
+        let mut out = StandIns::default();
+        if let Some(host) = model {
+            out.model = self
+                .fetch(via, host, MODEL_PORT, "/_sv/seen")
+                .and_then(|text| read_json(&text, secrets));
+            if out.model.is_none() {
+                out.unread.push("the test model");
+            }
+        }
+        if let Some(host) = provider {
+            out.provider = self
+                .fetch(via, host, PROVIDER_PORT, "/_sv/requests")
+                .and_then(|text| read_json(&text, secrets));
+            if out.provider.is_none() {
+                out.unread.push("the test sign-in provider");
+            }
+        }
+        if let Some(host) = mail {
+            out.mail = self
+                .fetch(via, host, MAIL_API_PORT, "/api/v1/messages?limit=500")
+                .and_then(|text| mail_of(&text, secrets));
+            if out.mail.is_none() {
+                out.unread.push("the mail catcher");
+            }
+        }
+        out
+    }
+
     /// Fills `install`'s volume, unless an earlier run already filled it from the same files in the
     /// same image (ADR-052). Whether it was reused, or why it could not be done.
     fn install(
@@ -2098,8 +2144,9 @@ fn seed_env(accounts: &sv_check::signed_in::Accounts) -> Vec<(&'static str, Stri
 /// What the report says when `seed` failed: its exit code and the first line it wrote, with every
 /// password and two-factor secret the run gave it taken out. A seed that echoes its environment, or
 /// a stack trace that prints the value it choked on, would otherwise carry them into the report.
-fn seed_failed(code: i32, out: &str, accounts: &sv_check::signed_in::Accounts) -> String {
-    let mut line = first_line(out);
+/// Every test secret of `sv`'s that `accounts` holds, as the text it could appear as: each password,
+/// and each two-factor secret in base32, upper and lower case.
+pub(crate) fn test_secrets(accounts: &sv_check::signed_in::Accounts) -> Vec<String> {
     let mut secrets: Vec<String> = [&accounts.a, &accounts.b]
         .into_iter()
         .chain(accounts.admin.as_ref())
@@ -2117,6 +2164,12 @@ fn seed_failed(code: i32, out: &str, accounts: &sv_check::signed_in::Accounts) -
         secrets.push(encoded.to_lowercase());
         secrets.push(encoded);
     }
+    secrets
+}
+
+fn seed_failed(code: i32, out: &str, accounts: &sv_check::signed_in::Accounts) -> String {
+    let mut line = first_line(out);
+    let secrets = test_secrets(accounts);
     // `sv`'s own test secrets first, by value, as a blank the redaction below leaves alone; then
     // every other credential the line carries, the app's own included (backlog 0226, part 1,
     // item 1): a seed that fails on its database prints the database's address, password and all.

@@ -1,6 +1,7 @@
 //! What the app answered reaches `seen.json` with no credential in it (ADR-082, backlog 0229, part 1).
 
 use super::*;
+use sv_report::seen::KEPT_CHARS;
 
 fn rules() -> SecretRules {
     SecretRules::load(&crate::secret_rules_path()).expect("sv's secret rules load")
@@ -145,4 +146,74 @@ fn a_rate_limited_id_is_matched_whole() {
     let asked = vec![request("home", "/")];
     let seen = record(&rules, &asked, &[], &["home-page (429)".to_owned()]);
     assert_eq!(seen.not_answered, ["home (no answer)"]);
+}
+
+#[test]
+fn no_credential_a_stand_in_received_reaches_the_record() {
+    let rules = rules();
+    let (key, _) = planted();
+    let received = sv_run::stand_ins::StandIns {
+        model: Some(serde_json::json!({
+            "seen": [{
+                "tag": "ab12",
+                "system": format!("You are a helper. Use the key {key} for the search API."),
+                "tool_result": format!("{{\"api_key\": \"{key}\"}}"),
+                "tools_offered": [format!("search_{key}")],
+            }],
+            "fetched": [],
+        })),
+        provider: Some(serde_json::json!({
+            "requests": [{"method": "GET", "path": "/authorize", "query": ["state", "code_challenge"]}],
+            "left_out": 0,
+        })),
+        mail: Some(vec![sv_run::stand_ins::Mail {
+            to: vec!["sv-a-0a1b2c@example.test".to_owned()],
+            subject: format!("Your key is {key}"),
+            at: "2026-10-10T03:00:01Z".to_owned(),
+        }]),
+        unread: vec!["the test sign-in provider"],
+    };
+    // The setup: the key is in every kind of record.
+    assert!(format!("{received:?}").matches(key.as_str()).count() >= 4);
+    let mut seen = Seen::default();
+    stand_ins(&rules, &received, &mut seen);
+    let kept = serde_json::to_string(&seen).unwrap();
+    assert!(!kept.contains(&key), "a key reached the record: {kept}");
+    assert!(seen.credentials_removed >= 4, "{seen:#?}");
+    // What arrived is still there to read.
+    for still in [
+        "You are a helper.",
+        "/authorize",
+        "code_challenge",
+        "sv-a-0a1b2c@example.test",
+        "Your key is",
+    ] {
+        assert!(kept.contains(still), "{still} is gone: {kept}");
+    }
+    assert_eq!(seen.stand_ins.not_read, ["the test sign-in provider"]);
+}
+
+#[test]
+fn a_stand_in_record_is_bounded_and_says_what_was_cut() {
+    let rules = rules();
+    let long = "a".repeat(KEPT_CHARS + 10);
+    let many: Vec<serde_json::Value> = (0..MOST_EXCHANGES + 5)
+        .map(|i| serde_json::json!(i))
+        .collect();
+    let received = sv_run::stand_ins::StandIns {
+        model: Some(serde_json::json!({"seen": [{"system": long}], "fetched": many})),
+        ..Default::default()
+    };
+    let mut seen = Seen::default();
+    stand_ins(&rules, &received, &mut seen);
+    let model = seen.stand_ins.model.as_ref().unwrap();
+    let system = model["seen"][0]["system"].as_str().unwrap();
+    assert!(
+        system.ends_with("… (10 more characters)"),
+        "{}",
+        &system[system.len() - 40..]
+    );
+    assert_eq!(model["fetched"].as_array().unwrap().len(), MOST_EXCHANGES);
+    // One string cut, and five entries.
+    assert_eq!(seen.stand_ins.cut, 6);
 }
