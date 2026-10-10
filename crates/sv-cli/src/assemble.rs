@@ -12,15 +12,28 @@ use super::*;
 
 /// The stages of a report that `assemble_report_saying` names as it starts each, in order. The MCP
 /// server passes them on, so a long check does not look stuck.
-pub const REPORT_STAGES: [&str; 7] = [
+///
+/// Every stage is announced on every run, in this order, so a count of them means the same each
+/// time; the three that run only when asked say so in their names. They were one stage, "Putting
+/// the report together", until `sv report --run --tools` sat in it for minutes without a word
+/// (backlog 226, part 2, item 15).
+pub const REPORT_STAGES: [&str; 10] = [
     "Reading the app's files",
     "Recognizing its languages and frameworks",
     "Listing the packages it uses",
     "Looking for keys and passwords",
     "Reading its configuration",
     "Reading its code",
+    "Comparing its packages with known vulnerabilities, when there is a database",
+    "Running the outside tools, when asked with --tools",
+    "Running the app, when asked with --run",
     "Putting the report together",
 ];
+
+/// One line of progress for a person watching `sv report`: which stage of how many, and what it is.
+pub fn stage_line(n: usize, name: &str) -> String {
+    format!("sv report: {} of {}, {name}", n + 1, REPORT_STAGES.len())
+}
 
 /// `assemble_report`, calling `starting` with each stage's number (from 0) and name as it begins.
 /// What the design answers given as `planned` come to, when they are not a finding: each credits
@@ -199,6 +212,7 @@ pub fn assemble_report_saying(
     findings.extend(sbom::incompleteness_finding(&static_scan.bill_of_materials));
     findings.extend(static_scan.code.findings.iter().cloned());
 
+    stage(7);
     let tools = outside_tools(&scene, &mut findings, &mut examined)?;
 
     // Every limit `sv` knows about, said out loud. This list existing is the difference between a
@@ -211,7 +225,9 @@ pub fn assemble_report_saying(
             why: note,
         });
     }
+    stage(8);
     let run = running_app(&scene, &mut findings, &mut gaps);
+    stage(9);
     gaps.extend(tools.gaps);
     let manual_only = what_was_not_read(&scene, &mut gaps, &mut examined);
     gaps.extend(advisories.gaps);
@@ -2207,7 +2223,9 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
             &manifest.app.name
         },
         target_level: manifest.target_level(),
-        generated: None,
+        // The run's own start time and id, on every page (backlog 226, part 2, item 12): the
+        // clock was read once, when the run began, so the pages agree with `run_record`.
+        generated: Some(run_record.describe()),
         made_by: sv_report::MadeBy {
             version: env!("CARGO_PKG_VERSION").to_owned(),
             commit: env!("SV_GIT_COMMIT").to_owned(),

@@ -129,14 +129,27 @@ pub fn render(report: &Report) -> String {
                 "properties": { "commit": report.sv.commit },
                 "rules": rules,
             }},
-            "invocations": [{
-                "executionSuccessful": true,
-                "toolExecutionNotifications": notifications,
-            }],
+            "invocations": [invocation(report, notifications)],
             "results": results,
         }]
     });
     serde_json::to_string_pretty(&document).expect("a JSON value serializes")
+}
+
+/// The run as SARIF says it: when it started and its id, when the report knows them (backlog 226,
+/// part 2, item 12), so a SARIF file read on its own can be matched to the report it came with.
+fn invocation(report: &Report, notifications: Vec<Value>) -> Value {
+    let mut invocation = json!({
+        "executionSuccessful": true,
+        "toolExecutionNotifications": notifications,
+    });
+    if let Some(record) = &report.run_record {
+        invocation["startTimeUtc"] = json!(record.started);
+        if !record.run_id.is_empty() {
+            invocation["properties"] = json!({ "runId": record.run_id });
+        }
+    }
+    invocation
 }
 
 /// Where a finding is, as a SARIF `location`.
