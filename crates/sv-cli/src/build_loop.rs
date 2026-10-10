@@ -41,6 +41,30 @@ pub struct Line {
     /// The check had more findings than `MAX_FINGERPRINTS`, so `fingerprints` holds only some, and
     /// no comparison is made from it.
     pub fingerprints_cut: bool,
+    /// Names `sv` itself defines that the call asked about (ADR-084, decision 3): a feature or
+    /// topic from the tool's own list, a requirement id. Never a word the AI tool chose.
+    pub asked: Vec<String>,
+    /// What `sv` handed over since the last line (ADR-084, decision 5): `instructions` (given when
+    /// the AI tool connected), `prompt:<id>` (a prompt fetched), `report:<file>` (a report file read).
+    pub handed: Vec<String>,
+}
+
+/// The most names a line keeps of what a call asked, and of what was handed over.
+pub const MAX_NAMES: usize = 20;
+
+/// Whether `s` is a name as `sv` defines them: `sign-in`, `V1.2.4`, `read-my-report`, `report.html`.
+pub fn is_name(s: &str) -> bool {
+    !s.is_empty()
+        && s.len() <= 64
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))
+}
+
+/// Whether `s` is something `sv` hands over, as a line keeps it.
+fn is_handed(s: &str) -> bool {
+    s == "instructions"
+        || s.strip_prefix("prompt:").is_some_and(is_name)
+        || s.strip_prefix("report:").is_some_and(is_name)
 }
 
 /// The most findings' fingerprints one line keeps: about 17 KB, so the record's 4 MB still holds
@@ -113,6 +137,12 @@ impl Line {
         if self.fingerprints_cut {
             line["fingerprints_cut"] = json!(true);
         }
+        if !self.asked.is_empty() {
+            line["asked"] = json!(self.asked);
+        }
+        if !self.handed.is_empty() {
+            line["handed"] = json!(self.handed);
+        }
         if let Some(c) = &self.counts {
             line["counts"] = json!({
                 "findings": c.findings,
@@ -150,6 +180,23 @@ impl Line {
                 )
             }
         };
+        // Names that are not ones `sv` writes make the line one it did not write.
+        let names = |key: &str, ok: fn(&str) -> bool| -> Option<Vec<String>> {
+            match v.get(key) {
+                None => Some(Vec::new()),
+                Some(list) => {
+                    let list = list.as_array()?;
+                    if list.len() > MAX_NAMES {
+                        return None;
+                    }
+                    list.iter()
+                        .map(|n| n.as_str().filter(|n| ok(n)).map(str::to_owned))
+                        .collect()
+                }
+            }
+        };
+        let asked = names("asked", is_name)?;
+        let handed = names("handed", is_handed)?;
         // An outcome `sv` does not write makes the line one it did not write.
         let outcome = match v.get("outcome") {
             None => None,
@@ -177,6 +224,8 @@ impl Line {
             off: false,
             fingerprints,
             fingerprints_cut: v.get("fingerprints_cut") == Some(&Value::Bool(true)),
+            asked,
+            handed,
         })
     }
 }
@@ -356,6 +405,16 @@ pub fn summarize(bytes: &[u8]) -> BuildLoop {
             Some("refused") => summary.refused += 1,
             _ => {}
         }
+        for (seen, names) in [
+            (&mut summary.asked, &line.asked),
+            (&mut summary.handed, &line.handed),
+        ] {
+            for name in names {
+                if !seen.contains(name) {
+                    seen.push(name.clone());
+                }
+            }
+        }
         for (seen, named) in [
             (&mut summary.clients, &line.client),
             (&mut summary.svs, &line.sv),
@@ -393,6 +452,8 @@ pub fn summarize(bytes: &[u8]) -> BuildLoop {
 mod fingerprint_tests;
 #[cfg(test)]
 mod limit_tests;
+#[cfg(test)]
+mod names_tests;
 #[cfg(test)]
 mod outcome_tests;
 #[cfg(test)]

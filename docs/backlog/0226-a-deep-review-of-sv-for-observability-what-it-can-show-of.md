@@ -404,3 +404,8 @@ ignored, both new tests fail.
 
 **Part 3, item C done 10 October 2026** by session securevibe-e2, as backlog 0230: ADR-083 accepted in full (each
 requirement's status kept, a run that did not finish kept, the inputs in the comparison key, and `sv compare`).
+
+**Part 3, item D done 10 October 2026** by session securevibe-e2, as backlog 0231: ADR-084 accepted in full (each
+call's outcome, a turned-off record seen as a gap, which AI tool and which `sv`, the names asked about, what was handed
+over, and the findings no longer found, set aside, and new between the first check and the last).
+

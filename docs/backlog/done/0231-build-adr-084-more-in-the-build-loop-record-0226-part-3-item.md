@@ -1,6 +1,6 @@
 # Build ADR-084: more in the build-loop record (0226, part 3, item D)
 
-**Status:** claimed by securevibe-e2, 10 October 2026
+**Status:** done, 10 October 2026
 
 Item D of the observability review's part 3 (backlog 0226), which the owner said yes to on 9 October 2026 ("please go
 ahead and yes to A, C, and D as well"). The plan is ADR-084, `Status: proposed`: each line of the build-loop record
@@ -20,4 +20,7 @@ answered; a turned-off record says so in one line; a call that could not be writ
 gone, set aside, and new"): each check keeps its findings' fingerprints, and the report counts those no longer found,
 those set aside by a person as false alarms, and those new between the first check and the last. Decisions 3 and 5
 remain.
+
+**Decisions 3 and 5 built 10 October 2026 by session securevibe-e2** (design entry "The build-loop record says what
+was asked and handed over"). ADR-084 is accepted in full; nothing of this item remains.
 
