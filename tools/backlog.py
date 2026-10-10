@@ -676,7 +676,7 @@ rules
         write_text(cites, "See `backlog/0001-a-thing.md` for it.\n")
         assert mark_done(folder, "1", "10 October 2026", None) is True
         assert (folder / DONE_DIR / "0001-a-thing.md").exists() and not (folder / "0001-a-thing.md").exists()
-        assert cites.read_text(encoding="utf-8") == "See `backlog/done/0001-a-thing.md` for it.\n", cites.read_text()
+        assert cites.read_text(encoding="utf-8") == "See `backlog/done/0001-a-thing.md` for it.\n", cites.read_text(encoding="utf-8")
         assert find(folder, "1").kind == "done" and [i.number for i in items(folder)] == [1]
         assert problems(root / "NONE.md", folder) == []
         assert mark_done(folder, "1", "10 October 2026", "one more piece") is True
