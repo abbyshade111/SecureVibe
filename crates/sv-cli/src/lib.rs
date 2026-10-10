@@ -257,16 +257,7 @@ pub fn running_app_evidence(
     findings.extend(more.findings);
     verified.extend(more.verified);
     not_assessed.extend(more.not_assessed);
-    for asked in [
-        &outcome.signed_in,
-        &outcome.oidc,
-        &outcome.ai,
-        &outcome.mcp_server,
-        &outcome.fetch,
-    ]
-    .into_iter()
-    .flatten()
-    {
+    for (_, asked) in outcome.asked() {
         findings.extend(asked.findings.iter().cloned());
         verified.extend(asked.verified.iter().cloned());
         not_assessed.extend(asked.not_assessed.iter().cloned());

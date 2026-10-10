@@ -307,3 +307,14 @@ and `tools/coverage.py` keyed the files that ship by `str(path)`, also with `\` 
 logged place matched a file. Both sides are now compared with `/` (`shipping_lines`, `logged_place`), and
 `crates/sv-check/tests/census_windows_paths.rs` holds a place written with `\` to read exactly as the same place with
 `/`, for the credit check and the withheld count.
+Eleventh Windows finding, the same day: with the lock and the census in, the Windows run gave 2,722 passed and 10
+failed, three of them the census tests the tenth finding fixed. Of the other seven, three were faults of `sv`'s on
+Windows. Stopping a command that ran too long stopped the command alone: what it had started kept running and holding
+its output open, so `sv` waited until that ended by itself, 30 seconds in the test and never for a suite that hangs.
+On Windows `sv` now stops the command with `taskkill /T`, Windows' own, which stops everything it started.
+`sv init > stackvet.toml` wrote the instructions into the file, because on Windows the question "is standard output a
+file" always answered no; it is asked through the handle Windows gives now. And the command the MCP server tells an AI
+coding tool to have the person run quoted a Windows path in single quotes, which no Windows shell reads; there a `\` is
+now part of a plain path, and a path that needs quoting gets double quotes. The rest were tests: two drive `sv review`
+through a Unix pseudo-terminal, which Windows does not have, and are now Unix only (one of them had passed on Windows
+on nothing); one wrote a report to a folder named with `?`, which Windows refuses.

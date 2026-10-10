@@ -2317,10 +2317,15 @@ fn a_written_report_is_offered_as_resources_and_reads_back_as_written() {
         "nothing written yet, nothing offered"
     );
 
-    // Two reports, one under a name that has to be escaped to be written in a URI.
+    // Two reports, one under a name that has to be escaped to be written in a URI. Windows refuses
+    // a `?` in a name, so there the name keeps the space, `#`, and `%` (backlog 0120).
     for out in [
         sv_scan::ecosystems::DEFAULT_REPORT_DIR,
-        "reports/the 2nd one #1?%",
+        if cfg!(windows) {
+            "reports/the 2nd one #1%"
+        } else {
+            "reports/the 2nd one #1?%"
+        },
     ] {
         let result = call(
             &server,

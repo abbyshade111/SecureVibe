@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: the findings of the review below, each claimable: part 1 (11, wrong or unsafe today), part 2 (9, cheap visibility), part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 1 items 3, 7, and 9 to 11; part 2 (9); part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -237,3 +237,38 @@ backlog", in branch `claude/stackvet-e9-history-honest`: `#[serde(default)]` on 
 added later does not hide every older run, and the page saying how many runs it could not read, each with a test
 that fails without it. Open pull requests (#1302, #1304, #1305) and the branches of the last few hours read first:
 none touches `crates/sv-cli/src/history.rs` or `crates/sv-report/src/dashboard.rs`.
+
+**Part 1, item 8 done the same day** (`docs/design/0344-the-dashboard-s-history-counts-a-run-it-cannot-read-9.md`): `Run` has defaults, so a field added later does not hide the runs
+kept before it, and a kept file that does not read as a run is counted and said on the page ("could not be read as a
+run, and is not shown") rather than passed over. Breaks: without the defaults the older run vanished from the test;
+without the count, or without the sentence, its test failed.
+
+**Part 1, item 4 claimed on 9 October 2026 by session stackvet-e9**, under the owner's "continue to work off the
+backlog", in branch `claude/stackvet-e9-suite-steps`: the steps of the MCP-server and fetch suites carried to the
+report and to `sv run`'s printout as the other suites' are, with a test that fails without it. Open pull requests
+(#1305, #1308, both this session's) and the branches of the last few hours read first: none touches
+`crates/sv-cli/src/assemble.rs`, `crates/sv-check/src/mcp_server.rs`, or `crates/sv-check/src/fetch.rs`.
+
+**Part 1, item 4 done the same day** (`docs/design/0344-every-suite-s-steps-reach-the-report-and-sv-run-from-one.md`): `RunOutcome::asked` is the one list of the suites asked beyond the
+anonymous ones, which the evidence, the report's steps, and `sv run`'s printout all read, so the MCP-server and
+fetch suites' steps now reach both. It names every field of `RunOutcome`, so a suite added later does not build
+until it is placed. Break: with those two suites taken out of the list, both new tests fail.
+
+**Part 1, items 5 and 6 claimed on 9 October 2026 by session stackvet-e9**, under the owner's "continue to work off
+the backlog", in branch `claude/stackvet-e9-crash-and-gap`: a panic hook that says `sv` itself failed, where, and
+that nothing was assessed, and exits 3 (item 5); and a data file `sv` cannot read, `level-hints.json` first, made a
+gap in the report rather than a line on stderr, with the others of the same shape found while there (item 6); each
+with a test that fails without it. Open pull requests read first: #1311 changes `main.rs` far from `main()`, and
+#1310 (items 9 and 10, session paper-facts) touches only this file.
+
+**Part 1, items 5 and 6 done the same day** (`docs/design/0345-a-crash-in-sv-ends-as-sv-s-failure-and-an-unreadable-hints.md`): a panic now ends as `sv`'s own failure, exit 3, with what and
+where and that nothing was assessed, after the unwinding has cleaned up; other threads keep Rust's line, so `sv mcp`
+surviving a check thread is not reported as `sv` failing. An unreadable `level-hints.json` is a gap in the report
+rather than a line on stderr; no other data file in the report's path fails silently. Breaks: without the catch, and
+without the gap, each new test fails.
+
+**Part 1, items 9 and 10 claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please do"), in
+branch `claude/explain-seal-and-path`: `sv explain` checking a report's seal before repeating it, and saying when it
+is not shown to be `sv`'s (item 9); and `sv explain ID PATH` taking the path as the app, as its own documentation
+says (item 10). Open pull requests and recent branches read first: session stackvet-e9 holds items 3, 4, 7, and 8,
+and none touches `crates/sv-cli/src/explain.rs`.
