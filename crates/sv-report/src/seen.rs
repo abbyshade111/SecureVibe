@@ -33,7 +33,28 @@ pub struct Seen {
     /// part 3). Empty when no log check ran.
     #[serde(skip_serializing_if = "AppLog::is_empty")]
     pub app_log: AppLog,
+    /// Each outside tool's own report, when `--keep-tool-output` asked for them (backlog 0229,
+    /// part 4). Empty otherwise.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tool_output: Vec<ToolOutput>,
 }
+
+/// One outside tool's own report, as it wrote it, with the credentials in it cut out.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ToolOutput {
+    /// The program that wrote it.
+    pub program: String,
+    /// The rules `sv` reads it as (`semgrep.`, `bandit.`), which the report's findings carry.
+    pub rules: String,
+    /// What it wrote, cut at `MOST_TOOL_CHARS` characters.
+    pub report: String,
+    /// How many characters were cut from the end; 0 when it is whole.
+    pub cut_chars: usize,
+}
+
+/// The most characters of one tool's report kept: a few megabytes of SARIF at most, so the file
+/// stays well within what the seal reads.
+pub const MOST_TOOL_CHARS: usize = 2_000_000;
 
 /// What `sv` kept of the app's own output.
 #[derive(Debug, Clone, Default, Serialize, PartialEq, Eq)]
@@ -128,7 +149,8 @@ const ABOUT: &str = "What sv saw of the running app while it made this report: e
 as somebody not signed in, and what the app answered; and, under stand_ins, what sv's own stand-ins \
 for the services the app uses received from it (the test model, the test sign-in provider, and the \
 mail catcher, of whose mail only who it was to, its subject, and when are kept); and, under app_log, \
-the lines of the app's own output the log checks read, and its last lines. This is the app's own text, with every \
+the lines of the app's own output the log checks read, and its last lines; and, under tool_output, \
+when --keep-tool-output asked for them, each outside tool's own report, which quotes the app's code. This is the app's own text, with every \
 credential sv recognized cut down to its first four characters and its length, and the value \
 of every cookie and sign-in header taken out. It can hold \
 personal data the app was given during the run; only sv's own test accounts were used. Each \
@@ -147,6 +169,7 @@ pub fn render(report: &Report) -> String {
             "credentials_removed": seen.credentials_removed,
             "stand_ins": seen.stand_ins,
             "app_log": seen.app_log,
+            "tool_output": seen.tool_output,
         }),
         None => serde_json::json!({
             "app": report.app_name,

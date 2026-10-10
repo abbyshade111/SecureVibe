@@ -29,7 +29,7 @@ passes through `secrets::redact_text` first.
 
 4. **An outside tool's raw output, when asked for.** `--keep-tool-output` copies each tool's report, redacted, beside
    the report; its version, arguments, and exit code are recorded always (0226, part 2, item 14).
-   **Part status:** claimed by paper-facts, 9 October 2026
+   **Part status:** done, 10 October 2026
 
 **Said plainly, in every part:** the report says the record is there, what it holds, and that it is the app's own text,
 which can hold personal data the app was given during the run (only `sv`'s own test accounts sign in).
