@@ -157,7 +157,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
     the app's exit code and out-of-memory flag on that path, the seconds to healthy, how the fence was made
     (`made_with`, now shown only on failure), teardown errors (now `let _`), and that a download volume was kept, its
     name and how to remove it. ADR-052 names the old label `securevibe.deps`; the code uses `stackvet.deps`.
-   **Part status:** partly done: what a run that failed could not remove
+   **Part status:** claimed by securevibe-e2, 10 October 2026
 19. **The MCP server's errors.** It keeps no record of an error it returns; one stderr line per error (tool and
     kind, no app text), which the AI tool's own log usually keeps.
    **Part status:** done, 10 October 2026
@@ -370,6 +370,11 @@ how long after it started, its exit code, and whether it was killed for memory; 
 app took to answer, how its network was made, what could not be removed, and which download volumes it kept, with
 the commands for each; ADR-052 names `stackvet.deps`. Still open: what a run that failed could not remove. Breaks:
 with the teardown's answer dropped, or the old wording, a test fails.
+
+**Part 2, item 18 claimed on 10 October 2026 by session securevibe-e2**, its remainder, under the owner's
+"continue to work through and pick up new items", in branch `claude/securevibe-e2-failed-left`: what a run that
+failed could not remove, said in the failure as a finished run says it (`RunFailed`), where today the teardown's answer is dropped
+on every failing path; with a test that fails without it.
 
 **Part 2, item 20 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue", in branch
 `claude/stackvet-e9-obs-20`: a version catalog that does not parse said as not understood, among the package lists
