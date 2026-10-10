@@ -43,13 +43,37 @@ pub struct Mail {
 /// `text` with each of `secrets` replaced by `TEST_SECRET`.
 pub fn without_test_secrets(text: &str, secrets: &[String]) -> String {
     let mut text = text.to_owned();
-    // The longest first, so a secret that holds another is blanked whole.
-    let mut secrets: Vec<&String> = secrets.iter().filter(|s| !s.is_empty()).collect();
-    secrets.sort_by_key(|s| std::cmp::Reverse(s.len()));
-    for secret in secrets {
-        text = text.replace(secret.as_str(), TEST_SECRET);
+    // Each secret as it is written, and as it is written in a URL or a form (`!` becomes `%21`),
+    // since a password in an address is in that form. The longest first, so a secret that holds
+    // another is blanked whole.
+    let mut forms: Vec<String> = Vec::new();
+    for secret in secrets.iter().filter(|s| !s.is_empty()) {
+        forms.push(secret.clone());
+        let encoded = percent_encoded(secret);
+        if encoded != *secret {
+            forms.push(encoded);
+        }
+    }
+    forms.sort_by_key(|s| std::cmp::Reverse(s.len()));
+    for form in forms {
+        text = text.replace(form.as_str(), TEST_SECRET);
     }
     text
+}
+
+/// `secret` as a URL or a form writes it: every byte outside the unreserved set (letters, digits,
+/// `-`, `.`, `_`, `~`) as `%` and two hex digits, the way a browser sends it.
+pub fn percent_encoded(secret: &str) -> String {
+    secret
+        .bytes()
+        .map(|b| {
+            if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'.' | b'_' | b'~') {
+                (b as char).to_string()
+            } else {
+                format!("%{b:02X}")
+            }
+        })
+        .collect()
 }
 
 /// The lines of the app's output a suite kept (`log_lines`, `log_tail`), with each of `secrets`
@@ -60,6 +84,15 @@ pub fn blank_log(asked: &mut sv_check::signed_in::Outcome, secrets: &[String]) {
     }
     for line in &mut asked.log_tail {
         *line = without_test_secrets(line, secrets);
+    }
+    // The signed-in answers: a page can show the test account's password or secret back (a form
+    // that echoes it, or a token in a link), so the path, headers and body are blanked too.
+    for exchange in &mut asked.exchanges {
+        exchange.path = without_test_secrets(&exchange.path, secrets);
+        exchange.body = without_test_secrets(&exchange.body, secrets);
+        for (_, value) in &mut exchange.headers {
+            *value = without_test_secrets(value, secrets);
+        }
     }
 }
 
