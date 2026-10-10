@@ -1,6 +1,6 @@
 # From the gap analysis of 7 October 2026: findings for any session to pick up
 
-**Status:** partly done: 22 of 34 parts done, 1 claimed, 10 open, as its markers read on 8 October 2026
+**Status:** partly done: part 4 ("checked in part" for the other checks that rest on one sample), part 13 (running checks an attacker would try first, the halves not yet built), and part 21's outside-tool half, folded into the owner's next loop trial
 
 Asked for by the owner on 7
 October 2026 ("please include everything else on the backlog for other sessions to pick up as they can"). Each
@@ -84,7 +84,7 @@ listed apart, below this item.
    **That part done the same day** (DESIGN, "The SQL rule reads Supabase's filter text"): `.or`/`.filter` on npm and
    `.or_`/`.filter` in Python (`crates/sv-check/src/ast/orm_supabase_tests.rs`), and the unread list empty; the
    hold-back's end-to-end tests run on a stand-in list. With it, both halves of finding 1 are done.
-   **Part status:** open
+   **Part status:** done, 9 October 2026
 2. **Dependencies in .NET, Dart, Swift, Elixir, and Deno are invisible, and V15.2.1 is credited anyway.**
    (`docs/GAP-ANALYSIS.md`, 1.5.) Detect `*.csproj`, `packages.lock.json`, `pubspec.yaml`/`.lock`,
    `Package.swift`/`.resolved`, `mix.exs`, and `deno.json`/`.lock` as ecosystems `sv` does not read, so they hold
@@ -195,7 +195,7 @@ listed apart, below this item.
    **That part done the same day**
    (`docs/design/0326-a-build-step-that-downloads-packages-said-before-the-run-9.md`): the preflight's
    `build-install` item, and "An image of your own" in `docs/GETTING-STARTED.md`. Finding 9 is done.
-   **Part status:** open
+   **Part status:** done, 9 October 2026
 10. **Supabase and Firebase access rules are never read.** (`docs/GAP-ANALYSIS.md`, 3.2.) Rules files
    (`firestore.rules`, `storage.rules`, `database.rules.json`: `if true`, no `request.auth`, no owner check);
    Supabase migrations (a table without `enable row level security`, grants to `anon`); a secret, service-role, or
@@ -219,7 +219,7 @@ listed apart, below this item.
    app. Read on `main` just before this claim: no other session had claimed it.
    **The fourth part done the same day** (DESIGN, "A hosted backend is named as out of the running app's reach").
    With it, every part of item 10 is done.
-   **Part status:** open
+   **Part status:** done, 8 October 2026
 11. **Plain `sv check` has no rule for the commonest web flaws.** (`docs/GAP-ANALYSIS.md`, 3.3.) Code rules, mostly
    finding-only, each claimable on its own: cross-site-scripting sinks by framework (`dangerouslySetInnerHTML`,
    `innerHTML`, `Markup`, `| safe`, `res.send` of built HTML); a template built from a value
@@ -287,7 +287,7 @@ listed apart, below this item.
    **The `none` algorithm done the same day** (DESIGN, "A token check that accepts the none algorithm"):
    `ast.token-none-algorithm` in Python, JavaScript and TypeScript, Go, and Ruby (`crates/sv-check/src/ast/token_none_tests.rs`),
    only ever a finding. With it, every part of finding 11 is done.
-   **Part status:** open
+   **Part status:** done, 9 October 2026
 12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
    Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
    and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
@@ -467,7 +467,7 @@ listed apart, below this item.
    none of the seven names is listed, and no other session holds this half.
    **The corroborators half done the same day** (`docs/design/0326-infrastructure-and-ci-files-at-any-depth-9-october-2026.md`;
    ADR-015, Later, 9 October 2026, accepted), with `cloudbuild.yml` beside `cloudbuild.yaml`. Finding 16 is done.
-   **Part status:** open
+   **Part status:** done, 9 October 2026
 17. **The answers that set the app's level are the AI tool's, never sealed, and the report does not say so.**
    (`docs/GAP-ANALYSIS.md`, 4.1.) Under the level line, say why and on whose word; let `sv review` seal the scope
    (`audience`, `[data]`); until sealed, show the level 2 count beside it; compare `audience = "just-me"` with a
@@ -514,7 +514,7 @@ listed apart, below this item.
    ADR-024, Later, accepted): `sv review` asks last for the owner to confirm the audience and the data list and seals
    `[scope-review]`; the level line says they were confirmed, and when, or that they changed since, or that a
    confirmation does not count here. Finding 17 is done.
-   **Part status:** open
+   **Part status:** done, 9 October 2026
 18. **The AI tool's "when to bring in a person" text is shown as the owner's.** (`docs/GAP-ANALYSIS.md`, 4.2.) A
    `design-decisions.md` section the AI tool wrote saying no outside review is needed comes out as "Your
    design-decisions.md says …" in every report file (`main.rs`, near the escalation text). Name who wrote it, and
@@ -560,7 +560,7 @@ listed apart, below this item.
    kept here. Still open: an outside tool run as an independent check of the loop arm, which needs a new trial.
    **The owner's decision, 9 October 2026:** the outside-tool half is folded into the next loop trial the owner runs
    anyway, rather than paid for as a trial of its own ("agree"). It stays open until then.
-   **Part status:** open
+   **Part status:** partly done: an outside tool run as an independent check of the loop arm, folded into the owner's next loop trial
 22. **Smaller trust gaps in the build loop.** (`docs/GAP-ANALYSIS.md`, 4.6.) Each claimable on its own: (a) the
    seal key's passphrase on by default, and the report saying when a seal's key has none (a change to ADR-043); (b)
    reports read back as MCP resources fenced as app text; (c) a "drafted by your AI tool, adopted by you" label for
@@ -897,13 +897,13 @@ listed apart, below this item.
    **Step 3 done the same day, and with it item 32** (DESIGN, "Step 3: the gate"; ADR-059, accepted):
    `check_withheld` in `--credits`, `NEVER_WITHHELD` empty, and `unrecorded_findings` in `--check`. Breaks: a
    finding built without `found`, a check's marker removed, and the gate switched off, each caught.
-   **Part status:** claimed by securevibe-e2, 8 October 2026
+   **Part status:** done, 8 October 2026
 
 33. **The backlog is too large to read reliably.** (`docs/GAP-ANALYSIS.md`, 7.5.) Move done items to a file of
    their own; track claims as GitHub issues with assignees, or have CI refuse a claim for an item already claimed
    on `main`; list the remote branches already merged into `main` for the owner, who decides whether any is
    deleted.
-   **Part status:** open
+   **Part status:** done, 10 October 2026
 34. **Hand Semgrep the app's templates and configuration files too.** (`docs/GAP-ANALYSIS.md`, the rest of 1.2.)
    Today 22 loaded rules read only files `sv` never hands Semgrep: templates (`*.erb`, `*.ejs`, `*.pug`, `*.jsp`,
    `*.mustache`), nginx's and Scala Play's `*.conf`, and `web.config`. They count for nothing, which is honest but
@@ -922,3 +922,13 @@ listed apart, below this item.
    **Done 8 October 2026** (DESIGN, "Semgrep is handed the files its rules name"; ADR-018, Later), with three tests
    in `crates/sv-check/tests/unread_files.rs`.
    **Part status:** done, 8 October 2026
+
+**The board brought up to date, 10 October 2026, by session securevibe-e2.** Parts 1, 9, 10, 11, 16, 17, and 32 were
+each done by their own notes above, on the dates their status lines now give, and their status lines still said open
+or claimed; part 21 is partly done, its outside-tool half folded into the owner's next loop trial. Part 33: done items
+are files of their own under `docs/backlog/done/` and a claim on an item already held is refused by
+`tools/backlog.py` (ADR-061). The list of remote branches already in `main` was given to the owner on 10 October 2026:
+of 305 branches, 259 merged, 16 whose every commit is already in `main` under another identity (`git cherry`), and 30
+holding commits `main` does not have, `v1` among them, which stays. Deleting any is the owner's to decide; nothing was
+deleted.
+
