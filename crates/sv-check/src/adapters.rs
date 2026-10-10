@@ -564,6 +564,8 @@ pub struct AdapterRun {
     pub partly: Vec<(String, String)>,
     /// Adapters whose stand-in ran in place of their own program, and the sentence saying so.
     pub stood_in: Vec<(String, String)>,
+    /// Each adapter asked, by id, with what its tool was and how its run went (`ToolRun`).
+    pub tools: Vec<(String, ToolRun)>,
 }
 
 /// Whether the tool is here, and whether it works.
@@ -584,19 +586,31 @@ pub enum Presence {
 }
 
 pub fn presence(adapter: &Adapter) -> Presence {
-    presence_of(adapter, Path::new(&adapter.version.command))
+    presence_of(adapter, Path::new(&adapter.version.command)).0
 }
 
-/// `presence`, asking the program at `program` (where `located` found it).
-fn presence_of(adapter: &Adapter, program: &Path) -> Presence {
+/// `presence`, asking the program at `program` (where `located` found it), with the first line it
+/// answered, stdout before stderr, for the report to say which version ran.
+fn presence_of(adapter: &Adapter, program: &Path) -> (Presence, Option<String>) {
     let mut command = Command::new(program);
     command.args(&adapter.version.args);
     let limit = adapter
         .time_limit_seconds
         .unwrap_or(VERSION_SECONDS)
         .min(VERSION_SECONDS);
-    let ran = finish(prepared(&mut command, adapter), limit);
-    judge_presence(ran.ok().map(|ran| {
+    let ran = finish(
+        prepared(&mut command, adapter).stdout(std::process::Stdio::piped()),
+        limit,
+    );
+    let version = ran.as_ref().ok().and_then(|ran| {
+        [&ran.stdout, &ran.stderr]
+            .into_iter()
+            .flat_map(|text| text.lines())
+            .map(str::trim)
+            .find(|line| !line.is_empty())
+            .map(str::to_owned)
+    });
+    let presence = judge_presence(ran.ok().map(|ran| {
         if ran.timed_out {
             (
                 None,
@@ -610,7 +624,8 @@ fn presence_of(adapter: &Adapter, program: &Path) -> Presence {
         } else {
             (ran.code, ran.stderr)
         }
-    }))
+    }));
+    (presence, version)
 }
 
 /// How long an outside tool may run before it is stopped, unless its entry says otherwise: half an
@@ -705,6 +720,9 @@ struct Finished {
     /// Its exit code: `None` when it was stopped by a signal, by the limit, or by Ctrl-C.
     code: Option<i32>,
     stderr: String,
+    /// What it wrote to stdout, when stdout was piped: only the version question pipes it, since a
+    /// tool's version is its first line there (backlog 226, part 2, item 14).
+    stdout: String,
     timed_out: bool,
     /// Stopped, with everything it started, because the person pressed Ctrl-C (`stop_when`).
     interrupted: bool,
@@ -752,11 +770,27 @@ fn finish_unless(
         return Ok(Finished {
             code: None,
             stderr: String::new(),
+            stdout: String::new(),
             timed_out: false,
             interrupted: true,
         });
     }
     let mut child = command.spawn()?;
+    let (sent_out, received_out) = std::sync::mpsc::channel();
+    if let Some(mut stdout) = child.stdout.take() {
+        std::thread::spawn(move || {
+            let mut kept = Vec::new();
+            let mut buffer = [0u8; 8192];
+            while let Ok(n) = stdout.read(&mut buffer) {
+                if n == 0 {
+                    break;
+                }
+                let room = STDERR_KEPT.saturating_sub(kept.len());
+                kept.extend_from_slice(&buffer[..n.min(room)]);
+            }
+            let _ = sent_out.send(kept);
+        });
+    }
     let (sent, received) = std::sync::mpsc::channel();
     if let Some(mut stderr) = child.stderr.take() {
         std::thread::spawn(move || {
@@ -791,6 +825,9 @@ fn finish_unless(
     let stderr = received
         .recv_timeout(std::time::Duration::from_secs(2))
         .unwrap_or_default();
+    let stdout = received_out
+        .recv_timeout(std::time::Duration::from_secs(2))
+        .unwrap_or_default();
     Ok(Finished {
         code: if timed_out || interrupted {
             None
@@ -798,6 +835,7 @@ fn finish_unless(
             status.and_then(|s| s.code())
         },
         stderr: String::from_utf8_lossy(&stderr).into_owned(),
+        stdout: String::from_utf8_lossy(&stdout).into_owned(),
         timed_out,
         interrupted,
     })
@@ -1054,6 +1092,47 @@ pub fn run_one_in(
     not_holding: &BTreeSet<String>,
     rules: &SecretRules,
 ) -> Outcome {
+    let mut record = ToolRun::default();
+    run_one_recorded(
+        adapter,
+        listing,
+        report_path,
+        not_holding,
+        rules,
+        &mut record,
+    )
+}
+
+/// What one outside tool was and how its run went, for a program reading the report (backlog 226,
+/// part 2, item 14): enough to tell two runs apart when a tool's answer changed, and nothing of the
+/// app. The arguments are the adapter's own, with `{dir}` and the like left unfilled, so no path
+/// of the person's computer is kept; the version line is redacted like anything a tool says.
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+pub struct ToolRun {
+    /// The program that ran: the adapter's own, or the stand-in that ran in its place.
+    pub program: String,
+    /// The first line it answered when asked its version.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    /// The arguments it was given, as the adapter writes them.
+    pub args: Vec<String>,
+    /// Its exit code, when it ran to the end; `None` when it did not run or was stopped.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exit_code: Option<i32>,
+    /// From asking its version to reading its report, in milliseconds.
+    pub took_ms: u64,
+}
+
+/// `run_one_in`, writing down in `record` which program ran, its version, its arguments, and its
+/// exit code, as far as the run got.
+fn run_one_recorded(
+    adapter: &Adapter,
+    listing: &sv_scan::files::Listing,
+    report_path: &Path,
+    not_holding: &BTreeSet<String>,
+    rules: &SecretRules,
+    record: &mut ToolRun,
+) -> Outcome {
     let app_dir = listing.root.as_path();
     let subject = adapter.subject();
     // Where each program is, before anything is asked of it: one inside the app is never started,
@@ -1062,18 +1141,20 @@ pub fn run_one_in(
         Ok(programs) => programs,
         Err(why) => return Outcome::NotRun { why },
     };
-    let own = presence_of(adapter, &programs.version);
+    let (own, own_version) = presence_of(adapter, &programs.version);
     // Asked only when the adapter's own program is missing, so a stand-in never runs beside it.
     let other = match own {
         Presence::Missing => adapter.standing_in().map(|other| {
-            let found = Programs::of(&other, app_dir)
-                .map(|programs| (presence_of(&other, &programs.version), programs));
+            let found = Programs::of(&other, app_dir).map(|programs| {
+                let (presence, version) = presence_of(&other, &programs.version);
+                (presence, programs, version)
+            });
             (found, other)
         }),
         _ => None,
     };
-    let (adapter, own, stood_in, programs) = match &other {
-        Some((Ok((Presence::Ready, theirs)), other)) => (
+    let (adapter, own, stood_in, programs, version) = match &other {
+        Some((Ok((Presence::Ready, theirs, their_version)), other)) => (
             other,
             Presence::Ready,
             Some(StoodIn {
@@ -1084,19 +1165,23 @@ pub fn run_one_in(
                 ),
             }),
             theirs.clone(),
+            their_version.clone(),
         ),
-        _ => (adapter, own, None, programs),
+        _ => (adapter, own, None, programs, own_version),
     };
     let run_args = adapter.run_args(not_holding);
+    record.program = adapter.name.clone();
+    record.version = version.map(|line| said(rules, &line, PRESENCE_CHARS));
+    record.args = run_args.clone();
     match own {
         Presence::Ready => {}
         Presence::Missing => {
             let also = match &other {
-                Some((Ok((Presence::Missing, _)), other)) => format!(
+                Some((Ok((Presence::Missing, _, _)), other)) => format!(
                     " {}, which can run in its place, is not installed either.",
                     other.name
                 ),
-                Some((Ok((Presence::Broken { detail }, _)), other)) => format!(
+                Some((Ok((Presence::Broken { detail }, _, _)), other)) => format!(
                     " {}, which can run in its place, is installed and would not start. It said: \
                      {}",
                     other.name,
@@ -1290,6 +1375,7 @@ pub fn run_one_in(
     let output = finish(prepared(&mut command, adapter), limit);
     std::fs::remove_dir_all(&database).ok();
     std::fs::remove_file(&settings).ok();
+    record.exit_code = output.as_ref().ok().and_then(|ran| ran.code);
     let output = match output {
         Ok(output) => output,
         Err(e) => {
@@ -1497,7 +1583,22 @@ pub fn run_all_in(
     };
     for adapter in adapters.for_languages(languages) {
         let report_path = private.path().join(format!("{}.sarif", adapter.id));
-        match run_one_in(adapter, listing, &report_path, not_holding, rules) {
+        let mut record = ToolRun::default();
+        let began = std::time::Instant::now();
+        let outcome = run_one_recorded(
+            adapter,
+            listing,
+            &report_path,
+            not_holding,
+            rules,
+            &mut record,
+        );
+        record.took_ms = u64::try_from(began.elapsed().as_millis()).unwrap_or(u64::MAX);
+        if record.program.is_empty() {
+            record.program = adapter.name.clone();
+        }
+        run.tools.push((adapter.id.clone(), record));
+        match outcome {
             Outcome::Ran {
                 findings,
                 loaded,
@@ -2359,3 +2460,5 @@ mod interrupt_tests;
 
 #[cfg(all(test, unix))]
 mod fence_tests;
+#[cfg(all(test, unix))]
+mod tool_run_tests;

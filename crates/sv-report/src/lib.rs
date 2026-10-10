@@ -373,6 +373,10 @@ pub struct Examined {
     /// for `semgrep.`, when semgrep is not installed. In a sentence a person can read.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stand_in: Option<String>,
+    /// For an outside tool asked to look: which program it was, its version, its arguments, its
+    /// exit code, and how long it took (backlog 226, part 2, item 14). `None` for `sv`'s own checks.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool: Option<sv_check::adapters::ToolRun>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -398,6 +402,7 @@ impl Examined {
             state: ExaminedState::Ran,
             why: None,
             stand_in: None,
+            tool: None,
         }
     }
 
@@ -407,6 +412,7 @@ impl Examined {
             state: ExaminedState::NotRun,
             why: Some(why.into()),
             stand_in: None,
+            tool: None,
         }
     }
 
@@ -416,7 +422,14 @@ impl Examined {
             state: ExaminedState::Partly,
             why: Some(why.into()),
             stand_in: None,
+            tool: None,
         }
+    }
+
+    /// The same entry, with what the outside tool was and how its run went.
+    pub fn with_tool(mut self, tool: Option<sv_check::adapters::ToolRun>) -> Self {
+        self.tool = tool;
+        self
     }
 
     /// The same entry, saying which program did the looking in place of the one it is named for.
@@ -431,6 +444,7 @@ impl Examined {
             state: ExaminedState::NothingToExamine,
             why: Some(why.into()),
             stand_in: None,
+            tool: None,
         }
     }
 
@@ -780,6 +794,10 @@ pub struct Report {
     /// `sv` was used.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub build_loop: Option<BuildLoop>,
+    /// How long each stage of the run and each outside tool took, in the order they ran (backlog
+    /// 226, part 2, item 13). Empty for a report not made by a run, and then left out.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub timings: Vec<Timing>,
     /// Passed in rather than read from a clock, so the same app twice produces the same bytes.
     pub generated: Option<String>,
     /// Which `sv` made this report, so whoever reads it can tell which checks it had. Without it, a
@@ -1378,6 +1396,43 @@ impl LoopCounts {
         )
     }
 }
+
+/// How long one part of a run took: a stage, or an outside tool.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Timing {
+    pub what: String,
+    pub took_ms: u64,
+}
+
+/// "The slowest parts of this run: …", naming the five that took longest, for the top of a page, or
+/// `None` when the report has no timings.
+pub fn slowest_line(report: &Report) -> Option<String> {
+    let mut slowest: Vec<&Timing> = report.timings.iter().collect();
+    slowest.sort_by_key(|a| std::cmp::Reverse(a.took_ms));
+    let named: Vec<String> = slowest
+        .iter()
+        .take(5)
+        .map(|t| format!("{} ({:.1} s)", t.what, t.took_ms as f64 / 1000.0))
+        .collect();
+    if named.is_empty() {
+        return None;
+    }
+    let total: u64 = report
+        .timings
+        .iter()
+        .filter(|t| !t.what.starts_with(TOOL_TIMING))
+        .map(|t| t.took_ms)
+        .sum();
+    Some(format!(
+        "This run took {:.1} s. The slowest parts: {}.",
+        total as f64 / 1000.0,
+        named.join(", ")
+    ))
+}
+
+/// How an outside tool's timing is named, so the total counts each moment once: a tool runs
+/// inside its stage, whose time already holds it.
+pub const TOOL_TIMING: &str = "the outside tool ";
 
 /// One paragraph saying what the record of the build loop shows, for the top of the report. `None`
 /// for a report that was not written into a report folder.
@@ -2205,6 +2260,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         level_why: None,
         baseline: None,
         build_loop: None,
+        timings: Vec::new(),
         app_name: inputs.app_name.to_owned(),
         target_level: inputs.target_level,
         generated: inputs.generated,
