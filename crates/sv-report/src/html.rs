@@ -538,7 +538,7 @@ pub fn page(report: &Report) -> String {
                 // Information-only findings sit beside the status, never in place of it.
                 escape(&format!(
                     "{detail}{}{}",
-                    line.credit_note(),
+                    line.counting_note(),
                     line.information_note()
                 )),
                 escape(&line.description)
