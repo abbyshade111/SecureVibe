@@ -27,7 +27,8 @@ pub struct Unread {
 
 /// Every package list in `listing` that `read_in` finds and cannot read. The formats it reads line by
 /// line (`pyproject.toml`, `Cargo.toml`, `go.mod`, `Gemfile`, `pom.xml`, Gradle's) cannot fail to
-/// parse, so only one that is not text can land here; JSON and the `Pipfile` can also be malformed.
+/// parse, so only one that is not text can land here; JSON and the `Pipfile` can also be malformed,
+/// and so can the version catalog a Gradle build reads (`gradle/libs.versions.toml`).
 pub fn unread_in(listing: &super::files::Listing) -> Vec<Unread> {
     let app_dir = listing.root.as_path();
     let mut out = BTreeSet::new();
@@ -57,6 +58,19 @@ pub fn unread_in(listing: &super::files::Listing) -> Vec<Unread> {
             out.insert(Unread {
                 manifest: eco.manifest.clone(),
                 why,
+            });
+        }
+        // A Gradle build reads its versions from a catalog beside it; one that is there and cannot
+        // be read leaves them unknown just as an unreadable build file would (backlog 226, part 2,
+        // item 20).
+        if matches!(
+            super::ecosystems::file_name(&eco.manifest),
+            "build.gradle" | "build.gradle.kts"
+        ) && let Some(catalog) = super::jvm::unreadable_catalog(app_dir, &eco.manifest)
+        {
+            out.insert(Unread {
+                manifest: catalog.path,
+                why: catalog.why.to_owned(),
             });
         }
     }

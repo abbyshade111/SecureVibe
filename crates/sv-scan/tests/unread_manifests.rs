@@ -131,3 +131,27 @@ fn each_way_a_package_list_can_fail_is_named_and_a_good_one_is_not() {
     );
     assert_eq!(named.len(), 4, "only the four that fail: {named:?}");
 }
+
+#[test]
+fn a_version_catalog_that_does_not_parse_is_named_among_the_unread() {
+    // Backlog 226, part 2, item 20.
+    let report = scan_files(
+        "catalog",
+        &[
+            (
+                "build.gradle",
+                b"dependencies {\n  implementation libs.okhttp\n}\n",
+            ),
+            ("gradle/libs.versions.toml", b"[libraries\nokhttp = \"x\"\n"),
+        ],
+    );
+    let unread: Vec<(&str, &str)> = report
+        .unread_manifests
+        .iter()
+        .map(|u| (u.manifest.as_str(), u.why.as_str()))
+        .collect();
+    assert_eq!(
+        unread,
+        [("gradle/libs.versions.toml", "it is not valid TOML")]
+    );
+}
