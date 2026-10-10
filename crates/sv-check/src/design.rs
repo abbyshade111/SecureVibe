@@ -111,8 +111,8 @@ impl Questions {
     pub fn load(path: &Path) -> Result<Questions> {
         let text =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-        let questions: Questions =
-            serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
+        let questions: Questions = serde_json::from_str(&text)
+            .with_context(|| sv_frameworks::data::not_understood(path))?;
         for q in &questions.questions {
             if q.asks.trim().is_empty() {
                 anyhow::bail!("{}: the question for {} asks nothing", path.display(), q.id);

@@ -46,8 +46,8 @@ impl HumanChecks {
     pub fn load(path: &Path) -> Result<HumanChecks> {
         let text =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-        let checks: HumanChecks =
-            serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
+        let checks: HumanChecks = serde_json::from_str(&text)
+            .with_context(|| sv_frameworks::data::not_understood(path))?;
         for c in &checks.checks {
             if c.how.trim().is_empty() {
                 anyhow::bail!("{}: the check for {} says nothing", path.display(), c.id);

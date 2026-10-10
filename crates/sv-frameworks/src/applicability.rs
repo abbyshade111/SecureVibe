@@ -79,7 +79,7 @@ impl ApplicabilityConfig {
         let path = knowledge_dir.join("applicability.json");
         let text = std::fs::read_to_string(&path)
             .with_context(|| format!("reading {}", path.display()))?;
-        serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))
+        serde_json::from_str(&text).with_context(|| crate::data::not_understood(&path))
     }
 
     /// Replaces the rules at every scope the overlay mentions.
@@ -91,7 +91,7 @@ impl ApplicabilityConfig {
         let text = std::fs::read_to_string(overlay_path)
             .with_context(|| format!("reading {}", overlay_path.display()))?;
         let overlay: OverlayFile = serde_json::from_str(&text)
-            .with_context(|| format!("parsing {}", overlay_path.display()))?;
+            .with_context(|| crate::data::not_understood(overlay_path))?;
         let replaced: Vec<String> = overlay.rules.iter().map(|r| r.scope.clone()).collect();
         self.rules.retain(|r| !replaced.contains(&r.scope));
         let n = overlay.rules.len();

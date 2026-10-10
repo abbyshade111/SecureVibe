@@ -57,8 +57,8 @@ impl Features {
     pub fn load(path: &std::path::Path) -> Result<Features> {
         let text =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-        let value: Value =
-            serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
+        let value: Value = serde_json::from_str(&text)
+            .with_context(|| sv_frameworks::data::not_understood(path))?;
         Self::from_value(&value).with_context(|| format!("reading {}", path.display()))
     }
 

@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 1 item 11; part 2 items 13 (a time on each running-app step), 15 (a line per outside tool and per running-app suite), and 16 to 20; part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 1 item 11; part 2 items 13 (a time on each running-app step), 15 (a line per outside tool and per running-app suite), 16 (the MCP server's stopped check), and 17 to 20; part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -137,7 +137,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
     `sv_frameworks::data` saying so, and "Nothing about the app was checked". Also the missing next step in
     `NoBackend` and `BackendFailed` (start Docker or Colima), and the MCP "check stopped before it finished", which
     gives no cause and no pointer to the terminal.
-   **Part status:** claimed by stackvet-e9, 10 October 2026
+   **Part status:** partly done: the MCP server's "check stopped before it finished"
 17. **Credit rows that explain themselves.** A needs-attention row shows only the finding, not the checks that
     passed for the same requirement nor the rule that a finding outranks every credit (now only a comment above
     `status_of`); a false alarm set aside turns "checked" into a bare "not verified" with no pointer to why
@@ -336,3 +336,8 @@ backlog", in branch `claude/stackvet-e9-obs-16-20`: a data file `sv` ships that 
 does not match this `sv`, and that nothing about the app was checked; `NoBackend` and `BackendFailed` say to start
 Docker or Colima; each with a test that fails without it. Not the MCP server's "check stopped before it finished",
 nor item 19: open pull request #1325 (another session) rewrites `crates/sv-cli/src/mcp/`, so both wait for it.
+
+**Part 2, item 16 partly done on 10 October 2026** (`docs/design/0348-errors-that-say-what-to-do-shipped-data-that-does-not-parse.md`): the fourteen data files `sv` ships say, when one does
+not parse, that it most likely belongs to another `sv`, what to do, and that nothing about the app was checked;
+`NoBackend` and `BackendFailed` end with the next step. Still open: the MCP server's "check stopped before it
+finished", after #1325. Breaks: with the old wording, each new test fails.
