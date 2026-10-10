@@ -1,6 +1,6 @@
 # A review of `sv` on 27 September 2026: faults, and what could be faster
 
-**Status:** partly done: parts 9, 11, 13 (backlog 0228's conversion read them as not done)
+**Status:** done, 28 September 2026
 
 By session securevibe-e8, at
 the owner's asking ("review sv and add any issues you find or ways to improve or optimize"). Read: the
@@ -176,7 +176,7 @@ every change, and the first is the reason.
    `questions_for_you`; 334 KB to 306 KB on the example. See DESIGN, "The report's shape".
    **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3), read against `main`: both of
    the owner's decisions above are built, as the notes above say; nothing in this part waits on a build.
-   **Part status:** partly done: unclear, needs a look
+   **Part status:** done, 28 September 2026
 10. **No release profile.** `Cargo.toml` sets none, and the binary is 35.6 MB. `lto`, `codegen-units =
     1`, and `strip = true` are the usual settings for a tool built once and shipped, and typically halve
     the size; the Docker image and the "download later" packaging item both carry the binary. Measure
@@ -202,7 +202,7 @@ every change, and the first is the reason.
     **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3), read against `main`: the
     image runs as its own user, and CI's image job builds and drives it on every pull request (`tools/image_smoke.py`,
     which checks the user is not root).
-   **Part status:** partly done: unclear, needs a look
+   **Part status:** done, 28 September 2026
 12. **`sv` holds apps to V15.2.1 and does not hold itself.** CI has no `cargo audit` or `cargo deny`
     step; Dependabot proposes updates but compares nothing; the v2 self-assessment ran the OSV
     comparison once, by hand. A weekly job running `sv audit .` against a downloaded OSV export, or
@@ -400,4 +400,4 @@ every change, and the first is the reason.
     **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3), read against `main`: the
     split is built, as the note above says: `crates/sv-check/src/signed_in/` holds the checks by area, with a map of
     the files at the top of `mod.rs`.
-   **Part status:** partly done: unclear, needs a look
+   **Part status:** done, 28 September 2026

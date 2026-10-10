@@ -60,7 +60,7 @@ changes credits anything: a plan, a brief, or a decision is still checked only t
    `design.planned-never-built`, one that is there asks for yes or no, and one with no `where` is reported as one
    `sv` cannot follow. Nine guards broken in turn, each caught. Not done: the design-time prompts do not ask for
    `planned` (the third trial tested their present wording), and v1's per-app record of decisions is item 9.
-   **Part status:** partly done: unclear, needs a look
+   **Part status:** partly done: the design-time prompts do not yet ask for `planned` (read on 10 October 2026)
 6. **The owner's answers asked by the server itself, where the client allows it.** MCP elicitation shows the person a
    form the AI tool cannot fill, so a design brief answered that way could count as the owner's word rather than the
    tool's. DESIGN lists elicitation as unused, not rejected. Client support varies, and the stateless 2026-07-28
