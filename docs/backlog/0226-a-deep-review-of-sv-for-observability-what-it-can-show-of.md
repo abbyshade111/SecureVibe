@@ -128,7 +128,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
    **Part status:** done, 10 October 2026
 13. **How long each part took.** Every `Instant::now()` outside tests sets a deadline and is never recorded.
     `started_ms` and `took_ms` on each `Examined` entry and each running-app step; "the slowest five" on the page.
-   **Part status:** partly done: a time on each step inside the running-app suites
+   **Part status:** claimed by securevibe-e2, 10 October 2026
 14. **What each outside tool was.** Its version line (asked, then thrown away), its arguments, its exit code, and
     its time, in `Examined` (`crates/sv-check/src/adapters.rs`). Keeping its raw output is part 3, item A.
    **Part status:** done, 10 October 2026
@@ -387,6 +387,12 @@ feature, the declared tests), on stderr; the MCP server unchanged. With a test t
 suite of questions to the running app, and the app's own tests, are said on stderr as each begins, indented under
 their stage; the MCP server, which starts neither, is unchanged. Breaks: with each line taken away, its test fails;
 the Docker harness's lines are caught where a container backend is present (CI).
+
+**Part 2, item 13 claimed on 10 October 2026 by session securevibe-e2**, its remainder, under the owner's
+"continue to work through and pick up new items", in branch `claude/securevibe-e2-suite-times`: each suite of
+questions to the running app timed, from its start (the hook item 15 added) to the next one's, and listed in
+`report.json`'s `timings` after the stages, so the slowest five can name one. Each request inside a suite is not
+timed; what is left of item 13 after this is said in its done note. With a test that fails without it.
 
 **Part 2, item 20 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue", in branch
 `claude/stackvet-e9-obs-20`: a version catalog that does not parse said as not understood, among the package lists
