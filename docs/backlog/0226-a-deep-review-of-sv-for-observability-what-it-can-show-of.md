@@ -161,7 +161,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
     say "not understood". Gaps are prose only (`Gap { what, why }`), and the trial scorer splits them on commas: add
     requirement ids and a reason code. `report.json` has no format version. Whether a report names the advisory
     database it used, its size, and its newest record was not settled: read `assemble.rs` past the part read.
-   **Part status:** partly done: requirement ids and a reason code on each gap
+   **Part status:** claimed by securevibe-e2, 10 October 2026
 
 ### Part 3: the owner's decisions
 
@@ -411,6 +411,22 @@ someone settles first. Each with a test that fails without it.
 understood and named among the unread package lists; `report.json` carries `report_format`; the advisory comparison
 names its database, its size, and its newest record, in `report.json` and at the top of both pages. Still open:
 requirement ids and a reason code on each gap. Breaks: with each change undone, its test fails.
+
+**Part 2, item 20 claimed on 10 October 2026 by session securevibe-e2**, its remainder, under the owner's
+"continue to work through and pick up new items", in branch `claude/securevibe-e2-gap-codes`: a reason code and
+requirement ids on each gap. **Status: proposed**, the set of codes settled here before it is built, since it is
+`report.json`'s shape a program reads:
+
+- `reason`, one of eight, on every gap, with no default, so a gap added later does not build until it says which:
+  `not-asked` (an option was not given: `--run`, `--tools`, `--advisories`), `not-installed` (a tool or the
+  container backend is not there), `could-not-read` (a file did not parse, is not text, or could not be opened),
+  `no-reader` (`sv` has nothing that reads that language or kind of file), `stopped` (something ran and did not
+  finish: a failure, a time limit, Ctrl-C), `person-only` (only a person can check it), `planned` (the owner's
+  design answer says planned, not built), and `partial` (some of it was read and some was not).
+- `requirements`, the requirement ids the gap already names in its own words, and only those: a citation is a claim,
+  so a gap that does not name its requirements carries none, and nothing is guessed.
+- The pages are unchanged; the trial scorer (`tools/prompt_trial.py`) reads `requirements` instead of splitting the
+  text on commas. The record is a dated "Later" entry on the ADR that governs `report.json`'s fields.
 
 **Part 2, item 17 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue", in branch
 `claude/stackvet-e9-obs-17`: rendering and JSON only, no status changes. On the pages, a needs-attention row names
