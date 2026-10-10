@@ -237,8 +237,8 @@ const COMMANDS: &[Command] = &[
         name: "explain",
         word: Some("ID"),
         flags: &[],
-        valued: &["--app"],
-        help: "  sv explain ID [--app DIR]\n                     one requirement, such as V7.4.1: what it asks, the checks that speak\n                     to it and the kind of run each needs, and what to do; --app adds what\n                     the app's last report said about it\n",
+        valued: &["--app", "--report"],
+        help: "  sv explain ID [--app DIR | --report FILE]\n                     one requirement, such as V7.4.1: what it asks, the checks that speak\n                     to it and the kind of run each needs, and what to do; --app adds what\n                     the app's last report said about it, --report what that report said\n",
     },
     Command {
         name: "prompts",
@@ -968,16 +968,21 @@ fn cmd_notes(path: Option<PathBuf>) -> Result<()> {
 fn cmd_explain(args: &[String]) -> Result<()> {
     let mut id = None;
     let mut app = None;
+    let mut report = None;
     let mut words = args.iter();
     while let Some(arg) = words.next() {
         match arg.as_str() {
             "--app" => app = words.next().map(PathBuf::from),
+            "--report" => report = words.next().map(PathBuf::from),
             other if other.starts_with("--") => bail!("unknown option: {other}"),
             other => id = Some(other.to_owned()),
         }
     }
     let id = id.context("give the requirement's id, such as `sv explain V7.4.1`")?;
-    print!("{}", sv_cli::explain::command(&id, app.as_deref())?);
+    print!(
+        "{}",
+        sv_cli::explain::command(&id, app.as_deref(), report.as_deref())?
+    );
     Ok(())
 }
 

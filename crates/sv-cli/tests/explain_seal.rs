@@ -125,3 +125,29 @@ fn a_report_nothing_sealed_is_not_repeated_as_svs() {
     assert!(said.contains("is left out"), "{said}");
     assert!(!said.contains("A forged report"), "{said}");
 }
+
+#[test]
+fn a_report_named_with_report_is_repeated_under_the_same_seal_rule() {
+    // Backlog 226, part 2, item 17: `sv explain` read only the app's last report.
+    let s = Scratch::new("named");
+    let id = s.reported();
+    let elsewhere = s.0.join("kept");
+    copy(&s.app().join("stackvet-report"), &elsewhere);
+    let report = elsewhere.join("report.json");
+    let out = s.sv(&["explain", &id, "--report", report.to_str().unwrap()]);
+    let said = text(&out);
+    assert!(out.status.success(), "{said}");
+    assert!(
+        said.contains(&format!("report at {}, {id} is", report.display())),
+        "{said}"
+    );
+    // The same copy, rewritten, is left out as the app's own would be.
+    let mut json: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&report).unwrap()).unwrap();
+    json["app_name"] = serde_json::json!("A rewritten report");
+    std::fs::write(&report, serde_json::to_vec(&json).unwrap()).unwrap();
+    let out = s.sv(&["explain", &id, "--report", report.to_str().unwrap()]);
+    let said = text(&out);
+    assert!(said.contains("is left out"), "{said}");
+    assert!(!said.contains("A rewritten report"), "{said}");
+}

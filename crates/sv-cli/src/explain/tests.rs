@@ -32,7 +32,7 @@ fn said(d: &Data, id: &str, report: Option<&Value>) -> String {
         &d.prompts,
         &d.human,
         id,
-        report,
+        report.map(|r| (r, "last report")),
     )
     .unwrap()
 }
@@ -165,4 +165,38 @@ fn an_id_no_framework_knows_is_refused() {
             .contains(&format!("{unknown} is not a requirement")),
         "{err}"
     );
+}
+
+#[test]
+fn every_list_of_credits_is_given_with_whose_word_and_each_finding_with_its_place() {
+    // Backlog 226, part 2, item 17: only `checked_by` was printed, and a finding by count alone.
+    let report = json!({
+        "app_name": "Notes",
+        "requirements": [{
+            "id": "V9.1.2",
+            "status": "needs-attention",
+            "findings": ["ast.token-none-algorithm"],
+            "checked_by": [{"check_id": "config.something", "scope": "the config"}],
+            "tested_by": [{"check_id": "app-tests", "scope": "a test"}],
+            "attested_by": [{"check_id": "design.attested", "scope": "yes", "whose": "the owner"}],
+            "withheld_by": ["ast.other"]
+        }],
+        "findings": [{
+            "rule_id": "ast.token-none-algorithm",
+            "title": "A token accepted with no signature",
+            "location": {"file": "app/auth.py", "line": 12},
+            "requirement_ids": ["V9.1.2"]
+        }]
+    });
+    let text = from_report(&report, "last report", "V9.1.2", &[]);
+    for words in [
+        "Checked by: config.something.",
+        "Tested by the app's own tests (written by the AI coding tool, not a check of sv's): app-tests.",
+        "Answered yes: design.attested (the owner).",
+        "Kept from counting: ast.other was set aside as a false alarm",
+        "1 finding names it, and a finding outranks every credit, so what passed does not count:",
+        "  ast.token-none-algorithm at app/auth.py:12: A token accepted with no signature",
+    ] {
+        assert!(text.contains(words), "missing {words:?} in:\n{text}");
+    }
 }

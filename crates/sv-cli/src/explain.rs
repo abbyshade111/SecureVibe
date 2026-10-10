@@ -80,6 +80,19 @@ fn named(row: &Value, key: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// Each list of credits a report row holds, with the words `sv explain` puts before it.
+const CREDIT_LISTS: &[(&str, &str)] = &[
+    ("checked_by", "Checked by"),
+    (
+        "tested_by",
+        "Tested by the app's own tests (written by the AI coding tool, not a check of sv's)",
+    ),
+    ("supported_by", "Supporting it, not counted for it"),
+    ("documented_by", "Answered in the security notes"),
+    ("by_hand", "Checked by hand"),
+    ("attested_by", "Answered yes"),
+];
+
 /// The report's own label when only the AI coding tool's word stands behind the row's status and a
 /// person confirmed it, read by the report's own rule (`sv_report::confirmed_only_by`); `None` when
 /// the status is somebody's own record, or not one of those kinds at all.
@@ -96,14 +109,14 @@ fn confirmed_label(row: &Value) -> Option<&'static str> {
 
 /// What the app's last report said about `id`: its status and what stood behind it, or that the
 /// requirement was not among those that apply to the app.
-fn from_report(report: &Value, id: &str, checks: &[CheckLine]) -> String {
+fn from_report(report: &Value, which: &str, id: &str, checks: &[CheckLine]) -> String {
     let app = report["app_name"].as_str().unwrap_or("the app");
     let Some(row) = report["requirements"]
         .as_array()
         .and_then(|rows| rows.iter().find(|r| r["id"] == id))
     else {
         return format!(
-            "In {app}'s last report, {id} is not among the requirements that apply: it does not \
+            "In {app}'s {which}, {id} is not among the requirements that apply: it does not \
              apply to the app, or it is above the app's level. `sv scope` says which, and why.\n"
         );
     };
@@ -115,17 +128,75 @@ fn from_report(report: &Value, id: &str, checks: &[CheckLine]) -> String {
         ),
         None => status_words(status).to_owned(),
     };
-    let mut out = format!("In {app}'s last report, {id} is {words}.\n");
-    let checked = named(row, "checked_by");
-    if !checked.is_empty() {
-        out.push_str(&format!("Checked by: {}.\n", checked.join(", ")));
+    let mut out = format!("In {app}'s {which}, {id} is {words}.\n");
+    // Every list of credits, each with whose word an entry is when it is somebody's (backlog 226,
+    // part 2, item 17): until 10 October 2026 only `checked_by` was printed.
+    for (key, label) in CREDIT_LISTS {
+        let entries: Vec<String> = row[*key]
+            .as_array()
+            .map(|v| {
+                v.iter()
+                    .filter_map(|x| {
+                        let check = x.get("check_id")?.as_str()?;
+                        Some(match x.get("whose").and_then(Value::as_str) {
+                            Some(whose) => format!("{check} ({whose})"),
+                            None => check.to_owned(),
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        if !entries.is_empty() {
+            out.push_str(&format!("{label}: {}.\n", entries.join(", ")));
+        }
     }
-    let findings = row["findings"].as_array().map_or(0, Vec::len);
-    if findings > 0 {
+    let withheld: Vec<&str> = row["withheld_by"]
+        .as_array()
+        .map(|v| v.iter().filter_map(Value::as_str).collect())
+        .unwrap_or_default();
+    if !withheld.is_empty() {
         out.push_str(&format!(
-            "{findings} finding{} name it; the report lists {}.\n",
-            if findings == 1 { "" } else { "s" },
-            if findings == 1 { "it" } else { "them" }
+            "Kept from counting: {} was set aside as a false alarm, and a person's word that a rule \
+             was wrong does not show the protection is in place.\n",
+            withheld.join(", ")
+        ));
+    }
+    // Each finding that names it, with its place, so it can be found without opening the report.
+    let findings: Vec<String> = report["findings"]
+        .as_array()
+        .map(|all| {
+            all.iter()
+                .filter(|f| {
+                    f["requirement_ids"]
+                        .as_array()
+                        .is_some_and(|ids| ids.iter().any(|r| r == id))
+                })
+                .map(|f| {
+                    format!(
+                        "  {} at {}:{}: {}",
+                        f["rule_id"].as_str().unwrap_or("?"),
+                        f["location"]["file"].as_str().unwrap_or("?"),
+                        f["location"]["line"].as_u64().unwrap_or(0),
+                        f["title"].as_str().unwrap_or_default()
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    if !findings.is_empty() {
+        out.push_str(&format!(
+            "{} finding{} name{} it{}:\n{}\n",
+            findings.len(),
+            if findings.len() == 1 { "" } else { "s" },
+            if findings.len() == 1 { "s" } else { "" },
+            if status == "needs-attention"
+                && row["checked_by"].as_array().is_some_and(|c| !c.is_empty())
+            {
+                ", and a finding outranks every credit, so what passed does not count"
+            } else {
+                ""
+            },
+            findings.join("\n")
         ));
     }
     if status == "not-verified" {
@@ -178,7 +249,7 @@ pub fn explain(
     prompts: &sv_check::prompts::Prompts,
     human: &sv_check::human::HumanChecks,
     id: &str,
-    report: Option<&Value>,
+    report: Option<(&Value, &str)>,
 ) -> Result<String> {
     let r = frameworks
         .get(id)
@@ -193,9 +264,9 @@ pub fn explain(
             .unwrap_or_default(),
         r.description
     );
-    if let Some(report) = report {
+    if let Some((report, which)) = report {
         out.push('\n');
-        out.push_str(&from_report(report, id, &checks_for(reach, id)));
+        out.push_str(&from_report(report, which, id, &checks_for(reach, id)));
     }
 
     out.push_str("\nWhat sv checks\n");
@@ -257,8 +328,10 @@ pub fn explain(
     Ok(out)
 }
 
-/// `sv explain ID [PATH]`, with the data files read from where `sv` keeps them.
-pub fn command(id: &str, app: Option<&Path>) -> Result<String> {
+/// `sv explain ID [--app DIR] [--report FILE]`, with the data files read from where `sv` keeps
+/// them. `--report` reads that report in place of the app's last one (backlog 226, part 2, item
+/// 17), under the same rule: only a report `sv` can show it wrote is repeated.
+pub fn command(id: &str, app: Option<&Path>, report_file: Option<&Path>) -> Result<String> {
     let frameworks = crate::load_frameworks(&crate::data_dir()?)?;
     let reach_path = sv_frameworks::data::file("reach.json");
     let reach: Value = serde_json::from_str(
@@ -271,19 +344,29 @@ pub fn command(id: &str, app: Option<&Path>) -> Result<String> {
     let prompts = sv_check::prompts::Prompts::load_all(&[&paths[0], &paths[1]])?;
     let human =
         sv_check::human::HumanChecks::load(&sv_frameworks::data::file("human-checks.json"))?;
-    let (report, unproven) = match app {
+    let asked = match (report_file, app) {
+        (Some(file), _) => Some((
+            file.to_path_buf(),
+            format!("report at {}", file.display()),
+            format!("reading {}", file.display()),
+        )),
+        (None, Some(app)) => {
+            let path = sv_scan::ecosystems::default_report_dir_in(app).join("report.json");
+            let missing = format!(
+                "reading {}: no report there yet; `sv report {}` writes one",
+                path.display(),
+                app.display()
+            );
+            Some((path, "last report".to_owned(), missing))
+        }
+        (None, None) => None,
+    };
+    let (report, unproven) = match &asked {
         None => (None, None),
-        Some(app) => {
-            let dir = sv_scan::ecosystems::default_report_dir_in(app);
-            let path = dir.join("report.json");
-            let bytes = std::fs::read(&path).with_context(|| {
-                format!(
-                    "reading {}: no report there yet; `sv report {}` writes one",
-                    path.display(),
-                    app.display()
-                )
-            })?;
-            match sealed_as_read(&dir, &bytes) {
+        Some((path, _, missing)) => {
+            let dir = path.parent().unwrap_or(Path::new("."));
+            let bytes = std::fs::read(path).with_context(|| missing.clone())?;
+            match sealed_as_read(dir, &bytes) {
                 Ok(()) => (
                     Some(
                         serde_json::from_slice::<Value>(&bytes)
@@ -291,7 +374,7 @@ pub fn command(id: &str, app: Option<&Path>) -> Result<String> {
                     ),
                     None,
                 ),
-                Err(why) => (None, Some((path, why))),
+                Err(why) => (None, Some((path.clone(), why))),
             }
         }
     };
@@ -304,6 +387,7 @@ pub fn command(id: &str, app: Option<&Path>) -> Result<String> {
         ));
         return Ok(out);
     }
+    let which = asked.as_ref().map_or("", |(_, which, _)| which.as_str());
     explain(
         &frameworks,
         &reach,
@@ -311,7 +395,7 @@ pub fn command(id: &str, app: Option<&Path>) -> Result<String> {
         &prompts,
         &human,
         id,
-        report.as_ref(),
+        report.as_ref().map(|r| (r, which)),
     )
 }
 
