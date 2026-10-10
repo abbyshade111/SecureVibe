@@ -2491,7 +2491,52 @@ fn summary_counts(c: &sv_report::Counts) -> String {
     out
 }
 
+/// `sv report`, and, when history is on, a record of a run that failed or was stopped with Ctrl-C
+/// before it wrote its report, so the dashboard does not show the last report as current (ADR-083,
+/// part 2). A command line that names no app folder is not a run, and leaves no record.
 fn cmd_report(args: &[String]) -> Result<i32> {
+    let started = std::time::SystemTime::now();
+    let mut app_seen = None;
+    let result = report_command(args, started, &mut app_seen);
+    if let (Err(_), Some(app)) = (&result, &app_seen) {
+        keep_unfinished(
+            app,
+            started,
+            sv_report::dashboard::Outcome::Failed,
+            exit::FAILED,
+        );
+    }
+    result
+}
+
+/// Keeps the record of a run that did not finish, when history is on; a failure to keep it is said,
+/// never in place of what stopped the run.
+fn keep_unfinished(
+    app: &Path,
+    started: std::time::SystemTime,
+    outcome: sv_report::dashboard::Outcome,
+    code: i32,
+) {
+    let run = sv_report::dashboard::Run::unfinished(
+        &report_lock::run_record(started, b""),
+        sv_report::MadeBy {
+            version: env!("CARGO_PKG_VERSION").to_owned(),
+            commit: env!("SV_GIT_COMMIT").to_owned(),
+        }
+        .describe(),
+        outcome,
+        code,
+    );
+    if let Err(e) = history::keep(app, &run) {
+        eprintln!("History is on, and this run's record could not be kept: {e:#}");
+    }
+}
+
+fn report_command(
+    args: &[String],
+    started: std::time::SystemTime,
+    app_seen: &mut Option<PathBuf>,
+) -> Result<i32> {
     let (fail_on, args) = exit::FailOn::take(args)?;
     // Read before the run, and before this run's report is written: the baseline may be the very
     // folder it is written into.
@@ -2509,6 +2554,18 @@ fn cmd_report(args: &[String]) -> Result<i32> {
         run_tools,
         advisories_dir,
     } = parse_report_args(args, "a directory")?;
+    *app_seen = Some(app_dir.clone());
+    {
+        let app = app_dir.clone();
+        exit::on_interrupt(Box::new(move || {
+            keep_unfinished(
+                &app,
+                started,
+                sv_report::dashboard::Outcome::Stopped,
+                exit::INTERRUPTED,
+            )
+        }));
+    }
     let advisories_given = advisories_dir.is_some();
     // Loaded before the report and kept after it, so the exit status is decided from the same
     // reading of `adapters.json` the report was made from.
@@ -2554,9 +2611,6 @@ fn cmd_report(args: &[String]) -> Result<i32> {
         &mut |note| eprintln!("{note}\n"),
     )?;
     let written = written.names();
-
-    // History, when the person keeps it (ADR-057): after the report is written, never instead of it.
-    let kept = sv_report::dashboard::Run::of(&report).map(|run| history::keep(&app_dir, &run));
 
     let c = &report.counts;
     println!("Wrote {} files to {}:", written.len(), out_dir.display());
@@ -2693,6 +2747,12 @@ fn cmd_report(args: &[String]) -> Result<i32> {
         "\nOpen report.html to read it. Nothing in there says a requirement passed, because \
          nothing here can establish that."
     );
+    // History, when the person keeps it (ADR-057): after the report is written, never instead of it,
+    // with what the run ends with (ADR-083, part 2).
+    let kept = sv_report::dashboard::Run::of(&report).map(|mut run| {
+        run.exit_code = Some(status);
+        history::keep(&app_dir, &run)
+    });
     match kept {
         Some(Ok(Some(_))) => println!(
             "Kept a record of this run in your history (`sv history off` stops it; `sv dashboard` shows it)."

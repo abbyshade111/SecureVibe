@@ -48,8 +48,29 @@ pub fn worse(a: i32, b: i32) -> i32 {
 /// Stopped with Ctrl-C: the usual code for it.
 pub const INTERRUPTED: i32 = 130;
 
+/// What to do before `sv` ends because it was stopped with Ctrl-C, set once by the command that
+/// wants it: `sv report` keeps a record of the stopped run when history is on (ADR-083, part 2).
+static BEFORE_INTERRUPT: std::sync::OnceLock<Box<dyn Fn() + Send + Sync>> =
+    std::sync::OnceLock::new();
+
+/// Sets what `before_interrupt_exit` does. A second call is ignored: one run, one command.
+pub fn on_interrupt(step: Box<dyn Fn() + Send + Sync>) {
+    let _ = BEFORE_INTERRUPT.set(step);
+}
+
+/// Does what `on_interrupt` set, if anything; `exit_with` calls it before ending with
+/// `INTERRUPTED`.
+pub fn before_interrupt_exit() {
+    if let Some(step) = BEFORE_INTERRUPT.get() {
+        step();
+    }
+}
+
 /// Ends the process with `code`, once what was printed is out.
 pub fn exit_with(code: i32) -> ! {
+    if code == INTERRUPTED {
+        before_interrupt_exit();
+    }
     use std::io::Write;
     let _ = std::io::stdout().flush();
     let _ = std::io::stderr().flush();

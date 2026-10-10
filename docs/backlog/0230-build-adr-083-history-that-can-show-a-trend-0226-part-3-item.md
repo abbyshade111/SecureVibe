@@ -19,3 +19,7 @@ two runs"): each run records the hashes of the security notes, the design decisi
 dashboard names which changed when two runs are not compared. Decision 2 (a failed run's record), what remains of
 decision 4, and `sv compare` remain.
 
+**Decision 2 built 10 October 2026 by session securevibe-e2** (design entry "History keeps a run that did not
+finish"): a run that failed or was stopped with Ctrl-C is kept as such, and the dashboard says when the report shown is
+older than the latest run. What remains of decision 4, and `sv compare`, remain.
+

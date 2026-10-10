@@ -76,6 +76,25 @@ pub struct Run {
     /// The hashes of what else the run read that can move a requirement: the security notes, the
     /// design decisions, and `sv`'s data (ADR-083, part 3). `None` in a record from before format 3.
     pub inputs: Option<crate::RunInputs>,
+    /// How the run ended (ADR-083, part 2). A record from before format 4 is of a finished run:
+    /// only those were kept.
+    pub outcome: Outcome,
+    /// What `sv` ended with: 0, 1, or 2 for a finished run, 3 for one that failed, 130 for one
+    /// stopped with Ctrl-C. `None` in a record from before format 4.
+    pub exit_code: Option<i32>,
+}
+
+/// How a kept run ended.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Outcome {
+    /// It wrote its report.
+    #[default]
+    Finished,
+    /// `sv` met an error it could not get past, and wrote no report.
+    Failed,
+    /// It was stopped with Ctrl-C, and wrote no report.
+    Stopped,
 }
 
 /// One requirement's status in one run.
@@ -101,7 +120,7 @@ impl Run {
     pub fn of(report: &crate::Report) -> Option<Run> {
         let record = report.run_record.as_ref()?;
         Some(Run {
-            format: 3,
+            format: 4,
             started: record.started.clone(),
             started_unix_ms: record.started_unix_ms,
             app_name: report.app_name.clone(),
@@ -133,7 +152,34 @@ impl Run {
                 })
                 .collect(),
             inputs: record.inputs.clone(),
+            outcome: Outcome::Finished,
+            exit_code: None,
         })
+    }
+
+    /// The record of a run that did not finish: when it started, which `sv`, how it ended, and
+    /// nothing else. Not the error: it can quote the app's own files, and history keeps none of
+    /// the app's text. The person saw it where the run was made.
+    pub fn unfinished(
+        started: &crate::RunRecord,
+        sv: String,
+        outcome: Outcome,
+        exit_code: i32,
+    ) -> Run {
+        Run {
+            format: 4,
+            started: started.started.clone(),
+            started_unix_ms: started.started_unix_ms,
+            sv,
+            outcome,
+            exit_code: Some(exit_code),
+            ..Run::default()
+        }
+    }
+
+    /// Whether it wrote its report.
+    pub fn finished(&self) -> bool {
+        self.outcome == Outcome::Finished
     }
 
     /// Each requirement whose status is not the same in `earlier` and `self`, as (id, then, now),
@@ -191,7 +237,9 @@ impl Run {
             },
             _ => false,
         };
-        if self.not_run != earlier.not_run {
+        if !self.finished() || !earlier.finished() {
+            Some("it did not finish, so there is nothing to set against it")
+        } else if self.not_run != earlier.not_run {
             Some("a different kind of run, which reaches different requirements")
         } else if self.target_level != earlier.target_level {
             Some("held to a different level")
@@ -394,6 +442,27 @@ fn prose(text: &str) -> String {
         .collect()
 }
 
+/// When the newest run kept did not finish, a line saying so, and that the report shown is older;
+/// empty otherwise.
+fn unfinished_note(runs: &[Run]) -> String {
+    let Some(last) = runs.last().filter(|r| !r.finished()) else {
+        return String::new();
+    };
+    let since = runs.iter().rev().find(|r| r.finished());
+    format!(
+        "<p class=\"note\"><strong>The latest run, on {}, did not finish.</strong> The report \
+         shown is from {}.</p>\n",
+        escape(&day(&Some(last.started.clone()))),
+        since.map_or(
+            "an earlier run, or from no run kept here".to_owned(),
+            |r| format!(
+                "the last run that did, on {}",
+                escape(&day(&Some(r.started.clone())))
+            )
+        )
+    )
+}
+
 /// The date part of a report's start time, as the page shows it.
 fn day(started: &Option<String>) -> String {
     started
@@ -439,9 +508,30 @@ fn over_time(runs: &[Run], unread: usize) -> String {
     let mut b = String::from(
         "<h3>Over time</h3>\n<p class=\"note\">From the history kept on this computer. A run is set \
          against the last earlier one of the same kind, at the same level, from the same stackvet.toml, \
-         by the same sv; any other comparison would show the run changing, not the app.</p>\n<ul>\n",
+         by the same sv; any other comparison would show the run changing, not the app.</p>\n\n",
     );
+    // The newest run did not finish: the report above is from an earlier one, and that is said
+    // first, or the page would show it as today's (ADR-083, part 2).
+    b.push_str(&unfinished_note(runs));
+    b.push_str("<ul>\n");
     for (i, run) in runs.iter().enumerate().rev() {
+        if !run.finished() {
+            b.push_str(&format!(
+                "<li><strong>{}</strong> <span class=\"note\">sv {}</span><br>Did not finish: {}, \
+                 and wrote no report{}.</li>\n",
+                escape(&day(&Some(run.started.clone()))),
+                escape(&run.sv),
+                if run.outcome == Outcome::Stopped {
+                    "it was stopped with Ctrl-C"
+                } else {
+                    "sv stopped with an error, which it printed where it ran"
+                },
+                run.exit_code
+                    .map(|c| format!(" (it ended with {c})"))
+                    .unwrap_or_default()
+            ));
+            continue;
+        }
         b.push_str(&format!(
             "<li><strong>{}</strong> <span class=\"note\">{} · level {} · sv {}</span>",
             escape(&day(&Some(run.started.clone()))),
@@ -459,7 +549,9 @@ fn over_time(runs: &[Run], unread: usize) -> String {
             .iter()
             .rev()
             .find(|e| run.not_comparable_with(e).is_none());
-        match (earlier, runs[..i].last()) {
+        // The run before it that finished: one that did not has nothing to set against it.
+        let previous = runs[..i].iter().rev().find(|r| r.finished());
+        match (earlier, previous) {
             (Some(e), _) => {
                 b.push_str(&format!(
                     "<br>Compared with {}:<ul>",
@@ -475,6 +567,9 @@ fn over_time(runs: &[Run], unread: usize) -> String {
                 run.not_comparable_with(previous)
                     .unwrap_or("no earlier run like it")
             )),
+            (None, None) if i > 0 => b.push_str(
+                "<br><span class=\"note\">Not compared: no run before it finished.</span>",
+            ),
             (None, None) => b.push_str("<br><span class=\"note\">The first run kept.</span>"),
         }
         b.push_str("</li>\n");
@@ -626,6 +721,7 @@ pub fn page(apps: &[App], written: &str) -> String {
                     kind(s),
                     escape(&s.sv)
                 ));
+                b.push_str(&unfinished_note(&app.runs));
                 b.push_str(&glance_of(&s.counts, s.target_level));
                 b.push_str(&format!("<p>Findings: {}</p>\n", chips(&s.findings)));
             }
@@ -640,6 +736,8 @@ pub fn page(apps: &[App], written: &str) -> String {
 mod inputs_tests;
 #[cfg(test)]
 mod moved_tests;
+#[cfg(test)]
+mod unfinished_tests;
 #[cfg(test)]
 mod unread_tests;
 
