@@ -137,7 +137,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
     `sv_frameworks::data` saying so, and "Nothing about the app was checked". Also the missing next step in
     `NoBackend` and `BackendFailed` (start Docker or Colima), and the MCP "check stopped before it finished", which
     gives no cause and no pointer to the terminal.
-   **Part status:** open
+   **Part status:** claimed by stackvet-e9, 10 October 2026
 17. **Credit rows that explain themselves.** A needs-attention row shows only the finding, not the checks that
     passed for the same requirement nor the rule that a finding outranks every credit (now only a comment above
     `status_of`); a false alarm set aside turns "checked" into a bare "not verified" with no pointer to why
@@ -330,3 +330,9 @@ line, arguments (unfilled), exit code, and time kept in its `Examined` entry; ea
 `report.json`'s `timings`, with the slowest five named on `report.html` and `compliance.md`. Still open in item
 13: a time on each step inside the running-app suites. Breaks: without stdout read for the version, and without the
 timings, each new test fails.
+
+**Part 2, item 16 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue to work off the
+backlog", in branch `claude/stackvet-e9-obs-16-20`: a data file `sv` ships that does not parse says it most likely
+does not match this `sv`, and that nothing about the app was checked; `NoBackend` and `BackendFailed` say to start
+Docker or Colima; each with a test that fails without it. Not the MCP server's "check stopped before it finished",
+nor item 19: open pull request #1325 (another session) rewrites `crates/sv-cli/src/mcp/`, so both wait for it.
