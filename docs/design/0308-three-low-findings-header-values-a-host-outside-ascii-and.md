@@ -2,7 +2,7 @@
 
 
 
-From the review of 8 October 2026, item 6 (`docs/backlog/0188-from-the-review-of-8-october-2026-the-medium-and-low.md`),
+From the review of 8 October 2026, item 6 (`docs/backlog/done/0188-from-the-review-of-8-october-2026-the-medium-and-low.md`),
 three of its low findings.
 
 **A header value quoted whole.** The site chooses its headers. `sv probe` quoted a Strict-Transport-Security value, a

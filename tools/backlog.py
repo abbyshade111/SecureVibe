@@ -23,7 +23,9 @@ set by `claim 0226.1` and `done 0226.1` as an item's is, and read by `list`, `--
 set from that line alone, never from the prose. A note written at the item's end, at the left margin, belongs to no
 part; `--check` fails when one names a part ("**Part 1, item 3 claimed", "**Items 3 and 7 done") that the part's own
 line disagrees with, when a part has no line, and when an item is `done` with a part that is not, or `open` with one
-begun. The numbers keep the order the items stood
+begun. A done item's file is under docs/backlog/done/, the rest beside it, so the folder lists live work alone (backlog
+0228, part 6); `done` moves an item there and rewrites any path to it in the repository, and `tidy` puts every item where
+its status says. `--check` warns, without failing, of a live item past 300 lines (part 8). The numbers keep the order the items stood
 in the old single file when it was split on 8 October 2026, and are an identity, not a date; two pull requests open
 at once may take the same number, which harms nothing. docs/BACKLOG.md holds the rules and the roadmap, and no item
 and no list of items: a list every item adds a line to would bring back the conflicts this layout is for.
@@ -37,6 +39,7 @@ and no list of items: a list every item adds a line to would bring back the conf
     python3 tools/backlog.py done 0150                # sets `done, <today>`; with --remains "..." sets `partly done: ...`
     python3 tools/backlog.py done 0226.3              # the same for a part
     python3 tools/backlog.py convert                  # gives every part with no status line one, once (run on 9 October 2026)
+    python3 tools/backlog.py tidy                     # puts each item's file under done/ or beside it, as its status says
     python3 tools/backlog.py show 0150                # prints the item
     python3 tools/backlog.py --check                  # fails on a misnamed file, a missing title or status, two files with
                                                       # one title, or an item left in docs/BACKLOG.md
@@ -74,6 +77,11 @@ def write_text(path, text):
 ROOT = Path(__file__).resolve().parent.parent
 FOLDER = ROOT / "docs" / "backlog"
 BACKLOG = ROOT / "docs" / "BACKLOG.md"
+# A done item's file moves here, keeping its number and name, so the folder above holds only live work (backlog 0228,
+# part 6). Everything that reads items reads both.
+DONE_DIR = "done"
+# An item past this many lines is named by --check as one to split, a warning and not a failure (backlog 0228, part 8).
+LONG_ITEM = 300
 
 NAME = re.compile(r"^(\d{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
 STATUS = re.compile(r"^\*\*Status:\*\* (?P<text>.+?)[ \t]*$", re.M)
@@ -245,7 +253,60 @@ class Item:
 
 
 def items(folder=FOLDER):
-    return [Item(p) for p in sorted(folder.glob("*.md"))]
+    """Every item, live and done, in number order."""
+    paths = list(folder.glob("*.md")) + list((folder / DONE_DIR).glob("*.md"))
+    return [Item(p) for p in sorted(paths, key=lambda p: p.name)]
+
+
+def where_for(folder, item):
+    """The file an item belongs in: under `done/` when it is done, beside the others when it is not."""
+    return (folder / DONE_DIR if item.kind == "done" else folder) / item.path.name
+
+
+def root_of(folder):
+    """The repository a backlog folder belongs to: this one for `docs/backlog`, and the folder's own parent for one
+    elsewhere (the self-test's), so a rewrite never reaches past the backlog's own tree."""
+    folder = folder.resolve()
+    return ROOT.resolve() if folder.is_relative_to(ROOT.resolve()) else folder.parent
+
+
+def moved(folder, item, root=None):
+    """Moves an item's file to where its status says it belongs, and rewrites every path to it in the repository's
+    text, so a reference to the old place is never left pointing at nothing. Returns the files rewritten."""
+    to = where_for(folder, item)
+    if to == item.path:
+        return []
+    root = root or root_of(folder)
+    to.parent.mkdir(parents=True, exist_ok=True)
+    old_rel = item.path.resolve().relative_to(root).as_posix()
+    new_rel = to.resolve().parent.relative_to(root).as_posix() + "/" + to.name
+    item.path.rename(to)
+    item.path = to
+    rewritten = []
+    for path in root.rglob("*"):
+        if (not path.is_file() or path.suffix not in (".md", ".rs", ".py", ".toml", ".json", ".yml", ".html", ".txt")
+                or {".git", "target", "node_modules"} & set(path.relative_to(root).parts)):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        if old_rel in text:
+            write_text(path, text.replace(old_rel, new_rel))
+            rewritten.append(path)
+    return rewritten
+
+
+def tidy(folder, root=None):
+    """Puts every item's file where its status says it belongs; run once when `done/` was made, on 10 October 2026,
+    and by `done` for one item ever after."""
+    changes = []
+    for item in items(folder):
+        before = item.path
+        rewritten = moved(folder, item, root)
+        if item.path != before:
+            changes.append((item, rewritten))
+    return changes
 
 
 def find(folder, key):
@@ -265,7 +326,10 @@ def text_of(title, status, body):
 
 
 def write(folder, number, title, status, body):
-    path = folder / f"{number:04d}-{slug(title)}.md"
+    """Writes an item, under `done/` when its status is done."""
+    place = folder / DONE_DIR if kind_of(status) == "done" else folder
+    place.mkdir(parents=True, exist_ok=True)
+    path = place / f"{number:04d}-{slug(title)}.md"
     write_text(path, text_of(title, status, body))
     return path
 
@@ -402,7 +466,8 @@ def part_problems(item):
 def problems(backlog, folder):
     found = []
     titles = {}
-    for path in sorted(folder.glob("*")):
+    paths = [p for p in folder.glob("*") if p.name != DONE_DIR] + list((folder / DONE_DIR).glob("*"))
+    for path in sorted(paths, key=lambda p: p.name):
         if path.name.startswith("."):
             continue
         if not NAME.match(path.name):
@@ -417,6 +482,9 @@ def problems(backlog, folder):
         elif not item.kind:
             found.append(f"{path.name}: the status {item.status_text!r} is in none of the four forms")
         found.extend(part_problems(item))
+        if item.kind and where_for(folder, item) != item.path:
+            found.append(f"{path.name} is {item.kind} and in the wrong folder: a done item belongs under {DONE_DIR}/, and only "
+                         f"a done one (`backlog.py tidy` puts each where its status says)")
         if item.title in titles:
             found.append(f"{path.name} and {titles[item.title]} share the title {item.title!r}")
         titles[item.title] = path.name
@@ -425,6 +493,12 @@ def problems(backlog, folder):
             if line.startswith("- **") or line.startswith("- ~~**"):
                 found.append(f"{backlog.name} line {n} is an item; items are files under {folder.name}/")
     return found
+
+
+def warnings(folder):
+    """An item long enough to be worth splitting: named, never failed on (backlog 0228, part 8)."""
+    return [f"{i.path.name} is {i.text.count(chr(10))} lines; past {LONG_ITEM}, think of making its next findings items "
+            f"of their own" for i in items(folder) if i.kind != "done" and i.text.count("\n") > LONG_ITEM]
 
 
 def show_list(found, only):
@@ -591,6 +665,32 @@ rules
         assert any("is done, and not all of its parts are" in p for p in part_problems(find(folder, "1")))
         write_text(item.path, text.replace("partly done: two findings", "open"))
         assert any("is open, and some of its parts are under way" in p for p in part_problems(find(folder, "1")))
+    # The done folder (backlog 0228, part 6): `done` moves an item there and rewrites the paths to it; an item given
+    # what remains moves back; the check names one in the wrong folder; a long item draws a warning, never a failure.
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        folder = root / "backlog"
+        folder.mkdir()
+        write_text(folder / "0001-a-thing.md", "# A thing\n\n**Status:** open\n\nText.\n")
+        cites = root / "notes.md"
+        write_text(cites, "See `backlog/0001-a-thing.md` for it.\n")
+        assert mark_done(folder, "1", "10 October 2026", None) is True
+        assert (folder / DONE_DIR / "0001-a-thing.md").exists() and not (folder / "0001-a-thing.md").exists()
+        assert cites.read_text(encoding="utf-8") == "See `backlog/done/0001-a-thing.md` for it.\n", cites.read_text()
+        assert find(folder, "1").kind == "done" and [i.number for i in items(folder)] == [1]
+        assert problems(root / "NONE.md", folder) == []
+        assert mark_done(folder, "1", "10 October 2026", "one more piece") is True
+        assert (folder / "0001-a-thing.md").exists(), "a done item given what remains is live again"
+        assert "backlog/0001-a-thing.md" in cites.read_text(encoding="utf-8")
+        # Put by hand in the wrong folder, it is named, and `tidy` puts it back.
+        (folder / "0001-a-thing.md").rename(folder / DONE_DIR / "0001-a-thing.md")
+        assert any("in the wrong folder" in p for p in problems(root / "NONE.md", folder))
+        assert [i.path.parent.name for i, _ in tidy(folder)] == ["backlog"] and problems(root / "NONE.md", folder) == []
+        # A new item takes the number after the highest, done ones counted.
+        write_text(folder / DONE_DIR / "0009-old.md", "# Old\n\n**Status:** done, 1 October 2026\n")
+        assert new(folder, "Newer").name == "0010-newer.md"
+        write_text(folder / "0011-long.md", "# Long\n\n**Status:** open\n\n" + "a line\n" * (LONG_ITEM + 1))
+        assert any("0011-long.md is" in w for w in warnings(folder)) and problems(root / "NONE.md", folder) == []
     print("backlog self-test: ok")
 
 
@@ -637,7 +737,10 @@ def mark_done(folder, key, date, remains):
         print(f"{item.path.name}, part {number}: {text}")
         return True
     item.set_status(text)
-    print(f"{item.path.name}: {item.status_text}")
+    rewritten = moved(folder, item)
+    print(f"{item.path.name}: {item.status_text}" + (f", now in {DONE_DIR}/" if item.kind == "done" else ""))
+    for path in rewritten:
+        print(f"  rewrote its path in {path}")
     return True
 
 
@@ -706,7 +809,7 @@ def main(argv):
     import argparse
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("command", nargs="?", default="list",
-                        choices=["list", "summary", "new", "claim", "done", "show", "move", "convert"])
+                        choices=["list", "summary", "new", "claim", "done", "show", "move", "convert", "tidy"])
     parser.add_argument("args", nargs="*")
     parser.add_argument("--open", action="store_true")
     parser.add_argument("--claimed", action="store_true")
@@ -725,6 +828,8 @@ def main(argv):
         found = problems(BACKLOG, FOLDER)
         for p in found:
             print(p)
+        for w in warnings(FOLDER):
+            print(f"warning: {w}")
         return 1 if found else 0
     if a.command == "list":
         only = "open" if a.open else "claimed" if a.claimed else "done" if a.done else "partly done" if a.partly else None
@@ -745,6 +850,10 @@ def main(argv):
         return 0 if mark_done(FOLDER, a.args[0], a.date, a.remains) else 1
     if a.command == "show" and len(a.args) == 1:
         print(find(FOLDER, a.args[0]).text)
+        return 0
+    if a.command == "tidy":
+        for item, rewritten in tidy(FOLDER):
+            print(f"{item.path.relative_to(ROOT)}" + (f" ({len(rewritten)} references rewritten)" if rewritten else ""))
         return 0
     if a.command == "convert":
         for item in convert(FOLDER):

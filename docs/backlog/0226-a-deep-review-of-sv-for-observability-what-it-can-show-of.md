@@ -121,7 +121,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
 12. **Every page dated, and a run id.** `generated: None` (`assemble.rs`) leaves `report.html`, `compliance.md`,
     `security.md`, and the SARIF undated; only `report.json` has `run_record`. Add a run id and the start time to
     each, and SARIF's `startTimeUtc`; the byte-identical tests pass a fixed clock.
-   **Part status:** claimed by stackvet-e9, 10 October 2026
+   **Part status:** done, 10 October 2026
 13. **How long each part took.** Every `Instant::now()` outside tests sets a deadline and is never recorded.
     `started_ms` and `took_ms` on each `Examined` entry and each running-app step; "the slowest five" on the page.
    **Part status:** open
@@ -130,7 +130,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
    **Part status:** open
 15. **Progress at a terminal.** The terminal path passes an empty progress callback, and `sv report --run --tools`
     is silent for minutes. A line per stage on stderr, with a stage per outside tool and per running-app suite.
-   **Part status:** claimed by stackvet-e9, 10 October 2026
+   **Part status:** partly done: a line for each outside tool and each running-app suite within their stages (stackvet-e9's note, 10 October 2026)
 16. **Errors that say what to do.** Of 36 sampled, 14 say what failed, what it means for the report, and what to do;
     9 say only what failed. The worst: a data file that does not parse (`format!("parsing {}")` in nine places), which
     a person cannot fix and which most likely means the data folder does not match this `sv`. One wrapper in
