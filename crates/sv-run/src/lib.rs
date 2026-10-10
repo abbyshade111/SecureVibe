@@ -683,6 +683,9 @@ pub struct RunOutcome {
     /// How long each suite of questions took, and the app's own tests, in milliseconds, in the
     /// order run (backlog 226, part 2, item 13).
     pub suite_timings: Vec<(&'static str, u64)>,
+    /// How long each request to the app took, in milliseconds, in the order sent, named by the
+    /// request's id (backlog 226, part 2, item 13): inside the suites, so counted in no total.
+    pub request_timings: Vec<(String, u64)>,
 }
 
 impl RunOutcome {
@@ -710,6 +713,7 @@ impl RunOutcome {
             stand_ins: _,
             container: _,
             suite_timings: _,
+            request_timings: _,
         } = self;
         [
             ("as two test users", signed_in),

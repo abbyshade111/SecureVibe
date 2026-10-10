@@ -20,6 +20,7 @@ fn backend_running(test: &str, script: &str) -> DockerBackend {
         clock_offset: OnceLock::new(),
         sidecar_lost: std::sync::Mutex::new(None),
         left_behind: std::sync::Mutex::new(Vec::new()),
+        request_times: std::sync::Mutex::new(Vec::new()),
     }
 }
 
@@ -164,4 +165,28 @@ fn a_run_that_fails_says_what_its_teardown_could_not_remove() {
     );
     // A run after it starts afresh: what the last one left is not said again.
     assert!(backend.left_behind.lock().unwrap().is_empty());
+}
+
+#[test]
+fn each_request_is_timed_where_it_is_sent_even_one_that_fails() {
+    // Backlog 226, part 2, item 13: a time on each request inside a suite, taken in `probe`, so no
+    // suite has to time itself.
+    let backend = backend_running("request-times", "#!/bin/sh\nsleep 0.05\nexit 1\n");
+    let request = sv_check::probes::ProbeRequest {
+        id: "probe-1".to_owned(),
+        method: "GET".to_owned(),
+        path: "/".to_owned(),
+        headers: Vec::new(),
+        body: None,
+    };
+    assert!(
+        backend
+            .probe(&Via::Sidecar("sv-1-probe"), "app", 8000, &request)
+            .is_none()
+    );
+    let times = backend.take_request_times();
+    assert_eq!(times.len(), 1, "{times:?}");
+    assert_eq!(times[0].0, "probe-1");
+    assert!(times[0].1 >= 40, "{times:?}");
+    assert!(backend.take_request_times().is_empty(), "taken once");
 }

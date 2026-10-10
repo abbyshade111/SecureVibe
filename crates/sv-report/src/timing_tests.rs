@@ -34,3 +34,19 @@ fn a_suite_is_named_among_the_slowest_and_not_counted_twice_in_the_total() {
 fn no_timings_says_nothing() {
     assert_eq!(slowest_of(&[]), None);
 }
+
+#[test]
+fn a_request_is_neither_named_among_the_slowest_nor_counted_in_the_total() {
+    // Backlog 226, part 2, item 13: a request runs inside its suite, which already says how long.
+    let timings = [
+        timing("Running the app, when asked with --run", 9_000),
+        timing(
+            &format!("{SUITE_TIMING}the questions asked as the test users"),
+            7_000,
+        ),
+        timing(&format!("{REQUEST_TIMING}auth-a-1"), 8_000),
+    ];
+    let line = slowest_of(&timings).unwrap();
+    assert!(line.starts_with("This run took 9.0 s."), "{line}");
+    assert!(!line.contains("auth-a-1"), "{line}");
+}
