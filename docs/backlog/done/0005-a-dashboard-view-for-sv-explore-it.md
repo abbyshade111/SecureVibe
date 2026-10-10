@@ -1,6 +1,6 @@
 # A dashboard view for `sv`: explore it
 
-**Status:** partly done: 3 of 8 parts done, 1 claimed, 4 open, as its markers read on 8 October 2026
+**Status:** done, 10 October 2026
 
 Asked for by the owner on 8 October 2026 ("explore building out a
 dashboard view for sv"). Today `sv` writes one report per run (`report.html`, `compliance.md`, `security.md`,
@@ -8,18 +8,18 @@ dashboard view for sv"). Today `sv` writes one report per run (`report.html`, `c
 exploration is a written proposal, `docs/DASHBOARD.md`, and nothing is built from it without the owner's decision:
 1. **What a dashboard could show**, from what `sv` already records: one run at a glance, one app's runs over time,
    several apps together. What each needs that `sv` does not keep today (a run's history, for one).
-   **Part status:** open
+   **Part status:** done, 10 October 2026: the proposal's own part; built in the second list below, or answered by the owner on 8 October 2026
 2. **How it could be delivered**: a page written beside the report, a command that writes one page for several
    reports, or a page served while `sv` runs. Each against `sv`'s rules: no network connection of its own, nothing
    fetched from the internet by the page, nothing written into the app's folder that is not already, and plain
    language.
-   **Part status:** open
+   **Part status:** done, 10 October 2026: the proposal's own part; built in the second list below, or answered by the owner on 8 October 2026
 3. **How it stays honest**: a not-assessed requirement is never drawn as a pass, a count never reads as a grade,
    and a chart says what it leaves out, the same as the reports (the short version's banned words).
-   **Part status:** open
+   **Part status:** done, 10 October 2026: the proposal's own part; built in the second list below, or answered by the owner on 8 October 2026
 4. **A recommendation**, with a first step small enough to build and test, and the questions only the owner can
    answer. Status: proposed. Anything that changes what `sv` writes or serves is a decision with its own record.
-   **Part status:** open
+   **Part status:** done, 10 October 2026: the proposal's own part; built in the second list below, or answered by the owner on 8 October 2026
 **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("can you add an item to the backlog,
 or take it yourself"), in branch `claude/securevibe-e2-dashboard`: the proposal only.
 **Proposal written the same day:** `docs/DASHBOARD.md`. It recommends, first, one bar at the top of `report.html`
@@ -70,4 +70,6 @@ claimed on its own:
 4. **A progress page during a run**, if wanted once the first three are in use (4).
    **The owner's decision, 9 October 2026:** skipped for now; the owner means to come back to the dashboard later
    ("we can skip for now, I want to come back to the dashboard later anyway").
-   **Part status:** open
+   **Part status:** done, 10 October 2026: dropped by the owner
+
+**Decided by the owner, 10 October 2026:** part 4 (the progress page) is dropped. Parts 1 to 3 are built: two bars in `crates/sv-report/src/html.rs`, `sv dashboard`, and `sv history`.

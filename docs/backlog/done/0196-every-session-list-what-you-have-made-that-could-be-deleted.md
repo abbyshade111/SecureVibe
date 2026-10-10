@@ -1,6 +1,6 @@
 # Every session: list what you have made that could be deleted, and ask the owner
 
-**Status:** open
+**Status:** done, 10 October 2026
 
 Asked by the owner on
 7 October 2026, after the disk reached 152 MB free during the revision trial (17 GB was freed by deleting one session's
@@ -20,3 +20,4 @@ stays), each checked again against `main` just before. Kept: `v1`, the archive, 
 not have. The session's GitHub proxy refuses deleting a branch (HTTP 403, by `git push --delete` and by the API), so
 nothing was deleted from the session; the owner was given a script that checks each branch again and deletes it from
 the owner's own clone.
+**Decided by the owner, 10 October 2026:** the standing rule in `CLAUDE.md` is the deliverable. The per-session listing and the branch-deletion script stay outside the backlog.
