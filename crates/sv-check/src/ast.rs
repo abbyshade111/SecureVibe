@@ -353,8 +353,8 @@ impl AstRules {
     pub fn load(path: &std::path::Path) -> Result<Self> {
         let text =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-        let file: RuleFile =
-            serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
+        let file: RuleFile = serde_json::from_str(&text)
+            .with_context(|| sv_frameworks::data::not_understood(path))?;
 
         let mut compiled = Vec::new();
         for rule in file.rules {
