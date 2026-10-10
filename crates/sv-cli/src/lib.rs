@@ -153,6 +153,7 @@ pub fn probe_the_running_app(
     let mut plan = RunPlan::from_manifest(manifest, app_dir)
         .map_err(|e| cannot_run_said(&e.explain(), e.kind()))?;
     plan.slow = slow;
+    plan.on_step = Some(sv_run::OnStep(assemble::say_step));
     let backend = sv_run::detect().map_err(|e| cannot_run_said(&e.explain(), e.kind()))?;
     // Said before the wait, not only after it: the wait is a minute (family-hub, 3 October 2026).
     if let Some(warning) = sv_run::loopback_warning(&plan.start) {

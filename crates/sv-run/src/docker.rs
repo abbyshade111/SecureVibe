@@ -753,6 +753,9 @@ impl DockerBackend {
 
         // 5. The declared tests, inside the app container so they see what the app sees.
         let tests = plan.test.as_ref().and_then(|test_command| {
+            if let Some(crate::OnStep(say)) = plan.on_step {
+                say("the app's own tests");
+            }
             // A report left over from a previous run — committed into the repository, or baked into
             // the image — would be read as this run's result and credit tests that never ran here.
             // So it is removed first, and after the run the file must be there or nothing is read.
@@ -937,6 +940,11 @@ impl sv_check::script::Services for DockerRun<'_> {
 
     fn liveness(&self, after: &str) -> sv_check::running::Liveness {
         self.backend.liveness(self.via, self.app, self.plan, after)
+    }
+    fn starting(&self, suite: &str) {
+        if let Some(crate::OnStep(say)) = self.plan.on_step {
+            say(suite);
+        }
     }
 }
 

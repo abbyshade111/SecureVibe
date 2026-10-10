@@ -485,6 +485,25 @@ pub fn weakening_note(start: &str) -> Option<String> {
     })
 }
 
+/// Where a run says each suite's name as it begins (`RunPlan::on_step`). How a run is watched is
+/// not what it runs, so any two are equal, and two plans that differ only in it are the same plan.
+#[derive(Clone, Copy)]
+pub struct OnStep(pub fn(&str));
+
+impl std::fmt::Debug for OnStep {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("OnStep")
+    }
+}
+
+impl PartialEq for OnStep {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for OnStep {}
+
 /// How to build, start and test the app, taken from the manifest and checked over.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RunPlan {
@@ -524,6 +543,9 @@ pub struct RunPlan {
     /// Wait out the session timeouts the owner states (`sv run --slow`). Off unless asked for: it
     /// can take as long as the timeouts, up to an hour and a half.
     pub slow: bool,
+    /// Told the name of each suite as it begins, for a person watching at a terminal (backlog
+    /// 226, part 2, item 15). `None` says nothing.
+    pub on_step: Option<OnStep>,
     /// The longest the test command may take: `TEST_LIMIT`, and shorter only in `sv`'s own tests.
     pub test_limit: Duration,
     /// Install the app's packages before the run (ADR-052). Off unless stackvet.toml says so.
@@ -595,6 +617,7 @@ impl RunPlan {
             websocket: run.websocket.clone(),
             public_api: manifest.capabilities.public_api,
             slow: false,
+            on_step: None,
             test_limit: match run.test_time_limit {
                 Some(seconds) if seconds > 0 => Duration::from_secs(seconds),
                 _ => TEST_LIMIT,

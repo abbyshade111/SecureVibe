@@ -86,6 +86,9 @@ pub trait Services {
     fn remove_switched_off(&self);
     /// Whether the app is still up and answering, `after` what was just asked (V16.5.4).
     fn liveness(&self, after: &str) -> Liveness;
+    /// Told as each suite begins, in a few words, so a person watching a long run sees it move
+    /// (backlog 226, part 2, item 15). Nothing by default.
+    fn starting(&self, _suite: &str) {}
 }
 
 /// What the script came to, in the order it was asked.
@@ -128,6 +131,7 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
     //    app's rate limiter was still answering after waiting as it asked: its page is not the
     //    app's (`ask_anonymously`).
     {
+        services.starting("the questions asked as somebody not signed in");
         let mut http = services.http(Target::App, With::default());
         let (responses, limited) =
             crate::signed_in::ask_anonymously_within(http.as_mut(), probes, &spent);
@@ -139,16 +143,17 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
 
     // 4b. As signed-in users, when stackvet.toml says how. After the anonymous probes, so
     //     those see the app as a stranger first; before the tests, which may change its data.
-    out.signed_in = plan
-        .users
-        .zip(plan.accounts)
-        .map(|(users, accounts)| signed_in(services, plan, users, accounts, &spent));
+    out.signed_in = plan.users.zip(plan.accounts).map(|(users, accounts)| {
+        services.starting("the questions asked as the test users");
+        signed_in(services, plan, users, accounts, &spent)
+    });
 
     // 4c. Signing in through the test provider, when the app signs in through another service.
     //     A provider that never came up leaves the way to it empty, and the check says so.
     // 4c, 4c', 4c'': each with a rate limiter's answer waited out, as the signed-in suites have
     //     it (`Patient`); until 8 October 2026 these three took the app's answers as they came.
     out.oidc = plan.oidc.map(|section| {
+        services.starting("signing in through the test provider");
         let mut http = services.http(
             Target::App,
             With {
@@ -164,6 +169,7 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
 
     // 4c'. The app as an MCP server, when stackvet.toml says where it answers.
     out.mcp_server = plan.mcp_server.map(|section| {
+        services.starting("the app as an MCP server");
         let mut http = services.http(Target::App, With::default());
         let mut patient = Patient::within(http.as_mut(), &spent);
         let mut out = crate::mcp_server::run(&mut patient, section, plan.mcp_token);
@@ -174,6 +180,7 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
     // 4c''. A feature that fetches an address a person gives it, pointed at the test model's
     //      server, which records each fetch.
     out.fetch = plan.fetch.map(|section| {
+        services.starting("the feature that fetches an address");
         let canary = services.model_canary();
         let mut http = services.http(
             Target::App,
@@ -197,7 +204,10 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
     //     depends on that user's session. Not through `Patient`: the suite waits a limiter out
     //     itself where an answer matters, and its rate check (C11.2.2) sets out to make the app
     //     refuse, which a wait and a second try would unmake.
-    out.ai = plan.ai.map(|section| ai(services, plan, section));
+    out.ai = plan.ai.map(|section| {
+        services.starting("the AI feature");
+        ai(services, plan, section)
+    });
 
     // Still up after everything else it was asked, while the sidecar can still ask it.
     if out.signed_in.is_some()
@@ -328,6 +338,9 @@ fn ai(services: &dyn Services, plan: &Plan, section: &AiSection) -> crate::signe
     services.remove_switched_off();
     outcome
 }
+
+#[cfg(test)]
+mod progress_tests;
 
 #[cfg(test)]
 mod tests {

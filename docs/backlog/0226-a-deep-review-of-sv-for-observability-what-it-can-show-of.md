@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 2 items 13 (a time on each running-app step), 15 (a line per outside tool and per running-app suite), and 20 (ids and a reason code on each gap); part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 2 items 13 (a time on each running-app step) and 20 (ids and a reason code on each gap); part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -134,7 +134,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
    **Part status:** done, 10 October 2026
 15. **Progress at a terminal.** The terminal path passes an empty progress callback, and `sv report --run --tools`
     is silent for minutes. A line per stage on stderr, with a stage per outside tool and per running-app suite.
-   **Part status:** claimed by securevibe-e2, 10 October 2026
+   **Part status:** done, 10 October 2026
 16. **Errors that say what to do.** Of 36 sampled, 14 say what failed, what it means for the report, and what to do;
     9 say only what failed. The worst: a data file that does not parse (`format!("parsing {}")` in nine places), which
     a person cannot fix and which most likely means the data folder does not match this `sv`. One wrapper in
@@ -382,6 +382,11 @@ test fails.
 under the outside tools' stage for each tool as it starts, and one under the running-app stage for each suite as it
 starts (the anonymous questions, the signed-in suites, the test provider, the app as an MCP server, the fetch, the AI
 feature, the declared tests), on stderr; the MCP server unchanged. With a test that fails without each.
+
+**Part 2, item 15 done on 10 October 2026** (`docs/design/0361-a-progress-line-for-each-outside-tool-and-each-running-app.md`): at a terminal, each outside tool and each
+suite of questions to the running app, and the app's own tests, are said on stderr as each begins, indented under
+their stage; the MCP server, which starts neither, is unchanged. Breaks: with each line taken away, its test fails;
+the Docker harness's lines are caught where a container backend is present (CI).
 
 **Part 2, item 20 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue", in branch
 `claude/stackvet-e9-obs-20`: a version catalog that does not parse said as not understood, among the package lists
