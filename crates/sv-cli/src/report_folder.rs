@@ -58,7 +58,20 @@ pub fn write_report_folder(
     let mut report = build()?;
     // What the record of the build loop shows, read now and carried under this report's seal
     // (ADR-076).
-    report.build_loop = Some(crate::build_loop::read(app_dir));
+    let mut build_loop = crate::build_loop::read(app_dir);
+    let false_alarms: Vec<String> = report
+        .set_aside
+        .iter()
+        .filter(|s| {
+            !report
+                .findings
+                .iter()
+                .any(|f| f.fingerprint == s.finding.fingerprint)
+        })
+        .map(|s| s.finding.fingerprint.clone())
+        .collect();
+    crate::build_loop::settle(&mut build_loop, &false_alarms);
+    report.build_loop = Some(build_loop);
     // A manifest read under its old name is said at the terminal as the report says it (ADR-062).
     if let Some(note) = sv_manifest::locate(app_dir)
         .ok()

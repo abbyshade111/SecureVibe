@@ -16,3 +16,8 @@ each call ended and who called"): each line says how the call ended, which AI to
 answered; a turned-off record says so in one line; a call that could not be written is counted and said. Decisions 3,
 5, and 6 remain, in a pull request of their own.
 
+**Decision 6 built 10 October 2026 by session securevibe-e2** (design entry "The build-loop record counts findings
+gone, set aside, and new"): each check keeps its findings' fingerprints, and the report counts those no longer found,
+those set aside by a person as false alarms, and those new between the first check and the last. Decisions 3 and 5
+remain.
+

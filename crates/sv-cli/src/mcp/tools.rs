@@ -78,6 +78,13 @@ impl Server {
                         .lock()
                         .unwrap_or_else(std::sync::PoisonError::into_inner) =
                         Some(sv_report::LoopCounts::of(report));
+                    *self
+                        .last_fingerprints
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner) =
+                        Some(crate::build_loop::fingerprints_of(
+                            report.findings.iter().map(|f| f.fingerprint.as_str()),
+                        ));
                 }
                 report
             }

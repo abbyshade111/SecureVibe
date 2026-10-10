@@ -1525,6 +1525,24 @@ pub struct BuildLoop {
     /// Calls this process could not write into the record, so the counts are short by them.
     #[serde(skip_serializing_if = "is_zero")]
     pub unwritten: usize,
+    /// The findings' fingerprints at the first and the last check, when their lines kept them all;
+    /// read to make `findings_moved`, never written into the report.
+    #[serde(skip)]
+    pub first_fingerprints: Option<Vec<String>>,
+    #[serde(skip)]
+    pub last_fingerprints: Option<Vec<String>>,
+    /// Between the first check and the last, which findings went and came (ADR-084, decision 6).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub findings_moved: Option<FindingsMoved>,
+}
+
+/// Between the first check of the build loop and the last: findings no longer found, those of them
+/// a person set aside as false alarms, and findings that were new. Counts only.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, serde::Deserialize)]
+pub struct FindingsMoved {
+    pub no_longer_found: usize,
+    pub set_aside: usize,
+    pub new: usize,
 }
 
 fn is_zero(n: &usize) -> bool {
@@ -1708,6 +1726,19 @@ pub fn build_loop_line(report: &Report) -> Option<String> {
     .collect();
     if !unanswered.is_empty() {
         text.push_str(&format!(" Of those calls, {}.", list_and(&unanswered)));
+    }
+    if let Some(m) = &b.findings_moved {
+        text.push_str(&format!(
+            " Between the first check and the last, {} finding{} no longer found (fixed, or no \
+             longer reached by the check: the record cannot tell which), {} {} set aside by a person \
+             as a false alarm, and {} {} new.",
+            m.no_longer_found,
+            if m.no_longer_found == 1 { " was" } else { "s were" },
+            m.set_aside,
+            if m.set_aside == 1 { "was" } else { "were" },
+            m.new,
+            if m.new == 1 { "was" } else { "were" },
+        ));
     }
     if !b.clients.is_empty() {
         text.push_str(&format!(
