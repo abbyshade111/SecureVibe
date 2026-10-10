@@ -150,7 +150,15 @@ pub fn assemble_report_saying(
     loaded: &Loaded,
     starting: &dyn Fn(usize, &'static str),
 ) -> Result<sv_report::Report> {
-    let stage = |n: usize| starting(n, REPORT_STAGES[n]);
+    // When each stage began, so the report can say how long each took (backlog 226, part 2, item
+    // 13): a stage lasts until the next begins, the last until the report is put together.
+    let began: std::cell::RefCell<Vec<(&'static str, std::time::Instant)>> = Default::default();
+    let stage = |n: usize| {
+        began
+            .borrow_mut()
+            .push((REPORT_STAGES[n], std::time::Instant::now()));
+        starting(n, REPORT_STAGES[n])
+    };
     let started = std::time::SystemTime::now();
     // The new name, or the old one while only it exists (ADR-062); the report says which.
     let located = sv_manifest::locate_or_bail(app_dir)?;
@@ -251,7 +259,7 @@ pub fn assemble_report_saying(
     // not the list (8 October 2026).
     verified.extend(word.verified.iter().cloned());
     let coding_rules_cited = coding_rules_cited(&buckets)?;
-    put_together(
+    let mut report = put_together(
         &scene,
         Gathered {
             findings,
@@ -266,7 +274,38 @@ pub fn assemble_report_saying(
             word,
             run_record,
         },
-    )
+    )?;
+    report.timings = timings(&began.borrow(), std::time::Instant::now(), &report.examined);
+    Ok(report)
+}
+
+/// How long each stage took, from when each began to when the next did (the last to `ended`), then
+/// each outside tool, from the record of its run.
+fn timings(
+    began: &[(&'static str, std::time::Instant)],
+    ended: std::time::Instant,
+    examined: &[sv_report::Examined],
+) -> Vec<sv_report::Timing> {
+    let ms = |d: std::time::Duration| u64::try_from(d.as_millis()).unwrap_or(u64::MAX);
+    let mut timings: Vec<sv_report::Timing> = began
+        .iter()
+        .enumerate()
+        .map(|(i, (what, at))| {
+            let until = began.get(i + 1).map_or(ended, |(_, next)| *next);
+            sv_report::Timing {
+                what: (*what).to_owned(),
+                took_ms: ms(until.saturating_duration_since(*at)),
+            }
+        })
+        .collect();
+    timings.extend(examined.iter().filter_map(|e| {
+        let tool = e.tool.as_ref()?;
+        Some(sv_report::Timing {
+            what: format!("{}{}", sv_report::TOOL_TIMING, tool.program),
+            took_ms: tool.took_ms,
+        })
+    }));
+    timings
 }
 
 /// Known vulnerabilities, when the owner has pointed at a local advisory database, held to the

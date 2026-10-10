@@ -65,7 +65,7 @@ fn the_record_says_how_many_calls_and_checks_and_the_counts_at_each_end() {
         line("10:30", "stackvet_check", Some(0)).to_json(),
     ]
     .join("\n");
-    let s = summarize(&text);
+    let s = summarize(text.as_bytes());
     assert_eq!((s.calls, s.checks, s.unreadable), (4, 3, 1));
     assert_eq!(
         (s.first.as_deref(), s.last.as_deref()),
@@ -73,7 +73,7 @@ fn the_record_says_how_many_calls_and_checks_and_the_counts_at_each_end() {
     );
     assert_eq!(s.first_counts.unwrap().findings, 6);
     assert_eq!(s.last_counts.unwrap().findings, 0);
-    assert_eq!(summarize(""), BuildLoop::default());
+    assert_eq!(summarize(b""), BuildLoop::default());
 }
 
 #[test]

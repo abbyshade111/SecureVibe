@@ -126,7 +126,9 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   stays open); `new "Its title"` adds one; `list --open` prints what is open. A numbered part of an item is claimed
   and finished the same way, `claim 0226.3 --by <session>` and `done 0226.3`, which set the part's own status line;
   the board reads parts from those lines alone, so a claim or done note written only in prose is not seen (backlog
-  0228). Merge the claim's pull request before
+  0228). A done item moves to `docs/backlog/done/` by itself. **A review writes each of its findings as an item of
+  its own** (`new "Its title"`), listed by number in the review's own item, not as numbered parts of one file: the
+  big review items each became a file every session wrote into, and conflicted in, all of 9 October 2026. Merge the claim's pull request before
   building on it. Saying so in a message to another session does not count: a session that is not running never
   receives it, and one that is will not see it again after its context is summarized. On 20 September 2026 two
   sessions each read the backlog, each correctly saw an item unclaimed, and both built it; on 8 October 2026 every
