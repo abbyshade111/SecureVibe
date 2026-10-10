@@ -241,10 +241,10 @@ const COMMANDS: &[Command] = &[
     },
     Command {
         name: "prompts",
-        word: None,
+        word: Some("report"),
         flags: &[],
         valued: &["--requirement", "--app", "--report"],
-        help: "  sv prompts [--requirement ID | --app DIR | --report FILE]\n                     prompts to give your AI coding tool, each saying whether it has\n                     been shown to work; --requirement gives only those for one requirement\n                     or Secure by Design control, such as V1.2.4 or SBD-AC-03; --app gives\n                     those for what the app's last report (DIR/stackvet-report/report.json,\n                     or --report FILE) shows unproven\n",
+        help: "  sv prompts [report | --requirement ID | --app DIR | --report FILE]\n                     prompts to give your AI coding tool, each saying whether it has\n                     been shown to work; --requirement gives only those for one requirement\n                     or Secure by Design control, such as V1.2.4 or SBD-AC-03; --app gives\n                     those for what the app's last report (DIR/stackvet-report/report.json,\n                     or --report FILE) shows unproven; `report` gives the one that has your\n                     AI coding tool read the report with you, what was not checked first\n",
     },
     Command {
         name: "probe",
@@ -972,6 +972,24 @@ fn cmd_explain(args: &[String]) -> Result<()> {
 }
 
 fn cmd_prompts(args: &[String]) -> Result<()> {
+    // `sv prompts report`: the one for reading the report with the person (backlog 0217 part 5).
+    if args.first().map(String::as_str) == Some("report") {
+        anyhow::ensure!(
+            args.len() == 1,
+            "`sv prompts report` takes nothing more: it prints one prompt, the same for every app"
+        );
+        print!("{}", sv_cli::report_prompt::with_mark());
+        return Ok(());
+    }
+    // The only word it takes is `report`, first; any other would otherwise be passed over unread.
+    let mut rest = args.iter();
+    while let Some(arg) = rest.next() {
+        if ["--requirement", "--app", "--report"].contains(&arg.as_str()) {
+            rest.next();
+        } else if !arg.starts_with("--") {
+            bail!("`sv prompts` takes one word, `report`, and was given {arg}");
+        }
+    }
     let value = |flag: &str| {
         args.iter()
             .position(|a| a == flag)
@@ -1689,18 +1707,22 @@ fn stdout_is_a_file() -> bool {
             .and_then(|f| f.metadata())
             .is_ok_and(|m| m.is_file())
     }
-    // The same question through the handle Windows gives standard output: until 9 October 2026
-    // the answer there was always no, so `sv init > stackvet.toml` wrote the instructions into the
-    // file too, and every later command refused it (backlog 0120). A pipe or a console is no file.
+    // The same question, asked of Windows itself: until 9 October 2026 the answer there was always
+    // no, so `sv init > stackvet.toml` wrote the instructions into the file too, and every later
+    // command refused it (backlog 0120). Rust's `metadata().is_file()` will not do here, since on
+    // Windows it counts anything that is not a folder or a link as a file, a pipe included, so an AI
+    // coding tool reading through a pipe lost the instructions. `GetFileType` tells a file on disk
+    // from a pipe or a console.
     #[cfg(windows)]
     {
-        use std::os::windows::io::AsHandle;
-        std::io::stdout()
-            .as_handle()
-            .try_clone_to_owned()
-            .map(std::fs::File::from)
-            .and_then(|f| f.metadata())
-            .is_ok_and(|m| m.is_file())
+        use std::os::windows::io::AsRawHandle;
+        #[link(name = "kernel32")]
+        unsafe extern "system" {
+            fn GetFileType(handle: *mut std::ffi::c_void) -> u32;
+        }
+        const FILE_TYPE_DISK: u32 = 1;
+        // SAFETY: a plain system call that only reads the handle standard output already holds.
+        unsafe { GetFileType(std::io::stdout().as_raw_handle()) == FILE_TYPE_DISK }
     }
     #[cfg(not(any(unix, windows)))]
     {

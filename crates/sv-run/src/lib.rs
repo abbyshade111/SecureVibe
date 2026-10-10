@@ -1303,9 +1303,16 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("sv-bounded-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let pid_file = dir.join("pid");
-        // Its output sent elsewhere, so it is only the stopping that can end it, not the pipes.
+        // Its output sent elsewhere, so it is only the stopping that can end it, not the pipes. On
+        // Windows the shell's own number for the child (`$!`) is not Windows' number, so the
+        // shell's `/proc` gives Windows' instead, for Windows to be asked about (backlog 0120).
+        let which = if cfg!(windows) {
+            "cat /proc/$!/winpid"
+        } else {
+            "echo $!"
+        };
         let script = format!(
-            "sleep 30 >/dev/null 2>&1 & echo $! > '{}'; wait",
+            "sleep 30 >/dev/null 2>&1 & {which} > '{}'; wait",
             pid_file.display()
         );
         let done = run_bounded(&mut sh(&script), Duration::from_millis(500), false).unwrap();
@@ -1320,6 +1327,21 @@ mod tests {
         std::thread::sleep(Duration::from_millis(200));
         // A killed process nobody has collected yet is a zombie: dead, and still answering `kill -0`.
         // Where `/proc` says, a zombie is not running; elsewhere, `kill -0` is the question.
+        #[cfg(windows)]
+        let alive = {
+            let running = |pid: &str| {
+                let listed = Command::new("tasklist")
+                    .args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"])
+                    .output()
+                    .unwrap();
+                assert!(listed.status.success(), "tasklist did not answer");
+                String::from_utf8_lossy(&listed.stdout).contains(&format!(",\"{pid}\","))
+            };
+            // The control: the question finds a process that is running, this test's own.
+            assert!(running(&std::process::id().to_string()));
+            running(&pid)
+        };
+        #[cfg(not(windows))]
         let alive = match std::fs::read_to_string(format!("/proc/{pid}/stat")) {
             Ok(stat) => stat
                 .rsplit_once(')')

@@ -890,6 +890,8 @@ pub mod plan;
 
 pub mod preflight;
 
+pub mod report_prompt;
+
 /// The plan for an app from its brief, built from the report's own parts (ADR-030).
 pub fn plan_for(app_dir: &Path, report: &sv_report::Report) -> Result<plan::Plan> {
     let (manifest, _) = Manifest::load_in(app_dir)?;

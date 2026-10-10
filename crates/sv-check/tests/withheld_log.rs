@@ -54,7 +54,8 @@ fn report(dir: &Path, credits: &str, withheld: &str) -> String {
         "{}",
         String::from_utf8_lossy(&out.stderr)
     );
-    String::from_utf8_lossy(&out.stdout).into_owned()
+    // Python on Windows ends each line it prints with "\r\n" (backlog 0120).
+    String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n")
 }
 
 #[test]

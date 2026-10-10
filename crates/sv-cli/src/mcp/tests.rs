@@ -2,7 +2,7 @@
 use super::*;
 use sv_frameworks::paths::Canonical;
 
-fn examples() -> PathBuf {
+pub(super) fn examples() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples")
 }
 
@@ -1482,10 +1482,13 @@ fn the_command_to_run_names_this_sv_by_its_full_path() {
 fn a_path_with_a_space_is_quoted_so_it_still_works_as_typed() {
     let program = PathBuf::from("/Users/me/My Tools/sv");
     let text = terminal_command("/Users/me/it's here", "--run", false, Some(program));
-    assert!(
-        text.contains("`'/Users/me/My Tools/sv' report '/Users/me/it'\\''s here' --run`"),
-        "{text}"
-    );
+    // Each system's own quoting (`quoted_for`): on Windows, double quotes, and `'` is plain.
+    let typed = if cfg!(windows) {
+        "`\"/Users/me/My Tools/sv\" report \"/Users/me/it's here\" --run`"
+    } else {
+        "`'/Users/me/My Tools/sv' report '/Users/me/it'\\''s here' --run`"
+    };
+    assert!(text.contains(typed), "{text}");
 }
 
 #[test]
@@ -2148,7 +2151,7 @@ fn the_whole_computer_and_the_whole_home_folder_are_not_served() {
 
 /// A request of the stateless protocol: its version, and an empty set of client capabilities,
 /// named in `_meta` as 2026-07-28 asks.
-fn stateless(id: i64, method: &str, version: &str, mut params: Value) -> Value {
+pub(super) fn stateless(id: i64, method: &str, version: &str, mut params: Value) -> Value {
     params["_meta"] = json!({
         "io.modelcontextprotocol/protocolVersion": version,
         "io.modelcontextprotocol/clientCapabilities": {},
@@ -2319,14 +2322,12 @@ fn a_written_report_is_offered_as_resources_and_reads_back_as_written() {
 
     // Two reports, one under a name that has to be escaped to be written in a URI. Windows refuses
     // a `?` in a name, so there the name keeps the space, `#`, and `%` (backlog 0120).
-    for out in [
-        sv_scan::ecosystems::DEFAULT_REPORT_DIR,
-        if cfg!(windows) {
-            "reports/the 2nd one #1%"
-        } else {
-            "reports/the 2nd one #1?%"
-        },
-    ] {
+    let escaped = if cfg!(windows) {
+        "reports/the 2nd one #1%"
+    } else {
+        "reports/the 2nd one #1?%"
+    };
+    for out in [sv_scan::ecosystems::DEFAULT_REPORT_DIR, escaped] {
         let result = call(
             &server,
             "stackvet_write_report",
@@ -2380,7 +2381,7 @@ fn a_written_report_is_offered_as_resources_and_reads_back_as_written() {
     assert!(
         resources
             .iter()
-            .any(|r| r["name"] == "app/reports/the 2nd one #1?%/report.html"),
+            .any(|r| r["name"] == format!("app/{escaped}/report.html")),
         "{resources:#?}"
     );
 }
@@ -3589,10 +3590,11 @@ fn the_design_time_prompts_are_offered_as_prompts_each_saying_whether_it_was_sho
         .expect("a list of prompts");
     let file = design_file();
     let names: Vec<&str> = listed.iter().map(|p| p["name"].as_str().unwrap()).collect();
-    let ids: Vec<&str> = file.iter().map(|p| p["id"].as_str().unwrap()).collect();
+    let mut ids: Vec<&str> = file.iter().map(|p| p["id"].as_str().unwrap()).collect();
+    ids.push(crate::report_prompt::ID);
     assert_eq!(
         names, ids,
-        "every design-time prompt, in the file's order, and nothing else"
+        "every design-time prompt, in the file's order, then the one for reading the report, and nothing else"
     );
     // The control: the file holds prompts of both kinds, so each mark below is tested.
     assert!(file.iter().any(|p| p["status"] == "shown"));
@@ -3700,7 +3702,7 @@ fn the_prompts_are_offered_in_the_stateless_protocol_too() {
     assert_eq!(list["result"]["resultType"], "complete", "{list}");
     assert_eq!(list["result"]["cacheScope"], "public");
     let listed = list["result"]["prompts"].as_array().unwrap();
-    assert_eq!(listed.len(), design_file().len());
+    assert_eq!(listed.len(), design_file().len() + 1);
     let name = listed[0]["name"].clone();
     let got = server
         .handle(&stateless(
