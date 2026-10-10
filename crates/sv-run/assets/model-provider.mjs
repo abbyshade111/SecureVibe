@@ -758,6 +758,14 @@ http
     // The process id says which server answered: a test that started one on a port another test's
     // server had already taken would otherwise go on talking to that one.
     if (req.method === 'GET' && path === '/_sv/health') return json(res, 200, { ok: true, pid: process.pid });
+    // Everything this server was sent, for `sv` to keep beside the report (ADR-082): what arrived for
+    // each tag, and the tags fetched.
+    if (req.method === 'GET' && path === '/_sv/seen') {
+      return json(res, 200, {
+        seen: [...seen.entries()].map(([tag, what]) => ({ tag, ...what })),
+        fetched: [...fetches],
+      });
+    }
     const seenAt = /^\/_sv\/seen\/([0-9a-f]+)$/.exec(path);
     if (req.method === 'GET' && seenAt) {
       const what = seen.get(seenAt[1]);

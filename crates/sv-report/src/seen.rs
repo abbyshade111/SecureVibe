@@ -13,7 +13,7 @@ use crate::Report;
 use serde::Serialize;
 
 /// What `sv` saw of the running app.
-#[derive(Debug, Clone, Default, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, PartialEq)]
 pub struct Seen {
     /// The questions asked and what came back, in the order they were asked.
     pub exchanges: Vec<Exchange>,
@@ -25,7 +25,54 @@ pub struct Seen {
     pub left_out: usize,
     /// How many credentials were cut out of what is kept.
     pub credentials_removed: usize,
+    /// What `sv`'s stand-in services received during the run (backlog 0229, part 2). Empty when
+    /// none ran.
+    #[serde(skip_serializing_if = "StandIns::is_empty")]
+    pub stand_ins: StandIns,
 }
+
+/// What `sv`'s stand-in services received: the test model, the test sign-in provider, and the mail
+/// catcher, each `None` when it did not run.
+#[derive(Debug, Clone, Default, Serialize, PartialEq)]
+pub struct StandIns {
+    /// What arrived at the test model for each message (`seen`), and the tags fetched through it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<serde_json::Value>,
+    /// The requests the test sign-in provider was sent: method, path, and the names of the query's
+    /// parameters, never their values.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sign_in_provider: Option<serde_json::Value>,
+    /// Each message the app sent: who it was to, its subject, and when. Never its body.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mail: Option<Vec<Mail>>,
+    /// The stand-ins that ran and whose record could not be read.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub not_read: Vec<String>,
+    /// Text and entries left out to keep the record bounded: strings cut at `KEPT_CHARS`
+    /// characters, and lists at `MOST_EXCHANGES` entries.
+    pub cut: usize,
+}
+
+impl StandIns {
+    pub fn is_empty(&self) -> bool {
+        self.model.is_none()
+            && self.sign_in_provider.is_none()
+            && self.mail.is_none()
+            && self.not_read.is_empty()
+    }
+}
+
+/// One message the app sent, without its body.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct Mail {
+    pub to: Vec<String>,
+    pub subject: String,
+    pub at: String,
+}
+
+/// The most characters of any one piece of text a stand-in received that the record keeps: as
+/// much as the run keeps of an answer's body.
+pub const KEPT_CHARS: usize = 4000;
 
 /// One question asked of the running app, and what it answered.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -50,7 +97,9 @@ pub const FILE: &str = "seen.json";
 
 /// What the file says about itself, read first.
 const ABOUT: &str = "What sv saw of the running app while it made this report: each question it asked \
-as somebody not signed in, and what the app answered. This is the app's own text, with every \
+as somebody not signed in, and what the app answered; and, under stand_ins, what sv's own stand-ins \
+for the services the app uses received from it (the test model, the test sign-in provider, and the \
+mail catcher, of whose mail only who it was to, its subject, and when are kept). This is the app's own text, with every \
 credential sv recognized cut down to its first four characters and its length, and the value \
 of every cookie and sign-in header taken out. It can hold \
 personal data the app was given during the run; only sv's own test accounts were used. Each \
@@ -67,6 +116,7 @@ pub fn render(report: &Report) -> String {
             "left_out": seen.left_out,
             "most_kept": MOST_EXCHANGES,
             "credentials_removed": seen.credentials_removed,
+            "stand_ins": seen.stand_ins,
         }),
         None => serde_json::json!({
             "app": report.app_name,
