@@ -1350,6 +1350,19 @@ fn what_was_not_read(
     gaps.extend(untaught_gaps(&code.untaught));
     gaps.extend(static_scan.package_gaps());
     examined.extend(static_scan.examined());
+    // A package list found and not read: what it names is unknown, so a technology known only by its
+    // package may be answered as not used (backlog 0226, part 1, item 11). Whether such an answer
+    // should count for nothing is the owner's (part 3, item H); saying so beside it is not.
+    for unread in &scan_report.unread_manifests {
+        gaps.push(sv_report::Gap {
+            what: format!("the package list {}", unread.manifest),
+            why: format!(
+                "{}, so the packages it names were not read: a technology `sv` knows only by its \
+                 package may be answered as not used. Fix the file and check again",
+                unread.why
+            ),
+        });
+    }
     if !scan_report.unread_extensions.is_empty() {
         let mut exts: Vec<&str> = scan_report
             .unread_extensions

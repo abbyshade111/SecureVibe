@@ -140,6 +140,9 @@ pub struct ScanReport {
     /// Ecosystems in use that pin nothing, so what is installed cannot be known.
     pub unpinned: Vec<ecosystems::DetectedEcosystem>,
     pub declared: Vec<deps::Declared>,
+    /// The package lists found and not read (backlog 0226, part 1, item 11): what they name is not in
+    /// `declared`, which the report says beside the technology answers.
+    pub unread_manifests: Vec<deps::Unread>,
     pub languages: BTreeSet<String>,
     /// Every path in the app, whatever its type, so a configuration file can be looked for.
     pub all_paths: BTreeSet<String>,
@@ -214,6 +217,10 @@ pub fn scan_listing_app(
         declared: deps::read_in(listing)
             .into_iter()
             .filter(|d| ours(&d.manifest))
+            .collect(),
+        unread_manifests: deps::unread_in(listing)
+            .into_iter()
+            .filter(|u| ours(&u.manifest))
             .collect(),
         all_paths: listing
             .all_paths()
