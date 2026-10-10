@@ -1160,6 +1160,9 @@ fn cmd_run(args: &[String]) -> Result<i32> {
                 println!("\n{installed}");
             }
             println!("\n{}", outcome.fence.explain());
+            if let Some(container) = outcome.container.sentences() {
+                println!("\n{container}");
+            }
             let (findings, verified, signed_in_not_assessed) =
                 running_app_evidence(&outcome, &plan);
             println!(

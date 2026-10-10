@@ -78,6 +78,29 @@ const MEMORY_LIMIT: &str = "2g";
 const PROCESS_LIMIT: &str = "512";
 const MOST_CPUS: u64 = 2;
 
+#[cfg(all(test, unix))]
+mod container_record_tests;
+
+/// How the wait for the app to answer ended: whether it answered, after how many seconds, and how
+/// it ended when it stopped of its own accord first.
+struct Readiness {
+    answered: bool,
+    after_seconds: u64,
+    exited: Option<crate::Exited>,
+}
+
+/// How a container ended, from `docker inspect`'s "status exit-code out-of-memory", or `None` while
+/// it has not ended.
+fn exited_from(state: &str) -> Option<crate::Exited> {
+    match state.split_whitespace().collect::<Vec<_>>().as_slice() {
+        ["exited" | "dead", code, oom] => Some(crate::Exited {
+            code: code.parse().unwrap_or(-1),
+            out_of_memory: *oom == "true",
+        }),
+        _ => None,
+    }
+}
+
 /// How long the sidecar may live if nothing removes it. It is removed as soon as the probes are
 /// done, and by the teardown whatever happens; this is the bound for a run that dies without either,
 /// so a crash cannot leave a container behind on the owner's machine for longer than this. Made of
@@ -393,6 +416,7 @@ impl DockerBackend {
                 installer(crate::install::Ecosystem::Python),
                 installer(crate::install::Ecosystem::Node),
             ],
+            done: false,
         };
 
         // 0. The app's packages, when stackvet.toml asks for them (ADR-052): before anything else
@@ -405,9 +429,11 @@ impl DockerBackend {
             Vec::new()
         };
         let mut installed = Vec::new();
+        let mut container = crate::ContainerRecord::default();
         for install in &installs {
             let reused = self.install(install, &installer(install.ecosystem), &plan.image)?;
             installed.push((install.ecosystem, reused));
+            container.volumes_kept.push(install.volume.clone());
         }
 
         // 1. The fence. Without a gateway address when the daemon allows one of the ways; a daemon that
@@ -443,18 +469,16 @@ impl DockerBackend {
         // If a future edit drops the flag, or a daemon ignores it, this stops the run before any
         // untrusted code starts, rather than running it unfenced and reporting a clean result.
         self.verify_fenced(&network)?;
+        let network_made = made_with.map_or(
+            "plain internal: Docker refused both ways of leaving out a gateway".to_owned(),
+            |o| format!("with `{o}`"),
+        );
         // 1b'. And that nothing on it can reach the host through the bridge's gateway, which
         //      `--internal` alone leaves open.
+        container.network_made = Some(network_made.clone());
         self.verify_gateway_closed(&network).map_err(|e| match e {
             CannotRun::BackendFailed { detail } => CannotRun::BackendFailed {
-                detail: format!(
-                    "{detail} (the network was made {})",
-                    made_with.map_or(
-                        "plain internal: Docker refused both ways of leaving out a gateway"
-                            .to_owned(),
-                        |o| format!("with `{o}`")
-                    )
-                ),
+                detail: format!("{detail} (the network was made {network_made})"),
             },
             other => other,
         })?;
@@ -602,7 +626,9 @@ impl DockerBackend {
         } else {
             Via::FreshContainer(&network)
         };
-        let healthy = self.wait_until_ready(&via, &app, plan);
+        let ready = self.wait_until_ready(&via, &app, plan);
+        let healthy = ready.answered;
+        container.ready_after_seconds = healthy.then_some(ready.after_seconds);
         // The browser reaches the app at http://localhost:<port>, as a person running it on their
         // own computer would: an app that trusts its own origin for forms trusts that one, and a
         // browser treats localhost as secure, so `Secure` cookies work without HTTPS. A forwarder
@@ -638,10 +664,11 @@ impl DockerBackend {
             }
             let (detail, crashed) = never_ready_detail(&logs, plan.build.as_deref());
             return Err(CannotRun::NeverReady {
-                waited_seconds: READY_TIMEOUT_SECONDS,
+                waited_seconds: ready.after_seconds,
                 detail,
                 loopback: crate::loopback_named_in(&plan.start),
                 crashed,
+                exited: ready.exited,
             });
         }
 
@@ -691,18 +718,17 @@ impl DockerBackend {
         // Nothing after this point sends a request, so the sidecar goes now rather than waiting on
         // the tests, which can take as long as they like. The mail server with it: nothing reads it
         // after the probes.
-        let _ = self.docker(&["rm", "-f", &sidecar]);
-        if mail.is_some() {
-            let _ = self.docker(&["rm", "-f", &mail_name]);
-        }
-        if provider.is_some() {
-            let _ = self.docker(&["rm", "-f", &provider_name]);
-        }
-        if browser.is_some() {
-            let _ = self.docker(&["rm", "-f", &browser_name]);
-        }
-        if model.is_some() {
-            let _ = self.docker(&["rm", "-f", &model_name]);
+        let mut helpers = vec![&sidecar];
+        helpers.extend(mail.is_some().then_some(&mail_name));
+        helpers.extend(provider.is_some().then_some(&provider_name));
+        helpers.extend(browser.is_some().then_some(&browser_name));
+        helpers.extend(model.is_some().then_some(&model_name));
+        for helper in helpers {
+            container.not_removed.extend(not_removed(
+                "container",
+                helper,
+                self.docker(&["rm", "-f", helper]),
+            ));
         }
 
         // 5. The declared tests, inside the app container so they see what the app sees.
@@ -773,7 +799,11 @@ impl DockerBackend {
             })
         });
 
-        drop(guard);
+        for left in guard.finish() {
+            if !container.not_removed.contains(&left) {
+                container.not_removed.push(left);
+            }
+        }
         Ok(RunOutcome {
             healthy,
             tests,
@@ -789,6 +819,7 @@ impl DockerBackend {
             liveness,
             installed,
             sidecar_lost: self.sidecar_lost(),
+            container,
         })
     }
 }
@@ -876,6 +907,7 @@ impl sv_check::script::Services for DockerRun<'_> {
         ) && self
             .backend
             .wait_until_ready(self.via, self.switched_off, self.plan)
+            .answered
     }
 
     fn remove_switched_off(&self) {
@@ -1845,25 +1877,36 @@ impl DockerBackend {
     /// This is the part that could not be done from the host. An `--internal` network is
     /// unreachable from this computer whether or not a port is published, so the probe has to live
     /// inside the fence with the app.
-    fn wait_until_ready(&self, via: &Via, app: &str, plan: &RunPlan) -> bool {
+    fn wait_until_ready(&self, via: &Via, app: &str, plan: &RunPlan) -> Readiness {
         let url = format!("http://{app}:{}{}", plan.port, plan.health_path);
-        let deadline =
-            std::time::Instant::now() + std::time::Duration::from_secs(READY_TIMEOUT_SECONDS);
+        let started = std::time::Instant::now();
+        let deadline = started + std::time::Duration::from_secs(READY_TIMEOUT_SECONDS);
+        let ended = |answered, exited| Readiness {
+            answered,
+            after_seconds: started.elapsed().as_secs(),
+            exited,
+        };
         while std::time::Instant::now() < deadline {
-            // If the app has already given up, waiting the full minute tells nobody anything.
-            if let Ok((_, status)) = self.docker(&["inspect", "-f", "{{.State.Status}}", app])
-                && status.trim() == "exited"
+            // If the app has already given up, waiting the full minute tells nobody anything; how
+            // it ended is kept, so the person is told the wait was short and why (backlog 226,
+            // part 2, item 18).
+            if let Ok((_, state)) = self.docker(&[
+                "inspect",
+                "-f",
+                "{{.State.Status}} {{.State.ExitCode}} {{.State.OOMKilled}}",
+                app,
+            ]) && let Some(exited) = exited_from(&state)
             {
-                return false;
+                return ended(false, Some(exited));
             }
             if let Ok((0, _)) =
                 self.inside_fence(via, &["wget", "-q", "-T", "3", "-O", "/dev/null", &url])
             {
-                return true;
+                return ended(true, None);
             }
             std::thread::sleep(std::time::Duration::from_secs(2));
         }
-        false
+        ended(false, None)
     }
 }
 
@@ -1915,10 +1958,20 @@ struct Teardown<'a> {
     run: String,
     network: String,
     containers: Vec<String>,
+    /// Set once the removal has run, so dropping after `finish` does not run it again.
+    done: bool,
 }
 
-impl Drop for Teardown<'_> {
-    fn drop(&mut self) {
+impl Teardown<'_> {
+    /// Removes what the run started, now, and names what could not be removed (backlog 226, part
+    /// 2, item 18): until 10 October 2026 each failure was dropped.
+    fn finish(mut self) -> Vec<String> {
+        self.remove()
+    }
+
+    fn remove(&mut self) -> Vec<String> {
+        self.done = true;
+        let mut left = Vec::new();
         let filter = format!("label={RUN_LABEL}={}", self.run);
         let listed = |args: &[&str]| match self.backend.docker_cleanup(args) {
             Ok((0, out)) => Some(out),
@@ -1926,18 +1979,49 @@ impl Drop for Teardown<'_> {
         };
         let containers = listed(&["ps", "-aq", "--filter", &filter]);
         for container in to_remove(containers.as_deref(), &self.containers) {
-            let _ = self.backend.docker_cleanup(&["rm", "-f", &container]);
+            left.extend(not_removed(
+                "container",
+                &container,
+                self.backend.docker_cleanup(&["rm", "-f", &container]),
+            ));
         }
         let networks = listed(&["network", "ls", "-q", "--filter", &filter]);
         for network in to_remove(networks.as_deref(), std::slice::from_ref(&self.network)) {
-            let _ = self.backend.docker_cleanup(&["network", "rm", &network]);
+            left.extend(not_removed(
+                "network",
+                &network,
+                self.backend.docker_cleanup(&["network", "rm", &network]),
+            ));
         }
         if let Ok(mut run) = self.backend.run.lock()
             && run.as_deref() == Some(self.run.as_str())
         {
             *run = None;
         }
+        left
     }
+}
+
+impl Drop for Teardown<'_> {
+    fn drop(&mut self) {
+        if !self.done {
+            self.remove();
+        }
+    }
+}
+
+/// "container <name> (what Docker said)" when removing it failed, or `None` when it went, or was
+/// already gone: a helper that never started is not one left behind.
+fn not_removed(kind: &str, name: &str, removed: Result<(i32, String), String>) -> Option<String> {
+    let said = match removed {
+        Ok((0, _)) => return None,
+        Ok((_, out)) => first_line(&out),
+        Err(e) => first_line(&e),
+    };
+    if said.contains("No such") || said.contains("not found") {
+        return None;
+    }
+    Some(format!("{kind} {name} ({said})"))
 }
 
 /// What a teardown removes: the ids Docker listed under this run's label, or, when it would not
