@@ -165,7 +165,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
     say "not understood". Gaps are prose only (`Gap { what, why }`), and the trial scorer splits them on commas: add
     requirement ids and a reason code. `report.json` has no format version. Whether a report names the advisory
     database it used, its size, and its newest record was not settled: read `assemble.rs` past the part read.
-   **Part status:** open
+   **Part status:** claimed by stackvet-e9, 10 October 2026
 
 ### Part 3: the owner's decisions
 
@@ -370,3 +370,10 @@ how long after it started, its exit code, and whether it was killed for memory; 
 app took to answer, how its network was made, what could not be removed, and which download volumes it kept, with
 the commands for each; ADR-052 names `stackvet.deps`. Still open: what a run that failed could not remove. Breaks:
 with the teardown's answer dropped, or the old wording, a test fails.
+
+**Part 2, item 20 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue", in branch
+`claude/stackvet-e9-obs-20`: a version catalog that does not parse said as not understood, among the package lists
+`sv` could not read (#1337's list); a format version on `report.json`; and the advisory database a report compared
+against, named with its size and its newest record. Read in `assemble.rs`: today a report names none of the three.
+Not claimed: requirement ids and a reason code on each gap, which touches 69 places and needs a set of reason codes
+someone settles first. Each with a test that fails without it.
