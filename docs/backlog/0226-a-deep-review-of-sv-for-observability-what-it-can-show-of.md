@@ -152,7 +152,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
     (a `withheld_by`); `report.json` carries no tier and no "whose word" label, and `attested_by` mixes the owner's
     yes with the tool's; `sv explain` gives no finding's place, prints only `checked_by`, and reads only the latest
     report (a `--report` option). Rendering and JSON only: no status changes.
-   **Part status:** open
+   **Part status:** claimed by stackvet-e9, 10 October 2026
 18. **What happened to the container.** The true wait (the message says "within 60s" when the app exited at once),
     the app's exit code and out-of-memory flag on that path, the seconds to healthy, how the fence was made
     (`made_with`, now shown only on failure), teardown errors (now `let _`), and that a download volume was kept, its
@@ -382,3 +382,11 @@ someone settles first. Each with a test that fails without it.
 understood and named among the unread package lists; `report.json` carries `report_format`; the advisory comparison
 names its database, its size, and its newest record, in `report.json` and at the top of both pages. Still open:
 requirement ids and a reason code on each gap. Breaks: with each change undone, its test fails.
+
+**Part 2, item 17 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue", in branch
+`claude/stackvet-e9-obs-17`: rendering and JSON only, no status changes. On the pages, a needs-attention row names
+the checks that passed for the same requirement and says a finding outranks every credit. A requirement whose
+checks a set-aside false alarm kept from counting says so (`withheld_by`). In `report.json`, each row says whose
+word its status rests on, and each entry of `attested_by` whose yes it was. Then, in a second pull request,
+`sv explain` gives each finding's place, every list of credits, and `--report` to read a report other than the
+latest. Each with a test that fails without it.
