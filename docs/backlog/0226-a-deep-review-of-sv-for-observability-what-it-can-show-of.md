@@ -377,6 +377,12 @@ remove, with what Docker said and the command to remove it, in the same sentence
 (`RunFailed::not_removed`). Breaks: with the answer dropped, the list left empty, or the sentence left out, the new
 test fails.
 
+**Part 2, item 15 claimed on 10 October 2026 by session securevibe-e2**, its remainder, under the owner's
+"continue to work through and pick up new items", in branch `claude/securevibe-e2-progress`: at a terminal, a line
+under the outside tools' stage for each tool as it starts, and one under the running-app stage for each suite as it
+starts (the anonymous questions, the signed-in suites, the test provider, the app as an MCP server, the fetch, the AI
+feature, the declared tests), on stderr; the MCP server unchanged. With a test that fails without each.
+
 **Part 2, item 15 done on 10 October 2026** (`docs/design/0361-a-progress-line-for-each-outside-tool-and-each-running-app.md`): at a terminal, each outside tool and each
 suite of questions to the running app, and the app's own tests, are said on stderr as each begins, indented under
 their stage; the MCP server, which starts neither, is unchanged. Breaks: with each line taken away, its test fails;
