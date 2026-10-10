@@ -426,6 +426,42 @@ pub struct ChecklistAboveLevel {
 pub struct Gap {
     pub what: String,
     pub why: String,
+    /// Which kind of gap this is, for a program reading `report.json` (backlog 226, part 2, item
+    /// 20). Every gap says one: there is no default, so a gap added later does not build until it
+    /// does.
+    pub reason: GapReason,
+    /// The requirement ids this gap names in its own words, and only those: a citation is a claim,
+    /// so a gap that does not name its requirements carries none.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub requirements: Vec<String>,
+}
+
+/// Why something was not examined, in one word a program can read (backlog 226, part 2, item 20).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum GapReason {
+    /// An option was not given: `--run`, `--tools`, `--advisories`, or the like.
+    NotAsked,
+    /// A program it needs is not there: an outside tool, or the container backend.
+    NotInstalled,
+    /// A file was there and could not be read: it did not parse, is not text, or would not open.
+    CouldNotRead,
+    /// `sv` has nothing that reads this language or kind of file.
+    NoReader,
+    /// Something ran and did not finish: a failure, a time limit, or Ctrl-C.
+    Stopped,
+    /// Only a person can check it.
+    PersonOnly,
+    /// The owner's design answer says it is planned, not built.
+    Planned,
+    /// Some of it was read and some was not.
+    Partial,
+    /// Left out on purpose, by `sv`'s own rule or the owner's word: installed or built code, a
+    /// link not followed, a folder named as not the app.
+    LeftOut,
+    /// Read, in a form that is out of date: a file under its old name, or one that changed while
+    /// the run was reading it.
+    Outdated,
 }
 
 /// Whether this report looked for one family of findings, for a program reading `report.json`

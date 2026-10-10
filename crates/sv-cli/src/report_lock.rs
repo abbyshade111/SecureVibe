@@ -525,6 +525,8 @@ pub fn manifest_changed(
         sv_report::Gap {
             what: "stackvet.toml as it is now".to_owned(),
             why: format!("it {changed}"),
+            reason: sv_report::GapReason::Outdated,
+            requirements: Vec::new(),
         },
     ))
 }

@@ -115,7 +115,7 @@ fn a_line_marked_nosec_withholds_the_clean_run() {
     let outcome = run("bandit", "python", &bandit_report(1, 0, &dir), &dir);
     std::fs::remove_dir_all(&dir).ok();
     assert!(outcome.verified.is_empty(), "{:?}", outcome.verified);
-    let (id, why) = &outcome.not_run[0];
+    let (id, why, _) = &outcome.not_run[0];
     assert_eq!(id, "bandit");
     assert!(why.contains("1 line is marked `# nosec`"), "{why}");
     assert!(why.contains("not counted"), "{why}");

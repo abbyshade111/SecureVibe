@@ -1005,6 +1005,8 @@ mod tests {
             gaps: vec![crate::Gap {
                 what: format!("a gap {live}"),
                 why: format!("because {live}"),
+                reason: crate::GapReason::NotAsked,
+                requirements: Vec::new(),
             }],
             examined: Vec::new(),
             could_not_run: Vec::new(),

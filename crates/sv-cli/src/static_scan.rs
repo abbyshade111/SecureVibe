@@ -186,6 +186,8 @@ impl StaticScan {
                     held.rule_id, held.package
                 ),
                 why: held_back_why(held),
+                reason: sv_report::GapReason::NoReader,
+                requirements: Vec::new(),
             })
             .collect()
     }

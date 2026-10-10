@@ -377,6 +377,8 @@ mod tests {
         let report = empty_report(vec![crate::Gap {
             what: "the running app".into(),
             why: "no container backend is available".into(),
+            reason: crate::GapReason::NotInstalled,
+            requirements: Vec::new(),
         }]);
         let value: serde_json::Value = serde_json::from_str(&render(&report)).unwrap();
         let notifications = &value["runs"][0]["invocations"][0]["toolExecutionNotifications"];

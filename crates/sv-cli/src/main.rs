@@ -1158,7 +1158,7 @@ fn cmd_run(args: &[String]) -> Result<i32> {
         );
     }
     match probe_the_running_app(&manifest, &app_dir, slow) {
-        Err(reason) => {
+        Err((reason, _)) => {
             println!("\nNot assessed.\n\n{reason}");
             // Nothing about the running app was checked, which ADR-029 says with a 2, as `sv check` and
             // `sv report` do when a check could not run (the owner's decision, 6 October 2026).
@@ -3004,8 +3004,13 @@ mod tests {
                 (
                     "semgrep".into(),
                     "ran and found nothing, but was told not to look".into(),
+                    sv_check::adapters::NotRunCause::LeftOut,
                 ),
-                ("codeql-python".into(), "not installed".into()),
+                (
+                    "codeql-python".into(),
+                    "not installed".into(),
+                    sv_check::adapters::NotRunCause::NotInstalled,
+                ),
             ],
             ..Default::default()
         };

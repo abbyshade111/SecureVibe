@@ -304,7 +304,7 @@ fn a_run_whose_report_says_it_could_not_read_a_file_is_not_clean() {
         outcome
             .not_run
             .iter()
-            .any(|(_, why)| why.contains("ran and found nothing, but it did not look at all")),
+            .any(|(_, why, _)| why.contains("ran and found nothing, but it did not look at all")),
         "{:?}",
         outcome.not_run
     );
@@ -508,7 +508,7 @@ fn only_a_report_the_tool_wrote_in_this_run_is_read() {
     std::fs::remove_dir_all(&dir).ok();
     for outcome in [silent, linked] {
         match outcome {
-            Outcome::NotRun { why } => {
+            Outcome::NotRun { why, .. } => {
                 assert!(why.starts_with("Tool ran and wrote no report"), "{why}")
             }
             Outcome::Ran { .. } => panic!("a report the tool did not write was read"),
@@ -696,7 +696,7 @@ fn a_tool_that_does_not_finish_is_stopped_with_what_it_started_and_not_read() {
     let begun = std::time::Instant::now();
     let outcome = run_one(&stuck, &app, &report, &secret_rules());
     let took = begun.elapsed();
-    let Outcome::NotRun { why } = &outcome else {
+    let Outcome::NotRun { why, .. } = &outcome else {
         panic!("a tool stopped by the limit was read: {outcome:?}");
     };
     assert!(why.contains("was stopped after 2 seconds"), "{why}");

@@ -75,6 +75,8 @@ fn planned_gaps(planned: &[sv_check::design::Planned]) -> Vec<sv_report::Gap> {
                  exists, a planned file that is not there is reported as decided, never built.",
                 not_yet.join(", ")
             ),
+            reason: sv_report::GapReason::Planned,
+            requirements: Vec::new(),
         });
     }
     let due = of(PlannedState::FileIsThere);
@@ -87,6 +89,8 @@ fn planned_gaps(planned: &[sv_check::design::Planned]) -> Vec<sv_report::Gap> {
                  or to no if it does not. Until then it counts for nothing.",
                 due.join(", ")
             ),
+            reason: sv_report::GapReason::Planned,
+            requirements: Vec::new(),
         });
     }
     let blind = of(PlannedState::NothingToLookFor);
@@ -99,6 +103,8 @@ fn planned_gaps(planned: &[sv_check::design::Planned]) -> Vec<sv_report::Gap> {
                  naming the file that does it, or to no.",
                 blind.join(", ")
             ),
+            reason: sv_report::GapReason::Planned,
+            requirements: Vec::new(),
         });
     }
     gaps
@@ -251,6 +257,8 @@ pub fn assemble_report_saying(
         gaps.push(sv_report::Gap {
             what: format!("the manifest, named {manifest_file}"),
             why: note,
+            reason: sv_report::GapReason::Outdated,
+            requirements: Vec::new(),
         });
     }
     stage(8);
@@ -430,6 +438,8 @@ fn advisories(scene: &Scene, examined: &mut Vec<sv_report::Examined>) -> Result<
                             .collect::<String>()
                     }
                 ),
+                reason: sv_report::GapReason::NotAsked,
+                requirements: Vec::new(),
             })
         }
         Some(dir) => {
@@ -450,6 +460,8 @@ fn advisories(scene: &Scene, examined: &mut Vec<sv_report::Examined>) -> Result<
                          An empty database and a healthy app look the same from here.",
                         dir.display()
                     ),
+                    reason: sv_report::GapReason::CouldNotRead,
+                    requirements: Vec::new(),
                 });
             } else {
                 let mut result = advisories::audit_against(
@@ -548,6 +560,8 @@ fn advisories(scene: &Scene, examined: &mut Vec<sv_report::Examined>) -> Result<
                                 String::new()
                             }
                         ),
+                        reason: sv_report::GapReason::CouldNotRead,
+                        requirements: Vec::new(),
                     });
                 }
                 findings_from_advisories = result.findings;
@@ -566,6 +580,8 @@ fn advisories(scene: &Scene, examined: &mut Vec<sv_report::Examined>) -> Result<
                         why: "the advisory database holds nothing about them, so they were not \
                               compared. That is not the same as their being clean."
                             .to_owned(),
+                        reason: sv_report::GapReason::Partial,
+                        requirements: Vec::new(),
                     });
                 }
                 if !result.uncomparable.is_empty() {
@@ -587,6 +603,8 @@ fn advisories(scene: &Scene, examined: &mut Vec<sv_report::Examined>) -> Result<
                         why: "these versions could not be compared with any affected range, so \
                               nothing is claimed about them either way"
                             .to_owned(),
+                        reason: sv_report::GapReason::CouldNotRead,
+                        requirements: Vec::new(),
                     });
                 }
             }
@@ -692,10 +710,23 @@ fn outside_tools(
         examined.extend(adapters_examined(adapters, &languages, &outcome));
         findings.extend(outcome.findings);
         tool_verified = outcome.verified;
-        for (id, why) in outcome.not_run {
+        for (id, why, cause) in outcome.not_run {
+            use sv_check::adapters::NotRunCause;
             tool_gaps.push(sv_report::Gap {
                 what: format!("what `{id}` would have found"),
                 why,
+                reason: if outcome.partly.iter().any(|(partly, _)| *partly == id) {
+                    sv_report::GapReason::Partial
+                } else {
+                    match cause {
+                        NotRunCause::NotInstalled => sv_report::GapReason::NotInstalled,
+                        NotRunCause::Stopped => sv_report::GapReason::Stopped,
+                        NotRunCause::CouldNotRead => sv_report::GapReason::CouldNotRead,
+                        NotRunCause::LeftOut => sv_report::GapReason::LeftOut,
+                        NotRunCause::NothingToRead => sv_report::GapReason::NoReader,
+                    }
+                },
+                requirements: Vec::new(),
             });
         }
     } else {
@@ -715,6 +746,8 @@ fn outside_tools(
                         options.why_no_tools,
                         tool_names(adapters)
                     ),
+                    reason: sv_report::GapReason::NotAsked,
+                    requirements: Vec::new(),
                 });
             }
             // Which tools there are is not known, so none is named, and the report says why
@@ -727,6 +760,8 @@ fn outside_tools(
                     options.why_no_tools,
                     adapters_path().display()
                 ),
+                reason: sv_report::GapReason::NotAsked,
+                requirements: Vec::new(),
             }),
         }
     }
@@ -934,6 +969,8 @@ fn running_app(
                     gaps.push(sv_report::Gap {
                         what: format!("{requirements}, {how}"),
                         why,
+                        reason: sv_report::GapReason::Stopped,
+                        requirements: requirement_ids(&requirements),
                     });
                 }
                 gaps.extend(rate_limited_gap(&outcome.probes_rate_limited));
@@ -949,6 +986,8 @@ fn running_app(
                     gaps.push(sv_report::Gap {
                         what: format!("{requirements}, by asking the running app"),
                         why,
+                        reason: sv_report::GapReason::Partial,
+                        requirements: requirement_ids(requirements),
                     });
                 }
                 match &outcome.tests {
@@ -966,6 +1005,8 @@ fn running_app(
                                  printed before it was stopped.",
                                 sv_run::minutes(after)
                             ),
+                            reason: sv_report::GapReason::Stopped,
+                            requirements: Vec::new(),
                         });
                         test_output = sv_check::suite::failing_output(
                             result.exit_code,
@@ -1008,6 +1049,8 @@ fn running_app(
                                              be read: {}. Nothing is credited from it.",
                                             result.exit_code, unreadable.why
                                         ),
+                                        reason: sv_report::GapReason::CouldNotRead,
+                                        requirements: Vec::new(),
                                     });
                                     None
                                 }
@@ -1067,6 +1110,12 @@ fn running_app(
                                         )
                                     ),
                                 },
+                                reason: if reported_cases.is_some() {
+                                    sv_report::GapReason::Partial
+                                } else {
+                                    sv_report::GapReason::Stopped
+                                },
+                                requirements: Vec::new(),
                             });
                         } else if credited.is_empty() {
                             gaps.push(sv_report::Gap {
@@ -1075,6 +1124,8 @@ fn running_app(
                                       for, so nothing here can say which requirements they are \
                                       evidence about. `sv init` explains how to name them."
                                     .to_owned(),
+                                reason: sv_report::GapReason::NotAsked,
+                                requirements: Vec::new(),
                             });
                         }
                         findings.extend(mismatches);
@@ -1088,11 +1139,13 @@ fn running_app(
                         gaps.push(sv_report::Gap {
                             what: "the app's own tests".to_owned(),
                             why: "stackvet.toml declares no test command".to_owned(),
+                            reason: sv_report::GapReason::NotAsked,
+                            requirements: Vec::new(),
                         })
                     }
                 }
             }
-            Err(reason) => {
+            Err((reason, kind)) => {
                 run_status = sv_report::RunStatus::CouldNotStart {
                     why: reason.clone(),
                 };
@@ -1103,6 +1156,8 @@ fn running_app(
                 gaps.push(sv_report::Gap {
                     what: "the running app".to_owned(),
                     why: format!("--run was given and the app could not be run. {reason}"),
+                    reason: kind,
+                    requirements: Vec::new(),
                 })
             }
         }
@@ -1117,6 +1172,8 @@ fn running_app(
                  browser, what it says when something goes wrong, which sites it accepts.",
                 options.why_not_run
             ),
+            reason: sv_report::GapReason::NotAsked,
+            requirements: Vec::new(),
         });
     }
     RunningApp {
@@ -1214,6 +1271,8 @@ fn what_was_not_read(
                     String::new()
                 }
             ),
+            reason: sv_report::GapReason::LeftOut,
+            requirements: Vec::new(),
         });
     }
     if !listing.skipped.is_empty() {
@@ -1240,6 +1299,8 @@ fn what_was_not_read(
                     String::new()
                 }
             ),
+            reason: sv_report::GapReason::LeftOut,
+            requirements: Vec::new(),
         });
     }
     if !listing.special.is_empty() {
@@ -1274,6 +1335,8 @@ fn what_was_not_read(
                     "them"
                 }
             ),
+            reason: sv_report::GapReason::NoReader,
+            requirements: Vec::new(),
         });
     }
     if !code.unread_files.is_empty() {
@@ -1303,6 +1366,8 @@ fn what_was_not_read(
                     String::new()
                 }
             ),
+            reason: sv_report::GapReason::CouldNotRead,
+            requirements: Vec::new(),
         });
     }
     if !code.broken_queries.is_empty() {
@@ -1327,6 +1392,8 @@ fn what_was_not_read(
                  nothing wrong. This is a fault in sv's rule file, not in the app.",
                 shown.join("; ")
             ),
+            reason: sv_report::GapReason::Stopped,
+            requirements: Vec::new(),
         });
     }
     gaps.extend(not_the_app_gaps(manifest, scan_report));
@@ -1334,6 +1401,8 @@ fn what_was_not_read(
         gaps.push(sv_report::Gap {
             what: format!("the check `{id}`"),
             why: why.clone(),
+            reason: sv_report::GapReason::CouldNotRead,
+            requirements: Vec::new(),
         });
     }
     if !secrets.coverage.skipped.is_empty() {
@@ -1361,6 +1430,8 @@ fn what_was_not_read(
                 "{}. A credential in a file nothing read is a credential nothing found.",
                 named.join(", ")
             ),
+            reason: sv_report::GapReason::CouldNotRead,
+            requirements: Vec::new(),
         });
     }
     if !code.unread_languages.is_empty() {
@@ -1378,6 +1449,8 @@ fn what_was_not_read(
         gaps.push(sv_report::Gap {
             what: format!("code written in {}", names.join(", ")),
             why,
+            reason: sv_report::GapReason::NoReader,
+            requirements: Vec::new(),
         });
     }
     if !code.sql_files.is_empty() {
@@ -1386,6 +1459,8 @@ fn what_was_not_read(
             why: "no rule reads a file of SQL. Nothing is held back for it: the rules against \
                   queries built by hand look at how the app's code builds a query"
                 .to_owned(),
+            reason: sv_report::GapReason::NoReader,
+            requirements: Vec::new(),
         });
     }
     if !code.unparsed_files.is_empty() {
@@ -1410,6 +1485,8 @@ fn what_was_not_read(
                   rule whose call is named nowhere in them could not have found it there. What was \
                   found stands"
                 .to_owned(),
+            reason: sv_report::GapReason::Partial,
+            requirements: Vec::new(),
         });
     }
     gaps.extend(untaught_gaps(&code.untaught));
@@ -1426,6 +1503,8 @@ fn what_was_not_read(
                  package may be answered as not used. Fix the file and check again",
                 unread.why
             ),
+            reason: sv_report::GapReason::CouldNotRead,
+            requirements: Vec::new(),
         });
     }
     if !scan_report.unread_extensions.is_empty() {
@@ -1441,6 +1520,8 @@ fn what_was_not_read(
                 "the technology scan did not look in these, so no technology can be called absent \
                   on their account"
                     .to_owned(),
+            reason: sv_report::GapReason::NoReader,
+            requirements: Vec::new(),
         });
     }
     // The Secure by Design checklist is design review, not scanning. Its controls are applicable
@@ -1460,6 +1541,8 @@ fn what_was_not_read(
                   has named owners. No check here reaches them and none ever will, so they are \
                   counted as applicable and unverified, and a person has to answer them."
                 .to_owned(),
+            reason: sv_report::GapReason::PersonOnly,
+            requirements: Vec::new(),
         });
     }
     gaps.extend(dependency_gaps(bill_of_materials));
@@ -1642,6 +1725,8 @@ fn the_owners_word(
                          ask you them: `sv questions` prints them for its chat.",
                         notes_catalog.file
                     ),
+                    reason: sv_report::GapReason::PersonOnly,
+                    requirements: Vec::new(),
                 });
             }
             sv_check::notes::Evidence::default()
@@ -1669,6 +1754,8 @@ fn the_owners_word(
                 },
                 notes.unreadable.join(", ")
             ),
+            reason: sv_report::GapReason::CouldNotRead,
+            requirements: Vec::new(),
         });
     }
     if !notes.not_read.is_empty() {
@@ -1686,6 +1773,8 @@ fn the_owners_word(
                  answer, or use a `####` heading inside the answer instead.",
                 notes.not_read.join("; ")
             ),
+            reason: sv_report::GapReason::Partial,
+            requirements: Vec::new(),
         });
     }
     // The decisions the design-time prompts write down (`sv_check::decisions`). Two sections count
@@ -1730,6 +1819,8 @@ fn the_owners_word(
                 },
                 decisions.unreadable.join(", ")
             ),
+            reason: sv_report::GapReason::CouldNotRead,
+            requirements: Vec::new(),
         });
     }
     // A review by a person is the one thing that section can ask for, and no tool can do it, so
@@ -1762,6 +1853,8 @@ fn the_owners_word(
                 sv_check::decisions::FILE,
                 sv_check::decisions::BRING_IN_A_PERSON
             ),
+            reason: sv_report::GapReason::PersonOnly,
+            requirements: Vec::new(),
         });
     }
     let documented: Vec<sv_check::Verified> = notes
@@ -1836,6 +1929,8 @@ fn the_owners_word(
                 },
                 design.unreadable.join(", ")
             ),
+            reason: sv_report::GapReason::CouldNotRead,
+            requirements: Vec::new(),
         });
     }
     if !design.unanswered.is_empty() {
@@ -1856,6 +1951,8 @@ fn the_owners_word(
                  questions` prints them for its chat.",
                 design.unanswered.join(", ")
             ),
+            reason: sv_report::GapReason::PersonOnly,
+            requirements: Vec::new(),
         });
     }
 
@@ -1918,6 +2015,8 @@ fn the_owners_word(
                     .collect::<Vec<_>>()
                     .join("; ")
             ),
+            reason: sv_report::GapReason::CouldNotRead,
+            requirements: Vec::new(),
         });
     }
     if !hand.out_of_date.is_empty() {
@@ -1942,6 +2041,8 @@ fn the_owners_word(
                     .collect::<Vec<_>>()
                     .join("; ")
             ),
+            reason: sv_report::GapReason::PersonOnly,
+            requirements: Vec::new(),
         });
     }
     // A person confirming what the AI tool said moves it up to their tier, shown as confirmed. What
@@ -2022,12 +2123,16 @@ fn the_owners_word(
         gaps.push(sv_report::Gap {
             what: "What information the app holds about people".to_owned(),
             why: why.to_owned(),
+            reason: sv_report::GapReason::PersonOnly,
+            requirements: Vec::new(),
         });
     }
     if let Some(why) = manifest.level_from_unknown_data() {
         gaps.push(sv_report::Gap {
             what: "A kind of information the app holds that `sv` does not know".to_owned(),
             why,
+            reason: sv_report::GapReason::NoReader,
+            requirements: Vec::new(),
         });
     }
     let not_counted: Vec<&(String, String)> = confirmed_design
@@ -2056,6 +2161,8 @@ fn the_owners_word(
                     .collect::<Vec<_>>()
                     .join("; ")
             ),
+            reason: sv_report::GapReason::CouldNotRead,
+            requirements: Vec::new(),
         });
     }
     let attested: Vec<sv_check::Verified> = design
@@ -2291,6 +2398,8 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
                     .collect::<Vec<_>>()
                     .join("`, `")
             ),
+            reason: sv_report::GapReason::CouldNotRead,
+            requirements: Vec::new(),
         });
     }
     if !safe_defaults.missing.is_empty() {
@@ -2317,6 +2426,8 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
                     .collect::<Vec<_>>()
                     .join("`, `")
             ),
+            reason: sv_report::GapReason::PersonOnly,
+            requirements: Vec::new(),
         });
     }
     let held_safe = safe_defaults.decided.iter().filter(|d| d.safe).count();
@@ -2330,6 +2441,8 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
             why: "Each is held to a check of the running app, and the app was not run, so whether \
                   the app does what was decided was not looked at. `sv report --run` runs it."
                 .to_owned(),
+            reason: sv_report::GapReason::NotAsked,
+            requirements: Vec::new(),
         });
     }
     // Why the app is held to its level, on whose word, and what level 2 would add (the gap
@@ -2455,6 +2568,8 @@ fn level_hints_from(path: &Path) -> Result<sv_check::level_hints::Hints, sv_repo
              does not. Reinstall sv, or point SV_DATA_DIR at a complete copy of its data.",
             path.display()
         ),
+        reason: sv_report::GapReason::CouldNotRead,
+        requirements: Vec::new(),
     })
 }
 

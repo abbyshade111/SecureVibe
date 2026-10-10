@@ -94,7 +94,7 @@ fn brakeman_is_not_run_over_an_app_with_a_link_because_it_would_read_through_it(
         )
         .unwrap(),
     );
-    let Outcome::NotRun { why } = &outcome else {
+    let Outcome::NotRun { why, .. } = &outcome else {
         panic!("{outcome:?}");
     };
     assert!(
