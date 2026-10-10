@@ -1,6 +1,6 @@
 # From the review of 8 October 2026: the four things to fix first
 
-**Status:** partly done: 2 of 4 parts done, 0 claimed, 0 open, as its markers read on 8 October 2026
+**Status:** done, 8 October 2026
 
 A read-only review of `sv` at `7371e76` (six
 readings: the container fence, `sv probe`, the MCP server and the files `sv` writes, secrets and reports, the
@@ -21,7 +21,7 @@ hands to add here as they choose.
    Docker's own `python` and `node` images"; ADR-052, Later, 8 October 2026): `install::official_image`, and `plan`
    refusing any other image before the folder is read. Not done: a terminal confirmation for other images, since
    the MCP server has no terminal to ask at; building the packages into your own image stays the route.
-   **Part status:** partly done: unclear, needs a look
+   **Part status:** done, 8 October 2026
 2. **Brakeman reads `config/brakeman.yml` from the app, and that file can name Ruby files Brakeman loads**
    (`data/adapters.json`, the brakeman entry passes no config of its own; `additional_checks_path` is a documented
    option whose `*.rb` files Brakeman requires). A Rails app handed to the owner runs Ruby on their computer under
@@ -52,4 +52,4 @@ hands to add here as they choose.
    "The program itself"): `adapters::located`, with a program found nowhere still run by name, so "not installed"
    reads as it did. Not done: naming the program's path in the report, since the path can hold the owner's home
    folder and a report may be shared; the refusal names it instead.
-   **Part status:** partly done: unclear, needs a look
+   **Part status:** done, 8 October 2026
