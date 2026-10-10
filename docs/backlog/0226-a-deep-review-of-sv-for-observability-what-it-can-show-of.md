@@ -153,7 +153,7 @@ decision; part 2 is cheap visibility, also not the owner's; part 3 needs the own
     the app's exit code and out-of-memory flag on that path, the seconds to healthy, how the fence was made
     (`made_with`, now shown only on failure), teardown errors (now `let _`), and that a download volume was kept, its
     name and how to remove it. ADR-052 names the old label `securevibe.deps`; the code uses `stackvet.deps`.
-   **Part status:** open
+   **Part status:** claimed by stackvet-e9, 10 October 2026
 19. **The MCP server's errors.** It keeps no record of an error it returns; one stderr line per error (tool and
     kind, no app text), which the AI tool's own log usually keeps.
    **Part status:** done, 10 October 2026
@@ -353,3 +353,10 @@ owner's "continue to work off the backlog", once #1325 had merged (`docs/design/
 says the cause and the command that shows the whole error at a terminal. Each error the MCP server returns leaves
 one line on stderr, naming the tool or method and the kind of error, with no app text. Breaks: with each fix
 undone, its test fails.
+
+**Part 2, item 18 claimed on 10 October 2026 by session stackvet-e9**, under the owner's "continue to work off the
+backlog", in branch `claude/stackvet-e9-obs-17-20`: what happened to the container, said where it is now silent or
+wrong (the true wait, the app's exit code and out-of-memory flag, the seconds to healthy, how the fence was made,
+teardown errors, a kept download volume), and ADR-052's old label name corrected; each with a test that fails
+without it. Item 20 waits for open pull request #1337 (another session), which adds the list of package files `sv`
+could not read, where a version catalog that does not parse belongs.
