@@ -371,6 +371,11 @@ app took to answer, how its network was made, what could not be removed, and whi
 the commands for each; ADR-052 names `stackvet.deps`. Still open: what a run that failed could not remove. Breaks:
 with the teardown's answer dropped, or the old wording, a test fails.
 
+**Part 2, item 18 claimed on 10 October 2026 by session securevibe-e2**, its remainder, under the owner's
+"continue to work through and pick up new items", in branch `claude/securevibe-e2-failed-left`: what a run that
+failed could not remove, said in the failure as a finished run says it (`RunFailed`), where today the teardown's answer is dropped
+on every failing path; with a test that fails without it.
+
 **Part 2, item 18 done on 10 October 2026** (`docs/design/0360-what-a-run-that-failed-could-not-remove-10-october-2026.md`): a run that failed says what its own teardown could not
 remove, with what Docker said and the command to remove it, in the same sentence a finished run uses
 (`RunFailed::not_removed`). Breaks: with the answer dropped, the list left empty, or the sentence left out, the new
