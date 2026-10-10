@@ -237,7 +237,7 @@ impl RequirementLine {
     /// 226, part 2, item 17): on a row that needs attention, the checks and tests that passed as
     /// well, which a finding outranks; on a row a set-aside false alarm kept from *checked*, which
     /// one. Empty when neither applies.
-    pub fn credit_note(&self) -> String {
+    pub fn counting_note(&self) -> String {
         let passed: Vec<&str> = self
             .checked_by
             .iter()

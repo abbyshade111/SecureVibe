@@ -6,7 +6,7 @@ and JSON only: no status changes. `sv explain` follows in a pull request of its 
 **A row that needs attention.** It showed only its findings. The checks and tests that passed for the same
 requirement were in `checked_by` and `tested_by` but on no page, and the rule that a finding outranks every credit
 was only a comment above `status_of`. The row now says "these passed as well and do not count, since a finding
-outranks every credit: …", on `compliance.md` and `report.html` alike (`RequirementLine::credit_note`).
+outranks every credit: …", on `compliance.md` and `report.html` alike (`RequirementLine::counting_note`).
 
 **A false alarm that kept a check from counting.** A finding set aside as a false alarm turns a requirement it
 names from *checked* into a bare *not verified* (`status_of`). The row now carries `withheld_by`, the rule ids of

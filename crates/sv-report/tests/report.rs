@@ -3518,7 +3518,7 @@ fn a_row_that_needs_attention_names_what_passed_as_well_and_why_it_does_not_coun
         vec![finding("ast.sql", &["V1.2.1"])],
         &passed,
     ));
-    let note = report.requirements[0].credit_note();
+    let note = report.requirements[0].counting_note();
     assert!(
         note.contains("config.something") && note.contains("a finding outranks every credit"),
         "{note}"
@@ -3557,14 +3557,14 @@ fn a_false_alarm_set_aside_names_itself_where_it_kept_a_check_from_counting() {
     assert_eq!(row("V1.2.1").withheld_by, ["ast.sql"]);
     assert!(
         row("V1.2.1")
-            .credit_note()
+            .counting_note()
             .contains("ast.sql was set aside here as a false alarm"),
         "{}",
-        row("V1.2.1").credit_note()
+        row("V1.2.1").counting_note()
     );
     // Nothing was set aside for the other, which is checked and says nothing more.
     assert!(row("V1.3.1").withheld_by.is_empty());
-    assert_eq!(row("V1.3.1").credit_note(), "");
+    assert_eq!(row("V1.3.1").counting_note(), "");
     let json = sv_report::json::to_value(&report);
     let row_json = json["requirements"]
         .as_array()
