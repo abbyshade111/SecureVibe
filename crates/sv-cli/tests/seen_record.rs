@@ -82,11 +82,20 @@ fn what_the_running_app_answered_is_kept_with_no_credential_in_it() {
     );
     // Nothing of either credential reached the file, and what took their place says so.
     assert!(!seen.contains(&key), "the key reached seen.json: {seen}");
-    assert!(!seen.contains(&session), "the session id reached seen.json: {seen}");
+    assert!(
+        !seen.contains(&session),
+        "the session id reached seen.json: {seen}"
+    );
     assert!(seen.contains("[redacted:"), "{seen}");
     assert!(seen.contains("trace=[removed,"), "{seen}");
-    assert!(value["credentials_removed"].as_u64().unwrap() >= 2, "{seen}");
+    assert!(
+        value["credentials_removed"].as_u64().unwrap() >= 2,
+        "{seen}"
+    );
     // And the report says the record is there.
     let report = std::fs::read_to_string(folder.join("compliance.md")).unwrap();
-    assert!(report.contains("kept beside this report in seen.json"), "{report}");
+    assert!(
+        report.contains("kept beside this report in seen.json"),
+        "{report}"
+    );
 }
